@@ -145,91 +145,10 @@
   );
   $$("[data-countup]").forEach((el) => countIO.observe(el));
 
-  /* ============================================================ HERO BACKGROUND CANVAS */
-
-  (function heroCanvas() {
-    const c = $("#hero-canvas");
-    if (!c) return;
-    const ctx = c.getContext("2d");
-    let w = 0, h = 0, dpr = Math.min(window.devicePixelRatio || 1, 2);
-
-    function sizeCanvas() {
-      const rect = c.getBoundingClientRect();
-      w = rect.width; h = rect.height;
-      c.width = w * dpr; c.height = h * dpr;
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    }
-    sizeCanvas();
-
-    const rand = rng(7);
-    const N = REDUCED ? 24 : 70;
-    const particles = Array.from({ length: N }, () => ({
-      x: rand() * w, y: rand() * h,
-      vx: (rand() - 0.5) * 0.25, vy: (rand() - 0.5) * 0.25,
-      r: 0.6 + rand() * 1.6,
-      hue: rand() > 0.5 ? 170 : 200,
-    }));
-    // Sparse stars
-    const stars = Array.from({ length: 80 }, () => ({
-      x: rand() * w, y: rand() * h, a: 0.05 + rand() * 0.18,
-    }));
-
-    function render(animate) {
-      ctx.clearRect(0, 0, w, h);
-      // stars
-      ctx.fillStyle = "rgba(255,255,255,0.9)";
-      stars.forEach((s) => {
-        ctx.globalAlpha = s.a;
-        ctx.fillRect(s.x, s.y, 1, 1);
-      });
-      ctx.globalAlpha = 1;
-      // particles + connecting lines
-      particles.forEach((p) => {
-        if (animate) {
-          p.x += p.vx; p.y += p.vy;
-          if (p.x < -10) p.x = w + 10; if (p.x > w + 10) p.x = -10;
-          if (p.y < -10) p.y = h + 10; if (p.y > h + 10) p.y = -10;
-        }
-        const grd = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r * 3);
-        grd.addColorStop(0, `hsla(${p.hue}, 90%, 70%, 0.85)`);
-        grd.addColorStop(1, "transparent");
-        ctx.fillStyle = grd;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.r * 3, 0, Math.PI * 2);
-        ctx.fill();
-      });
-      // lines for nearby pairs
-      for (let i = 0; i < particles.length; i++) {
-        for (let j = i + 1; j < particles.length; j++) {
-          const a = particles[i], b = particles[j];
-          const dx = a.x - b.x, dy = a.y - b.y;
-          const d2 = dx * dx + dy * dy;
-          if (d2 < 110 * 110) {
-            const alpha = (1 - d2 / (110 * 110)) * 0.18;
-            ctx.strokeStyle = `rgba(94,234,212,${alpha})`;
-            ctx.lineWidth = 0.6;
-            ctx.beginPath();
-            ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y);
-            ctx.stroke();
-          }
-        }
-      }
-    }
-    function tick() {
-      render(true);
-      requestAnimationFrame(tick);
-    }
-    // Setting canvas.width/height in sizeCanvas() wipes the bitmap, so the
-    // reduced-motion path must repaint after every resize. Registered here,
-    // after particles/stars/render exist, to avoid a TDZ on initial load.
-    window.addEventListener("resize", () => {
-      sizeCanvas();
-      if (REDUCED) render(false);
-    });
-
-    if (REDUCED) render(false);
-    else requestAnimationFrame(tick);
-  })();
+  /* Hero ambient canvas was removed during the branding visual-system pass.
+     Drifting particles + connecting lines read as default AI polish; the
+     hero now leans on a static technical grid + scale rule (SVG in HTML)
+     to express building-science / measurement language without animation. */
 
   /* ============================================================ VIRGINIA MAP */
 
@@ -337,9 +256,7 @@
         .attr("cy", (d) => projection([d.lng, d.lat])[1])
         .attr("r", 0)
         .attr("opacity", 0)
-        .style("filter", (d) => d.status === "existing"
-          ? "drop-shadow(0 0 4px rgba(94,234,212,0.7))"
-          : "drop-shadow(0 0 4px rgba(192,132,252,0.7))")
+        .style("filter", "none")
         .on("mouseenter", (event, d) => activate(d, event.currentTarget))
         .on("mouseleave", () => deactivate())
         .on("click", (event, d) => activate(d, event.currentTarget, true))
@@ -565,12 +482,12 @@
         fillAmber() {
           if (!this.el) return;
           this.el.setAttribute("fill", "rgba(251,191,36,0.85)");
-          this.el.setAttribute("filter", "drop-shadow(0 0 2px rgba(251,191,36,0.55))");
+          this.el.setAttribute("filter", "none");
         },
         fillCyan() {
           if (!this.el) return;
           this.el.setAttribute("fill", "rgba(94,234,212,0.85)");
-          this.el.setAttribute("filter", "drop-shadow(0 0 3px rgba(94,234,212,0.6))");
+          this.el.setAttribute("filter", "none");
         },
       };
       const c = document.createElementNS(SVG_NS, "circle");
@@ -782,12 +699,12 @@
       const bOpacity = opacityFor("B");
       if (bOpacity > 0.3) ps.appendChild(el("path", { d: areaPath(bPts), fill: "url(#grad-b)", opacity: bOpacity }));
       const animate = pressureFirstDraw && !REDUCED;
-      const bLine = el("path", { d: pathFor(bPts), fill: "none", stroke: "#c084fc", "stroke-width": strokeWidthFor("B", 1.8), "stroke-linecap": "round", "stroke-dasharray": 600, "stroke-dashoffset": animate ? 600 : 0, opacity: bOpacity, filter: "drop-shadow(0 0 4px rgba(192,132,252,0.55))" });
+      const bLine = el("path", { d: pathFor(bPts), fill: "none", stroke: "#c084fc", "stroke-width": strokeWidthFor("B", 1.8), "stroke-linecap": "round", "stroke-dasharray": 600, "stroke-dashoffset": animate ? 600 : 0, opacity: bOpacity, filter: "none" });
       ps.appendChild(bLine);
 
       const aOpacity = opacityFor("A");
       if (aOpacity > 0.3) ps.appendChild(el("path", { d: areaPath(aPts), fill: "url(#grad-a)", opacity: aOpacity }));
-      const aLine = el("path", { d: pathFor(aPts), fill: "none", stroke: "#5eead4", "stroke-width": strokeWidthFor("A", 2.2), "stroke-linecap": "round", "stroke-dasharray": 600, "stroke-dashoffset": animate ? 600 : 0, opacity: aOpacity, filter: "drop-shadow(0 0 4px rgba(94,234,212,0.6))" });
+      const aLine = el("path", { d: pathFor(aPts), fill: "none", stroke: "#5eead4", "stroke-width": strokeWidthFor("A", 2.2), "stroke-linecap": "round", "stroke-dasharray": 600, "stroke-dashoffset": animate ? 600 : 0, opacity: aOpacity, filter: "none" });
       ps.appendChild(aLine);
 
       function marker(pt, color, label, dy, filter) {
@@ -870,8 +787,8 @@
       const animate = pmFirstDraw && !REDUCED;
       const aOp = opacityFor("A");
       const bOp = opacityFor("B");
-      const bLine = el("path", { d: pathFor(bPts), fill: "none", stroke: "#c084fc", "stroke-width": strokeWidthFor("B", 1.4), opacity: bOp, filter: "drop-shadow(0 0 3px rgba(192,132,252,0.5))", "stroke-dasharray": 700, "stroke-dashoffset": animate ? 700 : 0 });
-      const aLine = el("path", { d: pathFor(aPts), fill: "none", stroke: "#5eead4", "stroke-width": strokeWidthFor("A", 1.8), opacity: aOp, filter: "drop-shadow(0 0 3px rgba(94,234,212,0.55))", "stroke-dasharray": 700, "stroke-dashoffset": animate ? 700 : 0 });
+      const bLine = el("path", { d: pathFor(bPts), fill: "none", stroke: "#c084fc", "stroke-width": strokeWidthFor("B", 1.4), opacity: bOp, filter: "none", "stroke-dasharray": 700, "stroke-dashoffset": animate ? 700 : 0 });
+      const aLine = el("path", { d: pathFor(aPts), fill: "none", stroke: "#5eead4", "stroke-width": strokeWidthFor("A", 1.8), opacity: aOp, filter: "none", "stroke-dasharray": 700, "stroke-dashoffset": animate ? 700 : 0 });
       pm.appendChild(bLine);
       pm.appendChild(aLine);
 
@@ -1323,7 +1240,7 @@
       path.setAttribute("stroke", "#5eead4");
       path.setAttribute("stroke-width", "1.6");
       path.setAttribute("opacity", "0.9");
-      path.setAttribute("filter", "drop-shadow(0 0 3px rgba(94,234,212,0.5))");
+      path.setAttribute("filter", "none");
       svg.appendChild(path);
       const area = document.createElementNS(ns, "path");
       area.setAttribute("d", d + ` L${W},${H} L0,${H} Z`);
