@@ -12,6 +12,6 @@
 *.csv
 
 # Brief documents (kept locally, not committed)
-9f_datacenters_definitive_execution_brief.md
-9f_datacenters_execution_brief.md
+9f_datacenters_*execution_brief.md
 sr_ux_ui_data_viz_review_brief.md
+claude_codex_*.md

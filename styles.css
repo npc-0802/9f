@@ -133,6 +133,13 @@ sub, sup { font-size: 0.7em; }
   color: var(--ink-2);
   line-height: 1.6;
 }
+.section__geo {
+  margin-top: 14px;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  letter-spacing: 0.02em;
+  max-width: 64ch;
+}
 
 .eyebrow {
   display: inline-flex;
@@ -229,7 +236,10 @@ sub, sup { font-size: 0.7em; }
   padding: 24px;
   transition: border-color var(--t-med) var(--ease), transform var(--t-med) var(--ease);
 }
-.card::before {
+/* Hover bloom is reserved for genuinely interactive cards. The ::before
+   layer only exists on .card--interactive — static stat / impact / role
+   cards skip the extra pseudo-element entirely. */
+.card--interactive::before {
   content: "";
   position: absolute;
   inset: 0;
@@ -239,9 +249,6 @@ sub, sup { font-size: 0.7em; }
   opacity: 0;
   transition: opacity var(--t-med) var(--ease);
 }
-/* Hover bloom is reserved for genuinely interactive cards. Static stat /
-   impact / role cards get a subtler border-strengthen only — hover is a
-   signal, not decoration. */
 .card--interactive:hover { border-color: rgba(94,234,212,0.32); }
 .card--interactive:hover::before { opacity: 0.65; }
 .card--stat:hover, .card--imp:hover, .card--role:hover { border-color: var(--line-strong); }
@@ -486,6 +493,15 @@ sub, sup { font-size: 0.7em; }
 .filters { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
 .filters__sep { width: 1px; height: 18px; background: var(--line-1); margin: 0 4px; }
 
+.map-showing {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--ink-3);
+  letter-spacing: 0.04em;
+  padding: 6px 12px 0;
+  font-variant-numeric: tabular-nums;
+}
+
 .map-canvas {
   position: relative;
   flex: 1; min-height: 440px;
@@ -660,7 +676,8 @@ sub, sup { font-size: 0.7em; }
   display: block; font-family: var(--font-display); font-size: 1.7rem;
   color: var(--ink-1); letter-spacing: -0.015em; line-height: 1.05;
 }
-.pillar__metric span { color: var(--ink-3); font-size: 0.85rem; margin-left: 0; }
+/* Pillar units route through the global .u rule; no element-level
+   override here, so kWh/y, µg/m³, Pa, and M all share one register. */
 .pillar__metric small { display: block; margin-top: 6px; color: var(--ink-4); font-size: 0.78rem; font-family: var(--font-mono); }
 .pillar--accent {
   background: linear-gradient(180deg, rgba(94,234,212,0.10), rgba(94,234,212,0.025));
@@ -712,26 +729,20 @@ sub, sup { font-size: 0.7em; }
 }
 .fs__headline-eyebrow { display: flex; justify-content: space-between; align-items: center; gap: 18px; flex-wrap: wrap; margin-bottom: 14px; }
 .fs__headline-method { color: var(--ink-3); }
-.fs__headline-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1.25fr);
-  gap: 36px;
-  align-items: center;
-}
 .fs__headline-result h3 {
   font-size: clamp(1.25rem, 2.2vw, 1.6rem);
   font-weight: 500;
   line-height: 1.25;
   letter-spacing: -0.008em;
   color: var(--ink-1);
-  margin: 8px 0 12px;
-  max-width: 30ch;
+  margin: 14px 0 10px;
+  max-width: 42ch;
 }
-.fs__headline-result p { color: var(--ink-3); font-size: 0.95rem; max-width: 42ch; }
+.fs__headline-result p { color: var(--ink-3); font-size: 0.95rem; max-width: 60ch; margin-bottom: 28px; }
 .fs__headline-num {
   display: inline-flex; align-items: baseline; gap: 2px;
   font-family: var(--font-display);
-  font-size: clamp(3.8rem, 8vw, 6.2rem);
+  font-size: clamp(3.6rem, 8vw, 6rem);
   font-weight: 700;
   line-height: 0.95;
   letter-spacing: -0.035em;
@@ -739,38 +750,35 @@ sub, sup { font-size: 0.7em; }
   -webkit-background-clip: text; background-clip: text; color: transparent;
   font-variant-numeric: tabular-nums;
 }
-.fs__headline-label { font-size: 0.55em; opacity: 0.7; margin-right: 6px; }
+.fs__headline-num .u { font-size: 0.42em; letter-spacing: 0.02em; margin-left: 4px; opacity: 0.9; }
 .fs__headline-stats {
-  list-style: none; padding: 0; margin: 0;
-  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  list-style: none; padding: 18px 0 0; margin: 0;
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 24px;
+  border-top: 1px solid var(--line-1);
 }
 .fs__headline-stats li {
   display: flex; flex-direction: column; gap: 2px;
-  padding: 16px 18px;
-  background: rgba(0,0,0,0.28);
-  border: 1px solid var(--line-1);
-  border-radius: var(--r-md);
+  padding: 0;
+  background: transparent;
+  border: 0;
 }
 .fs__headline-stats b {
   font-family: var(--font-display);
-  font-size: 1.55rem;
+  font-size: 1.2rem;
   color: var(--ink-1);
-  letter-spacing: -0.012em;
-  line-height: 1.1;
+  letter-spacing: -0.008em;
+  line-height: 1.15;
   font-variant-numeric: tabular-nums;
 }
-.fs__headline-stats .u { font-size: 0.76em; }
+.fs__headline-stats .u { font-size: 0.7em; }
 .fs__headline-stats label {
-  color: var(--ink-3); font-size: 0.78rem; letter-spacing: 0.02em;
-  margin-top: 4px;
+  color: var(--ink-3); font-size: 0.74rem; letter-spacing: 0.04em;
+  margin-top: 2px; text-transform: uppercase;
 }
-@media (max-width: 900px) {
-  .fs__headline { padding: 26px; }
-  .fs__headline-grid { grid-template-columns: 1fr; gap: 24px; }
-  .fs__headline-stats { grid-template-columns: 1fr 1fr; }
-}
-@media (max-width: 480px) { .fs__headline-stats { grid-template-columns: 1fr; } }
+@media (max-width: 720px) { .fs__headline-stats { grid-template-columns: repeat(2, 1fr); gap: 18px; } }
+@media (max-width: 420px) { .fs__headline-stats { grid-template-columns: 1fr; } }
+@media (max-width: 900px) { .fs__headline { padding: 26px; } }
 
 /* ============================================================ MATRIX */
 

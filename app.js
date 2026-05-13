@@ -364,15 +364,39 @@
       // initial site detail = an iconic large site (highest IT load)
       const flagship = data.sites.slice().sort((a, b) => b.it_mw - a.it_mw)[0];
       updatePanel(flagship);
+      // seed legend counts + "showing N of N" caption on first paint
+      applyFilters();
     }
 
+    // Single calculation path — applies the active filter state and
+    // updates every readout that depends on it (legend counts, totals).
     function applyFilters() {
       if (!pointSel) return;
+      let existingVisible = 0, plannedVisible = 0;
       pointSel.classed("is-faded", (d) => {
-        if (filterState.status !== "all" && d.status !== filterState.status) return true;
-        if (filterState.system !== "all" && d.system !== filterState.system) return true;
-        return false;
+        const faded =
+          (filterState.status !== "all" && d.status !== filterState.status) ||
+          (filterState.system !== "all" && d.system !== filterState.system);
+        if (!faded) {
+          if (d.status === "existing") existingVisible++;
+          else if (d.status === "planned") plannedVisible++;
+        }
+        return faded;
       });
+      const totalVisible = existingVisible + plannedVisible;
+      const totalAll = data.sites.length;
+
+      const $le = document.getElementById("legend-existing");
+      const $lp = document.getElementById("legend-planned");
+      if ($le) $le.textContent = existingVisible.toLocaleString();
+      if ($lp) $lp.textContent = plannedVisible.toLocaleString();
+
+      const $showing = document.getElementById("map-showing");
+      if ($showing) {
+        $showing.textContent = totalVisible === totalAll
+          ? `Showing all ${totalAll.toLocaleString()} sites`
+          : `Showing ${totalVisible.toLocaleString()} of ${totalAll.toLocaleString()} sites`;
+      }
     }
 
     // wire filter chips
@@ -1314,15 +1338,6 @@
         setFloor(btn.dataset.hlFloor);
       });
     });
-    // Range toggle — no-op for now (data is the same regardless of range);
-    // the chip just records user intent. Removed the random repaint that
-    // previously fired here.
-    $$('[data-hl-range]').forEach((btn) => {
-      btn.addEventListener("click", () => {
-        $$('[data-hl-range]').forEach((b) => b.classList.toggle("is-active", b === btn));
-      });
-    });
-
     // Animate the bar fill on initial viewport entry (one-shot)
     const bar = $("#hl-bar");
     if (bar && !REDUCED) {
