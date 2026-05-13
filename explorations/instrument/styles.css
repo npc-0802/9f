@@ -142,31 +142,190 @@ input,
   color: var(--t-1);
 }
 
-/* ----------------------------------------------------------- console strip */
-.console {
+/* ----------------------------------------------------------- topnav (9F-branded) */
+.topnav {
   position: sticky;
   top: 0;
   z-index: 50;
-  background: rgba(8, 11, 14, 0.86);
+  background: rgba(8, 11, 14, 0.92);
   backdrop-filter: blur(12px) saturate(140%);
   -webkit-backdrop-filter: blur(12px) saturate(140%);
   border-bottom: 1px solid var(--ln-2);
-  font-family: var(--mono);
-  font-size: 10.5px;
-  font-weight: 500;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
   color: var(--t-2);
 }
-.console__inner {
+.topnav__inner {
   display: flex;
-  align-items: stretch;
+  align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  padding: 0 20px;
-  height: 36px;
+  gap: 24px;
+  padding: 14px 24px;
   max-width: 1480px;
   margin: 0 auto;
+  position: relative;
+}
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--t-1);
+  text-decoration: none;
+  font-weight: 600;
+}
+.brand__mark { color: var(--sig-ok); display: inline-flex; }
+.brand__name {
+  font-family: var(--display, "Inter"), system-ui, sans-serif;
+  font-weight: 700;
+  font-size: 1.02rem;
+  letter-spacing: -0.005em;
+  color: var(--t-1);
+}
+.brand__divider { width: 1px; height: 16px; background: var(--ln-strong, rgba(255,255,255,0.18)); display: inline-block; margin: 0 6px; }
+.brand__crumb { color: var(--t-3); font-weight: 500; font-size: 0.92rem; letter-spacing: 0.005em; }
+
+.topnav__meta {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+  margin-left: auto;
+  margin-right: 18px;
+  font-family: var(--mono);
+}
+.topnav__meta-k {
+  font-size: 0.66rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--t-4);
+}
+.topnav__meta-v {
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  color: var(--t-2);
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 720px) { .topnav__meta { display: none; } }
+
+.topnav__progress {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 1px;
+  background: var(--sig-ok);
+  transform: scaleX(0);
+  transform-origin: 0 50%;
+  transition: transform 80ms linear;
+  pointer-events: none;
+}
+
+/* ----------------------------------------------------------- module eyebrow (replaces .mod__tag terminal codes) */
+.mod__eyebrow {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 12px;
+  font-family: var(--mono);
+  font-size: 0.74rem;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--t-3);
+  margin-bottom: 14px;
+}
+.mod__num {
+  display: inline-block;
+  color: var(--sig-ok);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+  position: relative;
+  padding-right: 14px;
+}
+.mod__num::after {
+  content: "";
+  position: absolute;
+  right: 0; top: 50%;
+  width: 6px; height: 1px;
+  background: var(--ln-1);
+}
+
+/* ----------------------------------------------------------- editorial brief eyebrow + byline */
+.brief__eyebrow {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 14px;
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--t-3);
+  margin-bottom: 28px;
+}
+.brief__eyebrow-n { color: var(--sig-ok); font-variant-numeric: tabular-nums; }
+.brief__eyebrow-l { color: var(--t-2); }
+.brief__eyebrow-d { color: var(--t-4); letter-spacing: 0.04em; text-transform: none; font-size: 0.82rem; }
+
+.brief__claim {
+  font-family: var(--display, "Inter"), system-ui, sans-serif;
+  font-size: clamp(2.4rem, 5.2vw, 4.2rem);
+  line-height: 1.02;
+  letter-spacing: -0.032em;
+  font-weight: 700;
+  color: var(--t-1);
+  margin: 0 0 36px;
+  max-width: 22ch;
+}
+
+.brief__lede {
+  font-size: 1.05rem;
+  line-height: 1.6;
+  color: var(--t-2);
+  max-width: 56ch;
+  margin: 0 0 26px;
+}
+
+.brief__byline {
+  margin: 32px 0 0;
+  padding: 22px 0 0;
+  border-top: 1px solid var(--ln-1);
+  display: grid;
+  gap: 12px 24px;
+  grid-template-columns: minmax(0, 1fr);
+}
+.brief__byline > div {
+  display: grid;
+  grid-template-columns: 130px minmax(0, 1fr);
+  gap: 16px;
+  align-items: baseline;
+}
+.brief__byline dt {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--t-4);
+}
+.brief__byline dd {
+  font-size: 0.92rem;
+  color: var(--t-1);
+  margin: 0;
+}
+
+/* ----------------------------------------------------------- shared editorial label classes */
+.map__panel-k,
+.arch__diagram-k {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--t-3);
+  margin-bottom: 6px;
+}
+.arch__diagram-v {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  color: var(--t-2);
 }
 .console__cluster {
   display: flex;

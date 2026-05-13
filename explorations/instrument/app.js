@@ -38,38 +38,15 @@
     };
   }
 
-  // ============================================================ CONSOLE: clock + session + scroll
-  (function consoleStrip() {
-    const clock = $("#clock");
-    const session = $("#session-id");
+  // ============================================================ TOPNAV: scroll progress rail
+  (function topnavProgress() {
     const progress = $("#console-progress");
-
-    // Session id — deterministic from day; not fake live data.
-    if (session) {
-      const d = new Date();
-      const stamp = `${d.getUTCFullYear()}${String(d.getUTCMonth()+1).padStart(2,"0")}${String(d.getUTCDate()).padStart(2,"0")}`;
-      const r = rng(parseInt(stamp, 10));
-      const hex = Array.from({length: 6}, () => Math.floor(r() * 16).toString(16).toUpperCase()).join("");
-      session.textContent = "SX-" + hex;
-    }
-
-    function tickClock() {
-      if (!clock) return;
-      const d = new Date();
-      clock.textContent =
-        String(d.getUTCHours()).padStart(2,"0") + ":" +
-        String(d.getUTCMinutes()).padStart(2,"0") + ":" +
-        String(d.getUTCSeconds()).padStart(2,"0");
-    }
-    tickClock();
-    setInterval(tickClock, 1000);   // honest: real wall-clock UTC
-
+    if (!progress) return;
     function onScroll() {
-      if (!progress) return;
       const doc = document.documentElement;
       const max = Math.max(1, (doc.scrollHeight || document.body.scrollHeight) - window.innerHeight);
       const pct = Math.min(1, Math.max(0, window.scrollY / max));
-      progress.style.setProperty("--scroll", pct.toFixed(4));
+      progress.style.transform = `scaleX(${pct.toFixed(4)})`;
     }
     window.addEventListener("scroll", onScroll, { passive: true });
     onScroll();
@@ -597,10 +574,9 @@
         b.classList.toggle("is-active", b.dataset.fs === mode)
       );
 
-      // Scenario label
-      $("#fs-scenario").textContent =
-        mode === "AB" ? "COMPARE A↔B" :
-        mode === "A"  ? "ISOLATE A"   : "ISOLATE B";
+      // Scenario label (element only exists if the HTML still renders the meta strip)
+      const fsScen = $("#fs-scenario");
+      if (fsScen) fsScen.textContent = mode === "AB" ? "Compare A↔B" : mode === "A" ? "Isolate A" : "Isolate B";
 
       const showA = mode === "A" || mode === "AB";
       const showB = mode === "B" || mode === "AB";
@@ -764,18 +740,21 @@
     setActive("AB");
   })();
 
-  // ============================================================ MOD-05 · MATRIX
+  // ============================================================ MATRIX (decision surface)
+  // The heatmap is rendered fluidly — measure the SVG's container, set the
+  // viewBox to match, and draw cells from measured dimensions. preserveAspectRatio
+  // is intentionally NOT set to "none" (was distorting cells); the surface stays
+  // in proportion. Y-axis is conventional: HIGH HVAC efficiency at the TOP, low at
+  // the bottom. Best operating regime is therefore top-left (low U + high η).
   (function matrix() {
     if (typeof d3 === "undefined") return;
     const svg = d3.select("#mx-heat");
     if (svg.empty()) return;
-
-    const W = 560, H = 360;
-    svg.attr("viewBox", `0 0 ${W} ${H}`);
+    const svgEl = svg.node();
 
     // 8 × 6 surface: U-value × HVAC efficiency
-    const COLS = 8;  // U-value: 0.5 → 1.6 W/m²K
-    const ROWS = 6;  // HVAC eff: 0.55 → 0.90
+    const COLS = 8;  // U-value: 0.5 → 1.6 W/m²K (left = best envelope)
+    const ROWS = 6;  // HVAC eff: 0.55 → 0.90    (top = best HVAC efficiency)
     const us = d3.range(COLS).map(i => 0.5 + (i / (COLS - 1)) * 1.1);
     const effs = d3.range(ROWS).map(i => 0.55 + (i / (ROWS - 1)) * 0.35);
 
@@ -783,20 +762,21 @@
     const BASE_EUI = 720;
     // Scenarios: model deltas applied to surface
     const SCEN = {
-      baseline:   { dU: 0,    dEff: 0,    label: "BASELINE",   pctMax: 0.4,  stack: "BASELINE" },
-      envelope:   { dU: -0.4, dEff: 0,    label: "+ ENVELOPE", pctMax: 1.0,  stack: "BASELINE + ENVELOPE" },
-      setpoints:  { dU: 0,    dEff: 0.05, label: "+ SETPOINT", pctMax: 1.3,  stack: "BASELINE + SETPOINT" },
-      all:        { dU: -0.4, dEff: 0.08, label: "+ ALL",      pctMax: 2.0,  stack: "BASELINE + ENVELOPE + SETPOINT + HVAC" }
+      baseline:   { dU: 0,    dEff: 0,    label: "Baseline",   pctMax: 0.4,  stack: "Baseline" },
+      envelope:   { dU: -0.4, dEff: 0,    label: "+ Envelope", pctMax: 1.0,  stack: "Baseline + envelope" },
+      setpoints:  { dU: 0,    dEff: 0.05, label: "+ Setpoints", pctMax: 1.3,  stack: "Baseline + setpoint tune" },
+      all:        { dU: -0.4, dEff: 0.08, label: "+ All",      pctMax: 2.0,  stack: "Baseline + envelope + setpoint + HVAC" }
     };
 
-    // Surface generator — deterministic, scenario-shifted
+    // Surface generator — deterministic, scenario-shifted. Returns the data
+    // grid in DATA ORIENTATION: row 0 = lowest efficiency, row ROWS-1 = highest.
+    // The renderer flips rows so the highest efficiency is drawn at the top.
     function surface(scen) {
       const grid = [];
-      let min = Infinity, max = -Infinity, minIdx = [0, 0];
+      let min = Infinity, max = -Infinity, minIdx = [0, 0]; // [col, dataRow]
       for (let r = 0; r < ROWS; r++) {
         const row = [];
         for (let c = 0; c < COLS; c++) {
-          // U-value effective (lower better)
           const u = us[c] + scen.dU;
           const eff = effs[r] + scen.dEff;
           // EUI model: linear in U, inverse in efficiency
@@ -810,35 +790,51 @@
       return { grid, min, max, minIdx };
     }
 
-    const m = { l: 60, r: 130, t: 20, b: 44 };
-    const drawW = W - m.l - m.r;
-    const drawH = H - m.t - m.b;
-    const cellW = drawW / COLS;
-    const cellH = drawH / ROWS;
+    let lastScenKey = "baseline";
 
     function render(scenKey) {
+      lastScenKey = scenKey;
       const scen = SCEN[scenKey];
       const s = surface(scen);
+
+      // Measure the rendered SVG width and set viewBox to match — no aspect
+      // distortion. Height held to a fixed editorial proportion of the width
+      // so cells stay close to square at typical container widths.
+      const rect = svgEl.getBoundingClientRect();
+      const W = Math.max(560, Math.round(rect.width || 720));
+      const H = Math.min(420, Math.max(320, Math.round(W * 0.42)));
+      svg.attr("viewBox", `0 0 ${W} ${H}`);
+
+      const m = { l: 84, r: 152, t: 22, b: 56 };
+      const drawW = W - m.l - m.r;
+      const drawH = H - m.t - m.b;
+      const cellW = drawW / COLS;
+      const cellH = drawH / ROWS;
+
       const color = d3.scaleSequential()
-        .domain([s.max, s.min])  // reversed so dark = low = good
+        .domain([s.max, s.min])  // reversed so dark = high EUI (worst), light = low EUI (best)
         .interpolator(d3.interpolateRgbBasis([
-          "#1b2330",        // worst → cool dark navy
-          "#28455a",
-          "#3a8b9a",
-          "#6cf3c8",        // best → primary accent
-          "#a5ffd9"
+          "#0e1620",        // worst → near-black navy
+          "#1b3242",
+          "#2c6c84",
+          "#4fc3a8",
+          "#a5ffd9"         // best → primary accent
         ]));
 
       svg.selectAll("*").remove();
 
-      // surface cells
-      for (let r = 0; r < ROWS; r++) {
+      // surface cells — flip row index so highest efficiency draws at TOP
+      // (data row 0 = lowest eff renders at display row ROWS-1 = bottom).
+      const flipRow = (dataR) => ROWS - 1 - dataR;
+      const minDisplayR = flipRow(s.minIdx[1]);
+      for (let dataR = 0; dataR < ROWS; dataR++) {
+        const displayR = flipRow(dataR);
         for (let c = 0; c < COLS; c++) {
-          const v = s.grid[r][c];
+          const v = s.grid[dataR][c];
           svg.append("rect")
-            .attr("class", "cell" + ((c === s.minIdx[0] && r === s.minIdx[1]) ? " is-min" : ""))
+            .attr("class", "cell" + ((c === s.minIdx[0] && dataR === s.minIdx[1]) ? " is-min" : ""))
             .attr("x", m.l + c*cellW + 0.5)
-            .attr("y", m.t + r*cellH + 0.5)
+            .attr("y", m.t + displayR*cellH + 0.5)
             .attr("width", cellW - 1)
             .attr("height", cellH - 1)
             .attr("fill", color(v));
@@ -846,54 +842,88 @@
       }
 
       // axes
-      // x-axis: U-value labels
+      // x-axis: U-value labels (left = low/good, right = high/bad)
       us.forEach((u, c) => {
         svg.append("text")
           .attr("class", "axis-text")
           .attr("font-family", "JetBrains Mono")
-          .attr("font-size", 9.5)
-          .attr("fill", "rgba(155,175,198,0.7)")
+          .attr("font-size", 10)
+          .attr("font-variant-numeric", "tabular-nums")
+          .attr("fill", "rgba(180,200,220,0.78)")
           .attr("x", m.l + c*cellW + cellW/2)
           .attr("y", m.t + drawH + 14)
           .attr("text-anchor", "middle")
           .text(u.toFixed(2));
       });
-      // y-axis: HVAC efficiency labels (top is high eff → invert)
-      effs.forEach((e, r) => {
+      // y-axis: HVAC efficiency labels — TOP shows highest eff, BOTTOM shows lowest
+      effs.forEach((e, dataR) => {
+        const displayR = flipRow(dataR);
         svg.append("text")
           .attr("class", "axis-text")
           .attr("font-family", "JetBrains Mono")
-          .attr("font-size", 9.5)
-          .attr("fill", "rgba(155,175,198,0.7)")
-          .attr("x", m.l - 8)
-          .attr("y", m.t + r*cellH + cellH/2 + 3)
+          .attr("font-size", 10)
+          .attr("font-variant-numeric", "tabular-nums")
+          .attr("fill", "rgba(180,200,220,0.78)")
+          .attr("x", m.l - 10)
+          .attr("y", m.t + displayR*cellH + cellH/2 + 3.5)
           .attr("text-anchor", "end")
           .text(e.toFixed(2));
       });
+
       // axis titles
       svg.append("text")
         .attr("class", "axis-title")
         .attr("font-family", "JetBrains Mono")
-        .attr("font-size", 9)
-        .attr("letter-spacing", "0.08em")
-        .attr("fill", "rgba(155,175,198,0.7)")
+        .attr("font-size", 9.5)
+        .attr("letter-spacing", "0.16em")
+        .attr("fill", "rgba(180,200,220,0.8)")
         .attr("x", m.l + drawW/2)
-        .attr("y", H - 14)
+        .attr("y", H - 22)
         .attr("text-anchor", "middle")
         .text("ENVELOPE U-VALUE · W/m²K");
+      // "good ← → bad" direction marker on X axis
+      svg.append("text")
+        .attr("font-family", "JetBrains Mono")
+        .attr("font-size", 8.5)
+        .attr("letter-spacing", "0.18em")
+        .attr("fill", "rgba(108,243,200,0.7)")
+        .attr("x", m.l)
+        .attr("y", H - 8)
+        .attr("text-anchor", "start")
+        .text("← BETTER");
+      svg.append("text")
+        .attr("font-family", "JetBrains Mono")
+        .attr("font-size", 8.5)
+        .attr("letter-spacing", "0.18em")
+        .attr("fill", "rgba(180,200,220,0.5)")
+        .attr("x", m.l + drawW)
+        .attr("y", H - 8)
+        .attr("text-anchor", "end")
+        .text("WORSE →");
+
+      // y-axis title (rotated, sits left of the y-axis numerics)
       svg.append("text")
         .attr("class", "axis-title")
         .attr("font-family", "JetBrains Mono")
-        .attr("font-size", 9)
-        .attr("letter-spacing", "0.08em")
-        .attr("fill", "rgba(155,175,198,0.7)")
-        .attr("transform", `translate(${m.l - 38}, ${m.t + drawH/2}) rotate(-90)`)
+        .attr("font-size", 9.5)
+        .attr("letter-spacing", "0.16em")
+        .attr("fill", "rgba(180,200,220,0.8)")
+        .attr("transform", `translate(${m.l - 56}, ${m.t + drawH/2}) rotate(-90)`)
         .attr("text-anchor", "middle")
         .text("HVAC EFFICIENCY · η");
+      // "↑ better" indicator at top of y-axis
+      svg.append("text")
+        .attr("font-family", "JetBrains Mono")
+        .attr("font-size", 8.5)
+        .attr("letter-spacing", "0.18em")
+        .attr("fill", "rgba(108,243,200,0.7)")
+        .attr("transform", `translate(${m.l - 38}, ${m.t + 6}) rotate(-90)`)
+        .attr("text-anchor", "end")
+        .text("BETTER ↑");
 
-      // marker at min
+      // marker at min — translate dataRow → displayRow
       const mx = m.l + s.minIdx[0]*cellW + cellW/2;
-      const my = m.t + s.minIdx[1]*cellH + cellH/2;
+      const my = m.t + minDisplayR*cellH + cellH/2;
       // crosshair
       svg.append("line").attr("class", "marker")
         .attr("x1", mx - 10).attr("x2", mx + 10).attr("y1", my).attr("y2", my);
@@ -968,7 +998,8 @@
       $("#mx-co2").textContent = fmt.int((annualKwh / 1000) * 0.42 * (reported / 100));
       $("#mx-stack").textContent = scen.stack;
 
-      $("#mx-scenario-lbl").textContent = scen.label.replace("+ ", "").trim() || "BASELINE";
+      const lbl = $("#mx-scenario-lbl");
+      if (lbl) lbl.textContent = scen.label.replace("+ ", "").trim() || "Baseline";
 
       // bars
       $("#mx-bar-pct").style.right = (100 - (reported / 2.0) * 100) + "%";
@@ -983,6 +1014,16 @@
       })
     );
     render("baseline");
+
+    // Redraw on container resize (rAF-debounced) so cells stay in proportion.
+    if (typeof ResizeObserver !== "undefined") {
+      let raf = 0;
+      const ro = new ResizeObserver(() => {
+        if (raf) cancelAnimationFrame(raf);
+        raf = requestAnimationFrame(() => { raf = 0; render(lastScenKey); });
+      });
+      ro.observe(svgEl);
+    }
   })();
 
   // ============================================================ MOD-06 · H.E.A.A.L.
@@ -1109,7 +1150,8 @@
 
     function setFloor(f) {
       const data = FLOORS[f];
-      $("#hl-floor-lbl").textContent = "FL-" + String(f).padStart(2, "0");
+      const floorLbl = $("#hl-floor-lbl");
+      if (floorLbl) floorLbl.textContent = "Floor " + f;
       $$(".panel--hl [data-hl-floor]").forEach((b) =>
         b.classList.toggle("is-active", b.dataset.hlFloor === String(f))
       );
