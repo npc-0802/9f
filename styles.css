@@ -87,6 +87,18 @@ h1, h2, h3, h4 { color: var(--ink-1); font-family: var(--font-display); font-wei
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum" 1, "lnum" 1;
 }
+/* Feature numeric token — single style shared across mid-tier supporting
+   metrics (Why stat cards, hero proof strip, impact cards). The hero-tier
+   gradient display (.fs__headline-num) is intentionally a separate rule
+   and is the only place --grad-1 is allowed. */
+.proof__num, .stat__num, .card--imp b {
+  font-family: var(--font-display);
+  font-size: clamp(1.9rem, 3vw, 2.3rem);
+  font-weight: 700;
+  letter-spacing: -0.018em;
+  line-height: 1;
+  color: var(--ink-1);
+}
 h1 { font-size: clamp(2.7rem, 5.6vw, 4.6rem); line-height: 1.02; letter-spacing: -0.032em; }
 h2 { font-size: clamp(2rem, 3.5vw, 2.85rem); line-height: 1.08; letter-spacing: -0.025em; }
 h3 { font-size: 1.18rem; line-height: 1.3; letter-spacing: -0.01em; font-weight: 600; }
@@ -102,7 +114,7 @@ sub, sup { font-size: 0.7em; }
 
 .skiplink {
   position: absolute; left: -9999px; top: 8px; background: var(--accent); color: #002120;
-  padding: 8px 14px; border-radius: 6px; z-index: 999; font-weight: 600;
+  padding: 8px 14px; border-radius: 2px; z-index: 999; font-weight: 600;
 }
 .skiplink:focus { left: 12px; }
 
@@ -210,7 +222,7 @@ sub, sup { font-size: 0.7em; }
 
 .chip {
   display: inline-flex;
-  align-items: center;
+  align-items: baseline;
   gap: 6px;
   padding: 6px 12px;
   border-radius: 2px;
@@ -224,6 +236,14 @@ sub, sup { font-size: 0.7em; }
   text-transform: uppercase;
   transition: border-color var(--t-fast), background var(--t-fast), color var(--t-fast);
 }
+.chip__expand {
+  font-size: 0.7em;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  color: var(--ink-4);
+  font-weight: 400;
+}
+.chip.is-active .chip__expand { color: var(--accent); opacity: 0.7; }
 .chip:hover { border-color: var(--line-strong); color: var(--ink-1); }
 .chip.is-active {
   background: transparent;
@@ -357,13 +377,45 @@ sub, sup { font-size: 0.7em; }
   background: linear-gradient(180deg, #fff 0%, #c4d2e2 100%);
   -webkit-background-clip: text; background-clip: text; color: transparent;
 }
-.hero__headline em { background: var(--grad-1); -webkit-background-clip: text; background-clip: text; color: transparent; font-style: italic; }
+.hero__headline em { color: var(--accent); font-style: italic; }
 .hero__sub {
-  margin: 24px 0 36px;
+  margin: 24px 0 28px;
   max-width: 58ch;
   font-size: 1.12rem;
   color: var(--ink-2);
 }
+/* Outcome framework strip — names the four-part story shape directly
+   under the hero copy. Single line on desktop; wraps on narrow. */
+.hero__frame {
+  list-style: none; margin: 0 0 36px; padding: 14px 0 0;
+  border-top: 1px solid var(--line-1);
+  display: flex; flex-wrap: wrap; gap: 22px 28px;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  color: var(--ink-2);
+}
+.hero__frame li { display: inline-flex; align-items: baseline; gap: 8px; }
+.frame__num {
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+}
+.frame__lbl {
+  color: var(--ink-1);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 0.74rem;
+  font-weight: 500;
+}
+.frame__sum {
+  color: var(--ink-3);
+  font-style: italic;
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+@media (max-width: 640px) { .hero__frame { gap: 12px 18px; } }
 
 .hero__proof {
   list-style: none; padding: 0; margin: 56px 0 0;
@@ -373,7 +425,7 @@ sub, sup { font-size: 0.7em; }
   padding-top: 28px;
 }
 .hero__proof li { display: flex; flex-direction: column; gap: 6px; }
-.proof__num { font-family: var(--font-display); font-size: clamp(1.7rem, 3vw, 2.2rem); color: var(--ink-1); font-weight: 600; letter-spacing: -0.018em; }
+/* .proof__num inherits the shared feature-numeric token (styles.css:94). */
 .proof__lbl { color: var(--ink-3); font-size: 0.92rem; max-width: 30ch; }
 
 .hero__scroll {
@@ -418,10 +470,8 @@ sub, sup { font-size: 0.7em; }
 .card--stat h3 { color: var(--ink-1); font-size: 1rem; margin-bottom: 8px; }
 .card--stat p  { color: var(--ink-3); font-size: 0.9rem; max-width: 28ch; }
 .stat__num {
-  font-family: var(--font-display);
-  font-size: 2.4rem; font-weight: 700;
-  color: var(--ink-1);
-  letter-spacing: -0.02em; line-height: 1; margin-bottom: 14px;
+  /* Sizing and weight come from the shared feature-numeric token (styles.css:94). */
+  margin-bottom: 14px;
 }
 .why__footnote {
   margin: 56px auto 0;
@@ -518,7 +568,6 @@ sub, sup { font-size: 0.7em; }
   flex: 1; min-height: 440px;
   border-radius: var(--r-md);
   background:
-    radial-gradient(800px 400px at 25% 40%, rgba(56,189,248,0.06), transparent 60%),
     repeating-linear-gradient(0deg, rgba(255,255,255,0.025) 0 1px, transparent 1px 32px),
     repeating-linear-gradient(90deg, rgba(255,255,255,0.025) 0 1px, transparent 1px 32px),
     #050912;
@@ -701,23 +750,24 @@ sub, sup { font-size: 0.7em; }
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
+/* Pillar atom — inline number + unit, matching the H.E.A.A.L. tile pattern.
+   One number+unit treatment across the whole page. */
+.pillar__metric { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 8px; }
 .pillar__metric b {
-  display: block; font-family: var(--font-display); font-size: 1.7rem;
+  font-family: var(--font-display); font-size: 1.7rem;
   color: var(--ink-1); letter-spacing: -0.015em; line-height: 1.05;
 }
-/* Pillar units route through the global .u rule; no element-level
-   override here, so kWh/y, µg/m³, Pa, and M all share one register. */
-.pillar__metric small { display: block; margin-top: 6px; color: var(--ink-4); font-size: 0.78rem; font-family: var(--font-mono); }
+.pillar__metric small { display: block; flex-basis: 100%; margin-top: 6px; color: var(--ink-4); font-size: 0.78rem; font-family: var(--font-mono); }
 .pillar--accent {
   background: linear-gradient(180deg, rgba(94,234,212,0.10), rgba(94,234,212,0.025));
   border-color: rgba(94,234,212,0.32);
 }
-.pillar--accent::before { opacity: 1; box-shadow: 0 0 12px rgba(94,234,212,0.6); }
-.pillar--accent .pillar__metric b { background: var(--grad-1); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.pillar--accent::before { opacity: 1; }
+.pillar--accent .pillar__metric b { color: var(--accent); }
 
 /* Filter A/B emphasis when toggle is on a single filter view */
-.pillar--A-active::before { background: var(--accent); opacity: 0.85; box-shadow: 0 0 10px rgba(94,234,212,0.55); }
-.pillar--B-active::before { background: var(--planned); opacity: 0.85; box-shadow: 0 0 10px rgba(192,132,252,0.5); }
+.pillar--A-active::before { background: var(--accent);  opacity: 0.9; }
+.pillar--B-active::before { background: var(--planned); opacity: 0.9; }
 .pillar--A-active { border-color: rgba(94,234,212,0.28); }
 .pillar--B-active { border-color: rgba(192,132,252,0.28); }
 @media (max-width: 980px) { .fs__pillars { grid-template-columns: repeat(2, 1fr); } .pillar--accent { grid-column: 1 / -1; } }
@@ -899,9 +949,9 @@ sub, sup { font-size: 0.7em; }
 .hl__bar-fill { height: 100%; background: var(--accent); border-radius: 0; transition: width var(--t-slow) var(--ease); }
 .hl__status { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; font-size: 0.86rem; color: var(--ink-2); }
 .pip { display: inline-block; width: 8px; height: 8px; border-radius: 999px; margin-right: 8px; vertical-align: middle; }
-.pip--ok   { background: var(--accent); box-shadow: 0 0 6px rgba(94,234,212,0.7); }
-.pip--warn { background: var(--warn);   box-shadow: 0 0 6px rgba(251,191,36,0.6); }
-.pip--bad  { background: var(--bad);    box-shadow: 0 0 6px rgba(248,113,113,0.6); }
+.pip--ok   { background: var(--accent); }
+.pip--warn { background: var(--warn); }
+.pip--bad  { background: var(--bad); }
 @media (max-width: 720px) {
   .hl__score { grid-template-columns: 1fr; gap: 12px; padding: 16px; }
 }
@@ -963,10 +1013,8 @@ sub, sup { font-size: 0.7em; }
 }
 .card--imp h3 { font-size: 1rem; }
 .card--imp b {
-  font-family: var(--font-display); font-size: 2.1rem; line-height: 1; letter-spacing: -0.02em;
-  color: var(--ink-1);
+  /* Sizing/weight inherit from the shared feature-numeric token (styles.css:94). */
   margin: 4px 0 6px;
-  font-variant-numeric: tabular-nums;
 }
 .card--imp .u { color: var(--accent); }
 .card--imp p { color: var(--ink-3); font-size: 0.9rem; }
@@ -1056,9 +1104,7 @@ sub, sup { font-size: 0.7em; }
 .closing { position: relative; padding: clamp(96px, 11vw, 160px) 0; overflow: hidden; background: var(--bg-0); }
 .closing__bg {
   position: absolute; inset: 0;
-  background:
-    radial-gradient(800px 380px at 80% 70%, rgba(94,234,212,0.08), transparent 65%),
-    linear-gradient(180deg, var(--bg-0), #050912);
+  background: linear-gradient(180deg, var(--bg-0), #050912);
 }
 .closing__bg::after {
   content: "";

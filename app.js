@@ -410,6 +410,9 @@
       pointSel.classed("is-active", false);
       d3.select(node).classed("is-active", true);
       updatePanel(d);
+      // Shared selected-site state: the archetype section listens to this
+      // and rebuilds itself from the same record that drives the panel.
+      document.dispatchEvent(new CustomEvent("site:select", { detail: d }));
     }
     function deactivate() {
       // keep last selection visible; just clear hover highlight
@@ -445,7 +448,9 @@
         ["eGRID region", d.egrid],
         ["Coordinates", `${d.lat.toFixed(3)}, ${d.lng.toFixed(3)}`],
       ];
-      kv.innerHTML = rows.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join("");
+      kv.innerHTML =
+        rows.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join("") +
+        `<div class="kv__cta"><a class="arch-handoff" href="#archetype" data-arch-handoff="1">View this site as an archetype <span aria-hidden="true">→</span></a></div>`;
     }
   })();
 
@@ -474,14 +479,9 @@
           <stop offset="0" stop-color="#1b2a44"/>
           <stop offset="1" stop-color="#0e1626"/>
         </linearGradient>
-        <radialGradient id="bld-glow" cx="0.5" cy="0.5" r="0.5">
-          <stop offset="0" stop-color="rgba(94,234,212,0.5)"/>
-          <stop offset="1" stop-color="rgba(94,234,212,0)"/>
-        </radialGradient>
       </defs>
+      <!-- ambient under-building glow removed in R4 — see brief note in app.js -->
 
-      <!-- ambient glow -->
-      <ellipse cx="260" cy="290" rx="220" ry="40" fill="url(#bld-glow)" opacity="0.6"/>
 
       <!-- building body — isometric block -->
       <!-- right face -->
@@ -501,6 +501,21 @@
       <!-- intake bay (cyan rect) -->
       <rect x="158" y="146" width="50" height="60" fill="rgba(94,234,212,0.10)" stroke="rgba(94,234,212,0.55)" stroke-width="0.8"/>
       <text x="183" y="180" text-anchor="middle" fill="rgba(94,234,212,0.7)" font-family="JetBrains Mono" font-size="7" letter-spacing="0.5">INTAKE</text>
+      <!-- filter membrane — visible boundary where filtration happens -->
+      <g id="arch-filter">
+        <line x1="205" y1="146" x2="205" y2="206" stroke="rgba(94,234,212,0.9)" stroke-width="1.4"/>
+        <line x1="207" y1="146" x2="207" y2="206" stroke="rgba(94,234,212,0.45)" stroke-width="0.6"/>
+        <g stroke="rgba(94,234,212,0.32)" stroke-width="0.4">
+          <line x1="204" y1="148" x2="208" y2="152"/>
+          <line x1="204" y1="156" x2="208" y2="160"/>
+          <line x1="204" y1="164" x2="208" y2="168"/>
+          <line x1="204" y1="172" x2="208" y2="176"/>
+          <line x1="204" y1="180" x2="208" y2="184"/>
+          <line x1="204" y1="188" x2="208" y2="192"/>
+          <line x1="204" y1="196" x2="208" y2="200"/>
+        </g>
+        <text x="206" y="138" text-anchor="middle" fill="rgba(94,234,212,0.78)" font-family="JetBrains Mono" font-size="6.5" letter-spacing="0.5">FILTER</text>
+      </g>
       <!-- exhaust bay -->
       <rect x="318" y="146" width="50" height="60" fill="rgba(192,132,252,0.10)" stroke="rgba(192,132,252,0.55)" stroke-width="0.8"/>
       <text x="343" y="180" text-anchor="middle" fill="rgba(192,132,252,0.7)" font-family="JetBrains Mono" font-size="7" letter-spacing="0.5">EXHAUST</text>
@@ -519,9 +534,17 @@
       <g font-family="JetBrains Mono" font-size="8.5" fill="rgba(140,151,168,0.75)" letter-spacing="0.4">
         <text x="60" y="100">OUTDOOR PM<tspan font-size="6.5">10/2.5</tspan></text>
         <text x="60" y="114">→ HVAC intake</text>
-        <text x="280" y="92" text-anchor="middle" fill="rgba(94,234,212,0.85)">REPRESENTATIVE NV ARCHETYPE</text>
+        <text id="arch-svg-title" x="280" y="92" text-anchor="middle" fill="rgba(94,234,212,0.85)">REPRESENTATIVE NV ARCHETYPE</text>
         <text x="460" y="100" text-anchor="end">FILTRATION</text>
         <text x="460" y="114" text-anchor="end">→ INDOOR IAQ</text>
+      </g>
+
+      <!-- per-site flux counters (P2 — wired to particle population) -->
+      <g id="arch-flux" font-family="JetBrains Mono" font-size="8.5" letter-spacing="0.06em">
+        <text x="60" y="245" fill="rgba(251,191,36,0.78)">OUTDOOR FLUX</text>
+        <text id="arch-flux-out" x="60" y="258" fill="rgba(251,191,36,0.92)" font-size="11" font-weight="600">— / s</text>
+        <text x="460" y="245" text-anchor="end" fill="rgba(94,234,212,0.78)">INDOOR FLUX</text>
+        <text id="arch-flux-in" x="460" y="258" text-anchor="end" fill="rgba(94,234,212,0.92)" font-size="11" font-weight="600">— / s</text>
       </g>
 
       <!-- particles will render in #arch-particles -->
@@ -599,12 +622,18 @@
             }
             // Entering intake bay → filter event
             if (p.x >= INTAKE.x1 && p.x <= INTAKE.x2 && p.y >= INTAKE.y1 && p.y <= INTAKE.y2) {
-              // ~85% filtered (fade and respawn from left); ~15% become interior
+              // Every particle that hits the intake counts as outdoor flux.
+              if (window.__archFlux) window.__archFlux.incOutFlux();
+              // ~85% filtered (compress against the filter face, then fade);
+              // ~15% pass through to the interior.
               if (rand() < 0.85) {
-                p.state = "fading";
-                p.fadeFrom = +p.el.getAttribute("opacity");
-                p.fadeT = 0;
+                p.state = "stopping";
+                p.targetX = 204;                // the filter line
+                p.targetY = p.y;
+                p.stopT = 0;
               } else {
+                // Passed the filter — indoor flux event.
+                if (window.__archFlux) window.__archFlux.incInFlux();
                 p.state = "inside";
                 p.fillCyan();
                 p.vx = 0.35 + rand() * 0.25;
@@ -644,8 +673,22 @@
             if (p.x > W + 10) spawnOutside(p);
             break;
           }
+          case "stopping": {
+            // Glide to the filter face position, then begin fading. Makes
+            // "this is where filtration happens" spatially explicit.
+            p.stopT += 0.08;
+            const t = Math.min(1, p.stopT);
+            p.x = p.x + (p.targetX - p.x) * t;
+            p.y = p.y + (p.targetY - p.y) * t;
+            if (t >= 1) {
+              p.state = "fading";
+              p.fadeFrom = +p.el.getAttribute("opacity");
+              p.fadeT = 0;
+            }
+            break;
+          }
           case "fading": {
-            p.fadeT += 0.05;
+            p.fadeT += 0.06;
             const op = Math.max(0, p.fadeFrom * (1 - p.fadeT));
             p.el.setAttribute("opacity", op.toFixed(2));
             if (p.fadeT >= 1) {
@@ -662,6 +705,96 @@
       requestAnimationFrame(step);
     }
     if (!REDUCED) requestAnimationFrame(step);
+
+    // ---------------------------------------------------------------
+    // Selected-site → archetype binding. Listens for site:select events
+    // from the inventory map and rewrites the archetype panel + SVG to
+    // reflect that specific site. Every derived metric uses the same
+    // record fields the inventory side panel uses — single calc path.
+    // ---------------------------------------------------------------
+
+    // Documented eGRID regional PM2.5 anchors (annual averages, µg/m³)
+    // derived from CoBE/EIA conventions; used when a site is selected.
+    const REGION_PM = {
+      RFCE: { mean: 6.49, min: 0.20, max: 35.54 },
+      SRVC: { mean: 7.85, min: 0.30, max: 41.20 },
+    };
+
+    function deriveSpec(d) {
+      const ceiling = d.ceiling_m || 9;
+      const volume = Math.round((d.floor_m2 || 0) * ceiling);
+      const airPct = Math.round((d.air_frac || 0) * 100);
+      const otherPct = 100 - airPct;
+      const capAir = Math.round(d.capacity_m3s * (d.air_frac || 0));
+      const capOther = Math.round(d.capacity_m3s - capAir);
+      // Filter split: vent ~ air_frac, recirc ~ rest. Honest derivation
+      // from the dataset's two-channel count.
+      const filtersVent = Math.round((d.filters || 0) * (d.air_frac || 0));
+      const filtersRecirc = (d.filters || 0) - filtersVent;
+      const systemLabel =
+        d.system === "DLC" ? "Direct liquid cooling (DLC)"
+      : d.system === "DEC" ? "Direct evaporative cooling (DEC)"
+      : d.system;
+      const otherLabel = d.system === "DLC" ? "liquid" : "other";
+      const pm = REGION_PM[d.egrid] || REGION_PM.RFCE;
+      return {
+        title: `${d.id} · ${d.county}`,
+        sub: `${d.status === "existing" ? "Existing" : "Planned"} data center modeled from the proprietary 9F inventory.`,
+        volume: `${fmt.num(volume)} m³`,
+        it: `${fmt.flt(d.it_mw, 2)} MW`,
+        floor: `${fmt.num(d.floor_m2)} m² · ${fmt.flt(d.ceiling_m, 1)} m`,
+        system: systemLabel,
+        air: `${airPct}% air · ${otherPct}% ${otherLabel}`,
+        capacity: `${capAir} m³/s air · ${capOther} m³/s ${otherLabel}`,
+        filters: `${fmt.num(filtersVent)} vent · ${fmt.num(filtersRecirc)} recirc`,
+        pue: fmt.flt(d.pue, 2),
+        pm25: `${pm.mean.toFixed(2)} µg/m³ <span class="muted">[${pm.min} – ${pm.max}]</span>`,
+        egrid: d.egrid,
+      };
+    }
+
+    function setText(id, value) {
+      const el = document.getElementById(id);
+      if (el) el.innerHTML = value;
+    }
+
+    function applyArchetype(d) {
+      const s = deriveSpec(d);
+      setText("arch-title", s.title);
+      setText("arch-sub", "Archetype derived from this site's parameterised inventory record. Click any other Virginia point to re-render.");
+      setText("arch-volume", s.volume);
+      setText("arch-it", s.it);
+      setText("arch-floor", s.floor);
+      setText("arch-system", s.system);
+      setText("arch-air", s.air);
+      setText("arch-capacity", s.capacity);
+      setText("arch-filters", s.filters);
+      setText("arch-pue", s.pue);
+      setText("arch-pm25", s.pm25);
+      setText("arch-egrid", s.egrid);
+      const svgTitle = document.getElementById("arch-svg-title");
+      if (svgTitle) svgTitle.textContent = `${d.id.toUpperCase()} · ${d.county.toUpperCase()}`;
+    }
+
+    document.addEventListener("site:select", (e) => {
+      if (e.detail) applyArchetype(e.detail);
+    });
+
+    // Live flux counters — count particle state transitions per second.
+    let outFluxCount = 0;
+    let inFluxCount = 0;
+    function incOutFlux() { outFluxCount++; }
+    function incInFlux()  { inFluxCount++;  }
+    setInterval(() => {
+      const fOut = document.getElementById("arch-flux-out");
+      const fIn  = document.getElementById("arch-flux-in");
+      if (fOut) fOut.textContent = `${outFluxCount} / s`;
+      if (fIn)  fIn.textContent  = `${inFluxCount} / s`;
+      outFluxCount = 0;
+      inFluxCount = 0;
+    }, 1000);
+    // Expose counters to the particle step loop.
+    window.__archFlux = { incOutFlux, incInFlux };
   })();
 
   /* ============================================================ FILTERSTUDIO CHARTS */

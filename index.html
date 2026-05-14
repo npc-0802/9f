@@ -81,8 +81,15 @@
         Healthy building decisions have <em>high-stakes</em> consequences in data centers.
       </h1>
       <p class="hero__sub">
-        Small choices inside a data center — what filters to load, how air moves, which setpoints to hold — drive equipment health, energy use, climate damages, public-health damages, and operating economics. 9 Foundations quantifies those consequences and helps operators reduce them.
+        Small choices inside a data center — what filters to load, how air moves, which setpoints to hold — cascade through five outcomes that all settle as cost. 9 Foundations quantifies them and helps operators reduce them through low-touch modeling and field monitoring.
       </p>
+      <ol class="hero__frame" role="list" aria-label="Outcome framework">
+        <li><span class="frame__num">01</span><span class="frame__lbl">Equipment health</span></li>
+        <li><span class="frame__num">02</span><span class="frame__lbl">Energy use</span></li>
+        <li><span class="frame__num">03</span><span class="frame__lbl">Public health</span></li>
+        <li><span class="frame__num">04</span><span class="frame__lbl">Climate damages</span></li>
+        <li class="frame__sum"><span aria-hidden="true">→</span> all with economic implications</li>
+      </ol>
       <div class="cta-row">
         <a class="btn btn--primary" href="#cta">Talk to an expert <span aria-hidden="true">→</span></a>
         <a class="btn btn--ghost" href="#inventory">See the Virginia case study</a>
@@ -120,9 +127,9 @@
 
       <div class="why__grid">
         <article class="card card--stat">
-          <div class="stat__num"><span data-countup="10" data-suffix="%">0%</span></div>
-          <h3>of total US electricity</h3>
-          <p>Projected share of total US electricity use by data centers by 2030.</p>
+          <div class="stat__num"><span data-countup="412">0</span></div>
+          <h3>VA data centers modeled</h3>
+          <p>9F's proprietary Virginia inventory: 202 existing, 210 planned, parameterised at the building-physics level.</p>
         </article>
         <article class="card card--stat">
           <div class="stat__num"><span data-countup="30" data-suffix="%">0%</span></div>
@@ -190,9 +197,9 @@
               <button class="chip" data-filter="status" data-value="existing" type="button">Existing</button>
               <button class="chip" data-filter="status" data-value="planned" type="button">Planned</button>
               <span class="filters__sep" aria-hidden="true"></span>
-              <button class="chip is-active" data-filter="system" data-value="all" type="button">All systems</button>
-              <button class="chip" data-filter="system" data-value="DLC" type="button">DLC</button>
-              <button class="chip" data-filter="system" data-value="DEC" type="button">DEC</button>
+              <button class="chip is-active" data-filter="system" data-value="all" type="button" title="All cooling system types">All systems</button>
+              <button class="chip" data-filter="system" data-value="DLC" type="button" title="Direct liquid cooling — coolant carries heat directly off the chips">DLC <span class="chip__expand">direct liquid</span></button>
+              <button class="chip" data-filter="system" data-value="DEC" type="button" title="Direct evaporative cooling — outside air cooled by water evaporation">DEC <span class="chip__expand">direct evaporative</span></button>
             </div>
           </div>
           <div class="map-showing" id="map-showing" aria-live="polite">Showing all 412 sites</div>
@@ -268,19 +275,21 @@
           </div>
         </div>
         <aside class="arch__panel">
-          <h3>Archetype profile</h3>
-          <p class="muted">Representative Northern Virginia data center archetype. Anonymized; not a specific real address.</p>
-          <dl class="kv kv--tight">
-            <div><dt>Total building volume</dt><dd>743,224&nbsp;m³</dd></div>
-            <div><dt>Total IT capacity</dt><dd>280&nbsp;MW</dd></div>
-            <div><dt>Operating schedule</dt><dd>24&nbsp;h / 7&nbsp;d</dd></div>
-            <div><dt>System type</dt><dd>Direct liquid cooling (DLC)</dd></div>
-            <div><dt>Air fraction</dt><dd>20% air · 80% liquid</dd></div>
-            <div><dt>System capacity</dt><dd>113 m³/s vent · 487 m³/s recirc</dd></div>
-            <div><dt>Filter count</dt><dd>122 vent · 523 recirc</dd></div>
-            <div><dt>Outdoor PM<sub>2.5</sub></dt><dd>6.49 µg/m³ <span class="muted">[0.20 – 35.54]</span></dd></div>
-            <div><dt>Outdoor PM<sub>10</sub></dt><dd>14.53 µg/m³ <span class="muted">[0.55 – 257.74]</span></dd></div>
-            <div><dt>Energy profile</dt><dd>100% electric · $0.18/kWh</dd></div>
+          <div class="arch__panel-head">
+            <h3 id="arch-title">Representative archetype · Northern Virginia</h3>
+            <p class="muted" id="arch-sub">A flagship default until you pick a site in the inventory above. Click any Virginia point to render this section as that specific facility.</p>
+          </div>
+          <dl class="kv kv--tight" id="arch-kv">
+            <div><dt>Total building volume</dt><dd id="arch-volume">743,224&nbsp;m³</dd></div>
+            <div><dt>Total IT capacity</dt><dd id="arch-it">280&nbsp;MW</dd></div>
+            <div><dt>Floor area · ceiling</dt><dd id="arch-floor">~38,000 m² · ~19.5 m</dd></div>
+            <div><dt>System type</dt><dd id="arch-system">Direct liquid cooling (DLC)</dd></div>
+            <div><dt>Air fraction</dt><dd id="arch-air">20% air · 80% liquid</dd></div>
+            <div><dt>System capacity</dt><dd id="arch-capacity">113 m³/s vent · 487 m³/s recirc</dd></div>
+            <div><dt>Filter count</dt><dd id="arch-filters">122 vent · 523 recirc</dd></div>
+            <div><dt>PUE</dt><dd id="arch-pue">1.07</dd></div>
+            <div><dt>Outdoor PM<sub>2.5</sub></dt><dd id="arch-pm25">6.49 µg/m³ <span class="muted">[0.20 – 35.54]</span></dd></div>
+            <div><dt>eGRID region</dt><dd id="arch-egrid">RFCE</dd></div>
           </dl>
         </aside>
       </div>
