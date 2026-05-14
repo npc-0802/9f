@@ -78,10 +78,10 @@
         <span class="dot"></span> Healthy Buildings × Data Centers
       </div>
       <h1 class="hero__headline">
-        Healthy building decisions have <em>high-stakes</em> consequences in data centers.
+        Small building decisions shape <em>big</em> data center outcomes.
       </h1>
       <p class="hero__sub">
-        Small choices inside a data center — what filters to load, how air moves, which setpoints to hold — cascade through five outcomes that all settle as cost. 9 Foundations quantifies them and helps operators reduce them through low-touch modeling and field monitoring.
+        Decisions about filtration, airflow, and operation affect equipment health, energy use, public health, and climate impact. 9 Foundations quantifies those effects and helps operators turn building performance into measurable savings through low-touch modeling and monitoring.
       </p>
       <ol class="hero__frame" role="list" aria-label="Outcome framework">
         <li><span class="frame__num">01</span><span class="frame__lbl">Equipment health</span></li>
@@ -177,6 +177,16 @@
 
       <div class="map-shell">
         <div class="map-shell__viz">
+          <div class="intent" role="note" aria-live="off">
+            <div class="intent__row">
+              <span class="intent__k">Interaction</span>
+              <span class="intent__prompt">Select a Virginia site to render it as a building archetype below. Map, site detail, and archetype reconcile to the same record.</span>
+            </div>
+            <div class="intent__state">
+              <span class="intent__state-k">Selected</span>
+              <span class="intent__state-v" id="intent-map">Click any site to begin →</span>
+            </div>
+          </div>
           <div class="map-toolbar" role="toolbar" aria-label="Map controls">
             <div class="legend" aria-label="Legend">
               <span class="legend__chip">
@@ -266,6 +276,17 @@
         </p>
       </header>
 
+      <div class="intent" role="note" aria-live="polite">
+        <div class="intent__row">
+          <span class="intent__k">Bound state</span>
+          <span class="intent__prompt">Archetype generated from the selected Virginia site. Building volume, IT load, system type, and filter counts derive from that record.</span>
+        </div>
+        <div class="intent__state">
+          <span class="intent__state-k">Derived from</span>
+          <span class="intent__state-v" id="intent-arch">Default representative archetype · select a site to bind →</span>
+        </div>
+      </div>
+
       <div class="arch__row">
         <div class="arch__viz" aria-hidden="true">
           <svg id="arch-svg" viewBox="0 0 520 360" preserveAspectRatio="xMidYMid meet"></svg>
@@ -320,7 +341,16 @@
           </div>
         </div>
 
-        <p class="fs__viewing muted" id="fs-viewing">Comparing both filters across the representative archetype.</p>
+        <div class="intent" role="note" aria-live="polite">
+          <div class="intent__row">
+            <span class="intent__k">Comparison</span>
+            <span class="intent__prompt">Toggle Filter A vs Filter B to see how one same-MERV decision changes energy, health, performance, and society outcomes across the archetype.</span>
+          </div>
+          <div class="intent__state">
+            <span class="intent__state-k">Viewing</span>
+            <span class="intent__state-v" id="fs-viewing">Both filters · compare mode</span>
+          </div>
+        </div>
 
         <div class="fs__pillars fs__pillars--four">
           <div class="pillar" data-pillar="energy">
@@ -427,6 +457,16 @@
         </div>
 
         <div class="mx__panel">
+          <div class="intent" role="note" aria-live="polite">
+            <div class="intent__row">
+              <span class="intent__k">Decision lens</span>
+              <span class="intent__prompt">Cycle scenarios to see which interventions reshape the operating regime and where energy intensity bottoms out.</span>
+            </div>
+            <div class="intent__state">
+              <span class="intent__state-k">Scenario</span>
+              <span class="intent__state-v" id="intent-mx">Baseline · reference operating envelope</span>
+            </div>
+          </div>
           <div class="mx__panel-head">
             <div>
               <div class="eyebrow eyebrow--sm">MATRIX · Example Decision Surface</div>
@@ -483,6 +523,16 @@
       </header>
 
       <div class="hl__panel">
+        <div class="intent" role="note" aria-live="polite">
+          <div class="intent__row">
+            <span class="intent__k">Verification</span>
+            <span class="intent__prompt">Switch floors to inspect how real-time monitoring verifies modeled conditions against the same thresholds the science uses.</span>
+          </div>
+          <div class="intent__state">
+            <span class="intent__state-k">Floor</span>
+            <span class="intent__state-v" id="intent-hl">Floor 2 · IEQ 86 / 100</span>
+          </div>
+        </div>
         <div class="hl__panel-head">
           <div>
             <div class="eyebrow eyebrow--sm">H.E.A.A.L. · Building Insights</div>
@@ -676,7 +726,7 @@
     <div class="closing__bg" aria-hidden="true"></div>
     <div class="container closing__inner">
       <div class="eyebrow eyebrow--lit"><span class="dot"></span> Talk to 9 Foundations</div>
-      <h2>See where your data center portfolio is leaving savings on the table.</h2>
+      <h2>Turn building decisions into measurable savings.</h2>
       <p>We'll walk you through how the inventory, FilterStudio, MATRIX, and H.E.A.A.L. would apply to your sites — and what a modeled co-benefits analysis would look like for your portfolio.</p>
       <div class="cta-row">
         <a class="btn btn--primary btn--lg" href="mailto:hello@9fheaal.com?subject=Data%20Centers%20%E2%80%94%20talk%20to%20an%20expert">Talk to an expert <span aria-hidden="true">→</span></a>

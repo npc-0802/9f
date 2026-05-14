@@ -172,6 +172,69 @@ sub, sup { font-size: 0.7em; }
   background: var(--accent);
 }
 
+/* ----------------------------------------------------------- Component Intent Block
+
+   Every interactive surface gets one of these — a small editorial-instrument
+   annotation that names what the control does (prompt, left) and what's
+   currently active (live state, right). Two columns at desktop; stacks at
+   narrow widths. Mono labels, hairline-rule register, no glow / tip-card
+   aesthetic. The point is to make each interaction read as
+   "here's the move and here's what it produced" rather than as an
+   interesting object the user has to decode.
+*/
+.intent {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+  gap: 18px 36px;
+  align-items: baseline;
+  margin: 0 0 18px;
+  padding: 14px 0;
+  border-top: 1px solid var(--line-1);
+  border-bottom: 1px solid var(--line-2);
+}
+.intent__row,
+.intent__state {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  align-items: baseline;
+  gap: 14px;
+  min-width: 0;
+}
+.intent__k,
+.intent__state-k {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+.intent__state-k { color: var(--accent); }
+.intent__prompt {
+  font-size: 0.95rem;
+  line-height: 1.45;
+  color: var(--ink-1);
+  letter-spacing: -0.005em;
+}
+.intent__state-v {
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  letter-spacing: 0.02em;
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.intent__state-v b { color: var(--accent); font-weight: 500; }
+@media (max-width: 900px) {
+  .intent { grid-template-columns: 1fr; gap: 12px; }
+}
+@media (max-width: 520px) {
+  .intent__row, .intent__state { grid-template-columns: 1fr; gap: 4px; }
+}
+
 /* ----------------------------------------------------------------- buttons */
 
 .btn {

@@ -774,6 +774,13 @@
       setText("arch-egrid", s.egrid);
       const svgTitle = document.getElementById("arch-svg-title");
       if (svgTitle) svgTitle.textContent = `${d.id.toUpperCase()} · ${d.county.toUpperCase()}`;
+
+      // Intent block live state — both the inventory and archetype blocks
+      // mirror the same selected-site identity through the single calc path.
+      const statusLabel = d.status === "existing" ? "Existing" : "Planned";
+      const summary = `<b>${d.id}</b> · ${d.county} · ${statusLabel} · ${d.system} · ${fmt.flt(d.it_mw, 1)} MW`;
+      setText("intent-map", summary);
+      setText("intent-arch", summary);
     }
 
     document.addEventListener("site:select", (e) => {
@@ -1038,9 +1045,9 @@
     // -------- Toggle wired to redraw charts AND swap pillar values
     const $viewing = $("#fs-viewing");
     function viewingCopy(mode) {
-      if (mode === "A") return "Viewing Filter A on the representative archetype. Filter B shown faded for reference.";
-      if (mode === "B") return "Viewing Filter B on the representative archetype. Filter A shown faded for reference.";
-      return "Comparing both filters across the representative archetype.";
+      if (mode === "A") return "Filter A isolated · lower fan energy, higher PM₂.₅ residual";
+      if (mode === "B") return "Filter B isolated · higher fan energy, lower PM₂.₅ residual";
+      return "Both filters · compare mode (default)";
     }
     function updatePillars() {
       // In A or AB the primary number is A's; in B mode it swaps.
@@ -1276,6 +1283,19 @@
       if ($pct) $pct.textContent = s.pctSavings.toFixed(1);
       if ($usd) $usd.textContent = fmt.num(s.usd);
       if ($co2) $co2.textContent = fmt.num(s.co2);
+
+      // Intent block live state for MATRIX
+      const labels = {
+        baseline:  "Baseline · reference operating envelope",
+        envelope:  "+ Envelope retrofit · lever shifts toward HVAC",
+        setpoints: "+ Setpoint tune · envelope sensitivity amplified",
+        all:       "All combined · envelope + setpoint optimum",
+      };
+      const intentMx = document.getElementById("intent-mx");
+      if (intentMx) {
+        const delta = s.pctSavings > 0 ? ` · <b>−${s.pctSavings.toFixed(1)}%</b> vs baseline` : "";
+        intentMx.innerHTML = (labels[scenario] || scenario) + delta;
+      }
     }
 
     draw();
@@ -1431,6 +1451,12 @@
       const $floor = $("#hl-floor"), $floor2 = $("#hl-floor-2");
       if ($floor) $floor.textContent = f;
       if ($floor2) $floor2.textContent = f;
+      // Intent block live state for H.E.A.A.L.
+      const p = FLOORS[f] || FLOORS["2"];
+      const intentHl = document.getElementById("intent-hl");
+      if (intentHl) {
+        intentHl.innerHTML = `Floor ${f} · IEQ <b>${p.score}</b> / 100 · ${p.alerts} alert${p.alerts === 1 ? "" : "s"} open`;
+      }
     }
 
     // Initial paint — Floor 2 default
