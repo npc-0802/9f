@@ -257,14 +257,27 @@
         .attr("r", 0)
         .attr("opacity", 0)
         .style("filter", "none")
-        .on("mouseenter", (event, d) => activate(d, event.currentTarget))
+        // Two-tier interaction:
+        //   hover / focus → PREVIEW: highlight the dot + update the inventory
+        //     side panel only. Ephemeral. Lets users browse.
+        //   click / Enter / Space → COMMIT: dispatches site:select so the
+        //     archetype panel and both intent blocks rebind to this site.
+        // The intent-block language ("Selected" / "Derived from") implies an
+        // intentional choice — only the commit path should produce that state.
+        .on("mouseenter", (event, d) => previewSite(d, event.currentTarget))
         .on("mouseleave", () => deactivate())
-        .on("click", (event, d) => activate(d, event.currentTarget, true))
-        .on("focus", (event, d) => activate(d, event.currentTarget))
-        .on("blur", () => deactivate())
+        .on("click",      (event, d) => commitSite(d, event.currentTarget))
+        .on("focus",      (event, d) => previewSite(d, event.currentTarget))
+        .on("blur",       () => deactivate())
+        .on("keydown",    function (event, d) {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            commitSite(d, this);
+          }
+        })
         .attr("tabindex", 0)
         .attr("role", "button")
-        .attr("aria-label", (d) => `${d.county} ${d.status} data center, ${d.it_mw} MW IT load`);
+        .attr("aria-label", (d) => `${d.county} ${d.status} data center, ${d.it_mw} MW IT load — press Enter to select`);
 
       // staged reveal
       if (REDUCED) {
@@ -278,9 +291,11 @@
           .attr("opacity", 0.92);
       }
 
-      // initial site detail = an iconic large site (highest IT load)
+      // Initial side-panel state = the highest-IT-load site, presented as
+      // a flagship preview (not a commit). The archetype + intent blocks
+      // stay in their default state until the user explicitly selects.
       const flagship = data.sites.slice().sort((a, b) => b.it_mw - a.it_mw)[0];
-      updatePanel(flagship);
+      updatePanel(flagship, /* committed */ false);
       // seed legend counts + "showing N of N" caption on first paint
       applyFilters();
     }
@@ -405,31 +420,71 @@
       });
     });
 
-    function activate(d, node, locked) {
+    // Module-level pointer to whatever site the side panel is currently
+    // showing — used by the CTA so it can commit the right record even if
+    // the user got here via hover-preview rather than click.
+    let currentPanelSite = null;
+
+    // Preview: light-touch hover state. Updates the inventory side panel
+    // and dot highlight only. The archetype below and the intent blocks
+    // stay bound to the last COMMITTED selection (or the default).
+    function previewSite(d, node) {
       if (!pointSel) return;
       pointSel.classed("is-active", false);
-      d3.select(node).classed("is-active", true);
-      updatePanel(d);
-      // Shared selected-site state: the archetype section listens to this
-      // and rebuilds itself from the same record that drives the panel.
+      if (node) d3.select(node).classed("is-active", true);
+      updatePanel(d, /* committed */ false);
+    }
+    // Commit: user explicitly selected this site. Dispatches site:select
+    // so the archetype panel + SVG and both intent blocks rebind. Node
+    // is optional — if not supplied (e.g. the CTA was the commit path)
+    // we find the matching dot ourselves.
+    function commitSite(d, node) {
+      if (!pointSel) return;
+      const target = node || pointSel.filter((p) => p.id === d.id).node();
+      pointSel.classed("is-committed", false);
+      pointSel.classed("is-active", false);
+      if (target) {
+        d3.select(target).classed("is-active", true).classed("is-committed", true);
+      }
+      updatePanel(d, /* committed */ true);
       document.dispatchEvent(new CustomEvent("site:select", { detail: d }));
     }
     function deactivate() {
-      // keep last selection visible; just clear hover highlight
+      // Clear hover highlight only — the committed dot keeps its
+      // .is-committed marker so the user can still see their selection.
       if (!pointSel) return;
-      pointSel.classed("is-active", false);
+      pointSel.classed("is-active", function () { return d3.select(this).classed("is-committed"); });
     }
 
-    function updatePanel(d) {
+    // Delegated handler for the archetype-handoff CTA inside the side
+    // panel. The CTA is regenerated on every hover/commit (innerHTML),
+    // so we cannot bind a one-time listener — delegate from document.
+    document.addEventListener("click", (e) => {
+      const a = e.target.closest && e.target.closest("[data-arch-handoff]");
+      if (!a || !currentPanelSite) return;
+      // The href already points to #archetype — let the smooth-scroll
+      // handler at the bottom of this file pick it up. We just commit
+      // the currently-previewed site as part of the same gesture.
+      commitSite(currentPanelSite);
+    });
+
+    function updatePanel(d, committed) {
       const title = $("#site-title");
       const sub   = $("#site-sub");
       const kv    = $("#site-kv");
       if (!title || !kv) return;
 
+      // Remember which site is currently showing in the panel so the
+      // archetype-handoff CTA can commit the right record on click.
+      currentPanelSite = d;
+
       title.textContent = `${d.id} · ${d.county}`;
+      const stateNote = committed
+        ? "Selected · drives the archetype below"
+        : "Previewing on hover · click to select";
       sub.textContent = d.status === "existing"
-        ? `Existing data center in ${d.county} County · eGRID ${d.egrid}`
-        : `Planned data center in ${d.county} County · eGRID ${d.egrid}`;
+        ? `Existing data center in ${d.county} County · eGRID ${d.egrid} — ${stateNote}`
+        : `Planned data center in ${d.county} County · eGRID ${d.egrid} — ${stateNote}`;
 
       const m2 = fmt.num(d.floor_m2);
       const cap = `${fmt.flt(d.capacity_m3s)} m³/s`;
