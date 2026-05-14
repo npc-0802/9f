@@ -200,13 +200,23 @@
             <svg id="va-map" viewBox="0 0 800 500" preserveAspectRatio="xMidYMid meet" aria-label="Map of Virginia data centers"></svg>
             <div class="map-loading" id="map-loading">Loading geometry…</div>
           </div>
-          <div class="map-ranges">
-            <div><label>Floor area</label><span>53 – 1,086,965 m²</span></div>
-            <div><label>Ceiling</label><span>3 – 27 m</span></div>
-            <div><label>IT load</label><span>0.06 – 1,840 MW</span></div>
-            <div><label>PUE</label><span>1.05 – 1.90</span></div>
-            <div><label>Air fraction</label><span>5 – 90%</span></div>
-            <div><label>Filters</label><span>4 – 6,810</span></div>
+          <div class="map-hist" aria-label="Inventory distributions">
+            <figure class="hist">
+              <figcaption><span class="hist__k">Floor area</span><span class="hist__v">53 – 1,086,965 m²</span></figcaption>
+              <svg id="hist-floor" viewBox="0 0 320 56" preserveAspectRatio="none"></svg>
+            </figure>
+            <figure class="hist">
+              <figcaption><span class="hist__k">IT load</span><span class="hist__v">0.06 – 1,840 MW</span></figcaption>
+              <svg id="hist-it" viewBox="0 0 320 56" preserveAspectRatio="none"></svg>
+            </figure>
+            <figure class="hist">
+              <figcaption><span class="hist__k">PUE</span><span class="hist__v">1.05 – 1.90</span></figcaption>
+              <svg id="hist-pue" viewBox="0 0 320 56" preserveAspectRatio="none"></svg>
+            </figure>
+            <figure class="hist">
+              <figcaption><span class="hist__k">Filters</span><span class="hist__v">4 – 6,810</span></figcaption>
+              <svg id="hist-filters" viewBox="0 0 320 56" preserveAspectRatio="none"></svg>
+            </figure>
           </div>
         </div>
 

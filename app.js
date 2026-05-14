@@ -286,10 +286,12 @@
     }
 
     // Single calculation path — applies the active filter state and
-    // updates every readout that depends on it (legend counts, totals).
+    // updates every readout that depends on it (legend counts, totals,
+    // inventory distribution histograms).
     function applyFilters() {
       if (!pointSel) return;
       let existingVisible = 0, plannedVisible = 0;
+      const visibleSites = [];
       pointSel.classed("is-faded", (d) => {
         const faded =
           (filterState.status !== "all" && d.status !== filterState.status) ||
@@ -297,6 +299,7 @@
         if (!faded) {
           if (d.status === "existing") existingVisible++;
           else if (d.status === "planned") plannedVisible++;
+          visibleSites.push(d);
         }
         return faded;
       });
@@ -314,6 +317,80 @@
           ? `Showing all ${totalAll.toLocaleString()} sites`
           : `Showing ${totalVisible.toLocaleString()} of ${totalAll.toLocaleString()} sites`;
       }
+
+      // Update inventory distribution histograms with the same active set.
+      renderHistograms(visibleSites);
+    }
+
+    // Inventory distribution histograms — show the SHAPE of the variation
+    // across the active subset (cyan bars) against the full inventory
+    // (faint ghost outline). Replaces the static range strip.
+    function bins(arr, accessor, n, isLog) {
+      const vals = arr.map(accessor).filter((v) => Number.isFinite(v));
+      const allVals = data.sites.map(accessor).filter((v) => Number.isFinite(v));
+      const dom = [Math.min(...allVals), Math.max(...allVals)];
+      const scale = isLog
+        ? (v) => (Math.log(Math.max(0.001, v)) - Math.log(Math.max(0.001, dom[0]))) / (Math.log(dom[1]) - Math.log(Math.max(0.001, dom[0])))
+        : (v) => (v - dom[0]) / (dom[1] - dom[0]);
+      const out = new Array(n).fill(0);
+      vals.forEach((v) => {
+        const t = Math.min(0.9999, Math.max(0, scale(v)));
+        out[Math.floor(t * n)] += 1;
+      });
+      return out;
+    }
+    function drawHist(svgId, subset, accessor, isLog) {
+      const svgNode = document.getElementById(svgId);
+      if (!svgNode) return;
+      while (svgNode.firstChild) svgNode.removeChild(svgNode.firstChild);
+      const N = 28;
+      const bActive = bins(subset, accessor, N, isLog);
+      const bAll = bins(data.sites, accessor, N, isLog);
+      const max = Math.max(1, ...bAll);
+      const W = 320, H = 56;
+      const padL = 4, padR = 4, padT = 6, padB = 10;
+      const bw = (W - padL - padR) / N;
+      const ns = "http://www.w3.org/2000/svg";
+      function elN(tag, attrs) {
+        const e = document.createElementNS(ns, tag);
+        Object.entries(attrs).forEach(([k, v]) => e.setAttribute(k, v));
+        return e;
+      }
+      // baseline rule
+      svgNode.appendChild(elN("line", {
+        x1: padL, x2: W - padR, y1: H - padB, y2: H - padB, class: "bar-baseline"
+      }));
+      // ghost (full dataset)
+      bAll.forEach((v, i) => {
+        const h = (v / max) * (H - padT - padB);
+        if (h <= 0) return;
+        svgNode.appendChild(elN("rect", {
+          class: "bar-ghost",
+          x: (padL + i * bw + 0.5).toFixed(1),
+          y: (H - padB - h).toFixed(1),
+          width: Math.max(1, bw - 1).toFixed(1),
+          height: h.toFixed(1),
+        }));
+      });
+      // active subset
+      bActive.forEach((v, i) => {
+        const h = (v / max) * (H - padT - padB);
+        if (h <= 0) return;
+        svgNode.appendChild(elN("rect", {
+          class: "bar-active",
+          x: (padL + i * bw + 0.5).toFixed(1),
+          y: (H - padB - h).toFixed(1),
+          width: Math.max(1, bw - 1).toFixed(1),
+          height: h.toFixed(1),
+        }));
+      });
+    }
+    function renderHistograms(subset) {
+      const set = subset && subset.length ? subset : data.sites;
+      drawHist("hist-floor",   set, (d) => d.floor_m2, true);
+      drawHist("hist-it",      set, (d) => d.it_mw,    true);
+      drawHist("hist-pue",     set, (d) => d.pue,      false);
+      drawHist("hist-filters", set, (d) => d.filters,  true);
     }
 
     // wire filter chips
@@ -941,27 +1018,32 @@
         }
       }
 
-      // axis labels
-      svg.appendChild(el("text", { x: pad.l - 12, y: pad.t + ih / 2, "text-anchor": "middle", transform: `rotate(-90 ${pad.l - 12} ${pad.t + ih / 2})`, fill: "#8c97a8", "font-size": 10, "font-family": "Inter" })).textContent = "HVAC efficiency →";
-      svg.appendChild(el("text", { x: pad.l + iw / 2, y: pad.t + ih + 22, "text-anchor": "middle", fill: "#8c97a8", "font-size": 10, "font-family": "Inter" })).textContent = "← Envelope U-value (W/m²K)";
-      // axis ticks (4 each)
+      // axis titles — convention: best operating regime in the top-left
+      // (low U-value × high HVAC efficiency = low energy intensity).
+      svg.appendChild(el("text", { x: pad.l - 12, y: pad.t + ih / 2, "text-anchor": "middle", transform: `rotate(-90 ${pad.l - 12} ${pad.t + ih / 2})`, fill: "#8c97a8", "font-size": 10, "font-family": "Inter" })).textContent = "HVAC efficiency (η)";
+      svg.appendChild(el("text", { x: pad.l + iw / 2, y: pad.t + ih + 22, "text-anchor": "middle", fill: "#8c97a8", "font-size": 10, "font-family": "Inter" })).textContent = "Envelope U-value (W/m²K)";
+      // axis ticks — flipped so left = best envelope (low U) and top = best HVAC eff.
       const uTicks = [
-        { c: 0,  v: "2.70" },
-        { c: 4,  v: "2.10" },
-        { c: 8,  v: "1.40" },
-        { c: 11, v: "0.80" },
+        { c: 0,  v: "0.80" },
+        { c: 4,  v: "1.40" },
+        { c: 8,  v: "2.10" },
+        { c: 11, v: "2.70" },
       ];
       uTicks.forEach(({ c, v }) => {
         svg.appendChild(el("text", { x: pad.l + c * cellW + cellW / 2, y: pad.t + ih + 11, "text-anchor": "middle", fill: "#5d6778", "font-size": 9, "font-family": "JetBrains Mono" })).textContent = v;
       });
       const hTicks = [
-        { r: 0, v: "Low" },
+        { r: 0, v: "High" },
         { r: 3, v: "Mid" },
-        { r: 7, v: "High" },
+        { r: 7, v: "Low" },
       ];
       hTicks.forEach(({ r, v }) => {
         svg.appendChild(el("text", { x: pad.l - 10, y: pad.t + r * cellH + cellH / 2 + 3, "text-anchor": "end", fill: "#5d6778", "font-size": 9, "font-family": "JetBrains Mono" })).textContent = v;
       });
+      // Direction markers — make the gradient direction unambiguous on first read.
+      svg.appendChild(el("text", { x: pad.l, y: pad.t + ih + 36, "text-anchor": "start", fill: "rgba(94,234,212,0.75)", "font-size": 9, "font-family": "JetBrains Mono", "letter-spacing": "0.16em" })).textContent = "← BETTER";
+      svg.appendChild(el("text", { x: pad.l + iw, y: pad.t + ih + 36, "text-anchor": "end", fill: "rgba(140,151,168,0.55)", "font-size": 9, "font-family": "JetBrains Mono", "letter-spacing": "0.16em" })).textContent = "WORSE →";
+      svg.appendChild(el("text", { x: 16, y: pad.t + 8, "text-anchor": "start", fill: "rgba(94,234,212,0.75)", "font-size": 9, "font-family": "JetBrains Mono", "letter-spacing": "0.16em", transform: `rotate(-90 16 ${pad.t + 8})` })).textContent = "BETTER ↑";
 
       // color-scale legend strip below the grid
       const legendY = pad.t + ih + 36;

@@ -535,21 +535,43 @@ sub, sup { font-size: 0.7em; }
 }
 .map-loading.is-hidden { opacity: 0; pointer-events: none; }
 
-.map-ranges {
+/* Inventory distribution histograms — the static range strip the brief
+   asked for, plus the SHAPE of the variation across all 412 sites.
+   Bars track the active filter state through the same calculation path
+   that drives the map and legend counts. */
+.map-hist {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0;
   border-top: 1px solid var(--line-2);
-  padding: 14px 8px 4px;
+  padding: 14px 0 4px;
   margin-top: 4px;
 }
-.map-ranges > div { display: flex; flex-direction: column; gap: 2px; padding: 0 8px; border-right: 1px solid var(--line-2); }
-.map-ranges > div:last-child { border-right: 0; }
-.map-ranges label { color: var(--ink-3); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; }
-.map-ranges span { color: var(--ink-1); font-family: var(--font-mono); font-size: 0.86rem; }
-@media (max-width: 720px) {
-  .map-ranges { grid-template-columns: repeat(2, 1fr); border-top: 0; padding-top: 8px; }
-  .map-ranges > div { border-right: 0; padding: 6px 0; }
+.map-hist .hist {
+  display: flex; flex-direction: column; gap: 6px;
+  padding: 0 12px;
+  border-right: 1px solid var(--line-2);
+  margin: 0;
+}
+.map-hist .hist:last-child { border-right: 0; }
+.map-hist figcaption {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 8px;
+  font-family: var(--font-mono);
+}
+.hist__k { color: var(--ink-3); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.12em; }
+.hist__v { color: var(--ink-2); font-size: 0.78rem; font-variant-numeric: tabular-nums; }
+.map-hist svg { width: 100%; height: 56px; display: block; }
+.map-hist .bar-ghost { fill: rgba(255,255,255,0.05); }
+.map-hist .bar-active { fill: var(--accent); opacity: 0.78; }
+.map-hist .bar-baseline { stroke: var(--line-2); stroke-width: 0.5; }
+@media (max-width: 900px) {
+  .map-hist { grid-template-columns: repeat(2, 1fr); }
+  .map-hist .hist:nth-child(2) { border-right: 0; }
+}
+@media (max-width: 480px) {
+  .map-hist { grid-template-columns: 1fr; }
+  .map-hist .hist { border-right: 0; border-bottom: 1px solid var(--line-2); padding-bottom: 8px; }
 }
 
 /* Map dots */
