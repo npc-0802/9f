@@ -1,0 +1,764 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>9 Foundations · Data Centers — A Field Brief</title>
+  <meta name="description" content="A 9 Foundations field brief on how healthy-building decisions cascade through equipment health, energy, climate, and public-health cost. 412-site Virginia case study with three product modules and Harvard CoBE methodology." />
+  <meta name="theme-color" content="#06080d" />
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <a class="skiplink" href="#main">Skip to content</a>
+
+  <header class="topnav" data-elev="0">
+    <div class="topnav__inner">
+      <a class="brand" href="#hero" aria-label="9 Foundations">
+        <span class="brand__mark" aria-hidden="true">
+          <svg viewBox="0 0 290.45 290.45" width="24" height="24" xmlns="http://www.w3.org/2000/svg">
+            <g><path d="M145.18 0C64.97 0.03-0.03 65.07 0 145.28 0.03 225.49 65.07 290.48 145.28 290.46 225.47 290.43 290.46 225.42 290.46 145.23L290.46 145.23C290.44 65.01 225.4-0.01 145.18 0 145.18 0 145.18 0 145.18 0M280.18 119.02 258.93 122.69C254 97.82 241.05 75.26 222.05 58.47L235.95 41.99C258.81 62.06 274.37 89.15 280.16 119.01M218.31 135.75 218.31 161.76 189.62 161.76 189.62 193.78 158.39 193.78 158.39 99.34 222.18 99.34 222.18 125.89 189.48 125.89 189.48 135.77 218.3 135.77ZM148 7.8C178.5 8.37 207.93 19.12 231.63 38.32L217.72 54.82C197.91 38.89 173.4 29.95 147.99 29.37L147.99 7.8ZM147.58 116.61C149.9 121.55 151.04 126.96 150.92 132.42 150.96 138.19 149.75 143.9 147.38 149.16 145.12 154.2 142.37 159.01 139.18 163.52L117.56 193.8 78.99 193.8 101.28 164.99 101.95 164.19 100.48 164.19C96.41 164.19 92.37 163.49 88.54 162.12 84.74 160.78 81.23 158.71 78.2 156.04 75.11 153.29 72.64 149.93 70.93 146.17 69.03 141.93 68.09 137.33 68.18 132.69 68.06 127.28 69.2 121.91 71.52 117.01 73.66 112.62 76.76 108.77 80.6 105.74 84.54 102.66 89.02 100.35 93.81 98.94 98.92 97.41 104.22 96.64 109.56 96.66 114.89 96.63 120.19 97.37 125.31 98.86 130.08 100.22 134.56 102.46 138.52 105.46 142.37 108.42 145.47 112.23 147.6 116.6M142.35 7.8 142.35 29.37C116.94 29.95 92.43 38.89 72.62 54.82L58.71 38.33C82.41 19.12 111.84 8.37 142.35 7.8M54.4 41.99 68.29 58.47C49.27 75.29 36.3 97.9 31.39 122.81L10.14 119.16C15.92 89.24 31.49 62.09 54.39 41.99M7.65 145.22C7.65 138.36 8.16 131.52 9.18 124.74L30.46 128.4C29.64 133.98 29.23 139.6 29.23 145.24 29.2 164.58 34.04 183.62 43.29 200.61L24.59 211.34C13.45 191.09 7.63 168.34 7.66 145.22M27.4 216.25 46.1 205.49C59.29 227.1 79.18 243.82 102.74 253.11L95.35 273.36C67.03 262.32 43.15 242.25 27.41 216.24M145.18 282.7C130.04 282.7 115 280.2 100.67 275.29L108.07 255.03C132 263.12 157.93 263.17 181.89 255.17L189.21 275.45C175.03 280.25 160.16 282.69 145.19 282.69M194.54 273.55 187.22 253.26C210.84 244.06 230.8 227.39 244.08 205.8L262.75 216.62C246.91 242.6 222.92 262.61 194.53 273.55M246.9 200.9C256.27 183.84 261.17 164.68 261.14 145.22 261.14 139.54 260.72 133.87 259.89 128.25L281.16 124.57C282.19 131.4 282.71 138.31 282.71 145.22 282.74 168.48 276.84 191.37 265.56 211.71L246.9 200.89Z" fill="currentColor"/><path d="M109.56 122.67C106.85 122.55 104.22 123.55 102.29 125.45 100.48 127.28 99.49 129.76 99.55 132.34 99.49 134.85 100.49 137.28 102.29 139.03 104.24 140.89 106.87 141.87 109.56 141.75 112.17 141.84 114.7 140.86 116.57 139.03 118.37 137.28 119.36 134.85 119.31 132.34 119.45 127.14 115.34 122.8 110.14 122.67 110.14 122.67 110.13 122.67 110.12 122.67L109.57 122.67" fill="currentColor"/></g>
+          </svg>
+        </span>
+        <span class="brand__name">9&nbsp;Foundations</span>
+        <span class="brand__divider" aria-hidden="true"></span>
+        <span class="brand__crumb">Data&nbsp;Centers</span>
+      </a>
+      <nav class="topnav__links" aria-label="Sections">
+        <a href="#inventory">Inventory</a>
+        <a href="#archetype">Archetype</a>
+        <a href="#filterstudio">FilterStudio</a>
+        <a href="#matrix">MATRIX</a>
+        <a href="#heaal">H.E.A.A.L.</a>
+        <a href="#impacts">Impacts</a>
+      </nav>
+      <a class="btn btn--primary btn--sm" href="#cta">Talk to an expert</a>
+    </div>
+  </header>
+
+  <main id="main">
+
+  <!-- ============================================================ HERO -->
+  <section id="hero" class="hero">
+    <div class="hero__grid" aria-hidden="true"></div>
+    <svg class="hero__rule" aria-hidden="true" viewBox="0 0 1000 24" preserveAspectRatio="none">
+      <g stroke="currentColor" stroke-width="1" fill="none">
+        <line x1="0" y1="12" x2="1000" y2="12" opacity="0.4"/>
+        <g opacity="0.55">
+          <line x1="50" y1="6" x2="50" y2="18"/>
+          <line x1="150" y1="6" x2="150" y2="18"/>
+          <line x1="250" y1="6" x2="250" y2="18"/>
+          <line x1="350" y1="6" x2="350" y2="18"/>
+          <line x1="450" y1="6" x2="450" y2="18"/>
+          <line x1="550" y1="6" x2="550" y2="18"/>
+          <line x1="650" y1="6" x2="650" y2="18"/>
+          <line x1="750" y1="6" x2="750" y2="18"/>
+          <line x1="850" y1="6" x2="850" y2="18"/>
+          <line x1="950" y1="6" x2="950" y2="18"/>
+        </g>
+        <g opacity="0.25">
+          <line x1="100" y1="9" x2="100" y2="15"/>
+          <line x1="200" y1="9" x2="200" y2="15"/>
+          <line x1="300" y1="9" x2="300" y2="15"/>
+          <line x1="400" y1="9" x2="400" y2="15"/>
+          <line x1="500" y1="9" x2="500" y2="15"/>
+          <line x1="600" y1="9" x2="600" y2="15"/>
+          <line x1="700" y1="9" x2="700" y2="15"/>
+          <line x1="800" y1="9" x2="800" y2="15"/>
+          <line x1="900" y1="9" x2="900" y2="15"/>
+        </g>
+      </g>
+    </svg>
+    <div class="container hero__inner">
+      <div class="masthead">
+        <span class="masthead__title">9 Foundations · Data Centers</span>
+        <span class="masthead__sep" aria-hidden="true">/</span>
+        <span class="masthead__issue">Field Brief No.&nbsp;01</span>
+        <span class="masthead__sep" aria-hidden="true">/</span>
+        <span class="masthead__date">May&nbsp;2026</span>
+        <span class="masthead__sep" aria-hidden="true">/</span>
+        <span class="masthead__byline">Practice lead · Dr.&nbsp;Joseph&nbsp;G.&nbsp;Allen</span>
+      </div>
+      <h1 class="hero__headline">
+        Small building decisions shape <em>big</em> data center outcomes.
+      </h1>
+      <p class="hero__sub">
+        Decisions about filtration, airflow, and operation affect equipment health, energy use, public health, and climate impact. 9 Foundations quantifies those effects and helps operators turn building performance into measurable savings through low-touch modeling and monitoring.
+      </p>
+      <ol class="hero__frame" role="list" aria-label="Outcome framework">
+        <li><span class="frame__num">01</span><span class="frame__lbl">Equipment health</span></li>
+        <li><span class="frame__num">02</span><span class="frame__lbl">Energy use</span></li>
+        <li><span class="frame__num">03</span><span class="frame__lbl">Public health</span></li>
+        <li><span class="frame__num">04</span><span class="frame__lbl">Climate damages</span></li>
+        <li class="frame__sum"><span aria-hidden="true">→</span> all with economic implications</li>
+      </ol>
+      <div class="cta-row">
+        <a class="btn btn--primary" href="#cta">Talk to an expert <span aria-hidden="true">→</span></a>
+        <a class="btn btn--ghost" href="#inventory">See the Virginia case study</a>
+      </div>
+      <ul class="hero__proof" role="list">
+        <li>
+          <span class="proof__num" data-countup="10" data-suffix="%">0%</span>
+          <span class="proof__lbl">of US electricity projected for data centers by 2030</span>
+        </li>
+        <li>
+          <span class="proof__num">$<span data-countup="39.9">0</span><span class="u">M</span></span>
+          <span class="proof__lbl">modeled annual co-benefits across the Virginia portfolio</span>
+        </li>
+        <li>
+          <span class="proof__num" data-countup="412">0</span>
+          <span class="proof__lbl">data centers in 9F's proprietary Virginia inventory</span>
+        </li>
+      </ul>
+    </div>
+    <a class="hero__scroll" href="#why" aria-label="Scroll to next section">
+      <span></span>
+    </a>
+  </section>
+
+  <!-- ============================================================ WHY -->
+  <section id="why" class="section why">
+    <div class="container">
+      <header class="section__head">
+        <div class="eyebrow">§&nbsp;I.&nbsp; Why it matters</div>
+        <h2>Data centers are a high-stakes building type.</h2>
+        <p class="lede">
+          The healthy-buildings framework — that the air inside a space drives the health and performance of what happens in it — applies to server halls as forcefully as it does to offices and schools. The economics just look different.
+        </p>
+      </header>
+
+      <div class="why__grid">
+        <article class="card card--stat">
+          <div class="stat__num"><span data-countup="412">0</span></div>
+          <h3>VA data centers modeled</h3>
+          <p>9F's proprietary Virginia inventory: 202 existing, 210 planned, parameterised at the building-physics level.</p>
+        </article>
+        <article class="card card--stat">
+          <div class="stat__num"><span data-countup="30" data-suffix="%">0%</span></div>
+          <h3>spent on cooling</h3>
+          <p>Approximately 30% of energy consumed by data centers is required to reject the heat that servers produce.</p>
+        </article>
+        <article class="card card--stat">
+          <div class="stat__num"><span data-countup="40" data-suffix="%">0%</span></div>
+          <h3>of global energy &amp; emissions</h3>
+          <p>Buildings are responsible for more than 40% of global energy consumption and carbon emissions — server halls included.</p>
+        </article>
+        <article class="card card--stat">
+          <div class="stat__num">5</div>
+          <h3>outcomes 9F quantifies</h3>
+          <p>Energy. Health. Performance. Society. Dollars. The same five-pillar lens, translated to data centers.</p>
+        </article>
+      </div>
+
+      <p class="why__footnote">
+        Same principles. Different focus. In a school, the people are the load. In a data center, the equipment is — but air quality, filtration, and HVAC choices still cascade through energy bills, equipment life, public-health damages, and climate cost.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============================================================ INVENTORY -->
+  <section id="inventory" class="section inventory">
+    <div class="container">
+      <header class="section__head section__head--row">
+        <div>
+          <div class="eyebrow">§&nbsp;II.&nbsp; Virginia case study</div>
+          <h2>There is no such thing as a generic Virginia data center.</h2>
+          <p class="lede">
+            9F scientists assembled a statistically representative dataset of every existing and planned data center in Virginia — one of the world's densest data center hubs. Each site carries the building specs and HVAC parameters that drive its energy, equipment, and air-quality outcomes. The variation across them is the point.
+          </p>
+          <p class="muted section__geo">Virginia is the case study. The same parameterization runs against any market with public site data.</p>
+        </div>
+        <div class="inv__counters" aria-label="Inventory summary">
+          <div><span class="counter" data-countup="412">0</span><label>sites</label></div>
+          <div><span class="counter" data-countup="202">0</span><label>existing</label></div>
+          <div><span class="counter" data-countup="210">0</span><label>planned</label></div>
+          <div><span class="counter" data-countup="32">0</span><label>counties</label></div>
+          <div><span class="counter" data-countup="2">0</span><label>eGRID regions</label></div>
+        </div>
+      </header>
+
+      <div class="map-shell">
+        <div class="map-shell__viz">
+          <div class="intent" role="note" aria-live="off">
+            <div class="intent__row">
+              <span class="intent__k">Interaction</span>
+              <span class="intent__prompt">Select a Virginia site to render it as a building archetype below. Map, site detail, and archetype reconcile to the same record.</span>
+            </div>
+            <div class="intent__state">
+              <span class="intent__state-k">Selected</span>
+              <span class="intent__state-v" id="intent-map">Click any site to begin →</span>
+            </div>
+          </div>
+          <div class="map-toolbar" role="toolbar" aria-label="Map controls">
+            <div class="legend" aria-label="Legend">
+              <span class="legend__chip">
+                <span class="legend__swatch legend__swatch--existing"></span> Existing &middot; <b id="legend-existing">202</b>
+              </span>
+              <span class="legend__chip">
+                <span class="legend__swatch legend__swatch--planned"></span> Planned &middot; <b id="legend-planned">210</b>
+              </span>
+              <span class="legend__chip legend__chip--scale" aria-label="Symbol size encodes IT load">
+                <span class="legend__dot legend__dot--sm"></span>
+                <span class="legend__dot legend__dot--md"></span>
+                <span class="legend__dot legend__dot--lg"></span>
+                <span class="legend__lbl">IT load</span>
+              </span>
+            </div>
+            <div class="filters" role="group" aria-label="Filters">
+              <button class="chip is-active" data-filter="status" data-value="all" type="button">All</button>
+              <button class="chip" data-filter="status" data-value="existing" type="button">Existing</button>
+              <button class="chip" data-filter="status" data-value="planned" type="button">Planned</button>
+              <span class="filters__sep" aria-hidden="true"></span>
+              <button class="chip is-active" data-filter="system" data-value="all" type="button" title="All cooling system types">All systems</button>
+              <button class="chip" data-filter="system" data-value="DLC" type="button" title="Direct liquid cooling — coolant carries heat directly off the chips">DLC <span class="chip__expand">direct liquid</span></button>
+              <button class="chip" data-filter="system" data-value="DEC" type="button" title="Direct evaporative cooling — outside air cooled by water evaporation">DEC <span class="chip__expand">direct evaporative</span></button>
+            </div>
+          </div>
+          <div class="map-showing" id="map-showing" aria-live="polite">Showing all 412 sites</div>
+          <div class="map-canvas" id="map-canvas">
+            <svg id="va-map" viewBox="0 0 800 500" preserveAspectRatio="xMidYMid meet" aria-label="Map of Virginia data centers"></svg>
+            <div class="map-loading" id="map-loading">Loading geometry…</div>
+          </div>
+          <div class="map-hist" aria-label="Inventory distributions">
+            <figure class="hist">
+              <figcaption><span class="hist__k">Floor area</span><span class="hist__v">53 – 1,086,965 m²</span></figcaption>
+              <svg id="hist-floor" viewBox="0 0 320 56" preserveAspectRatio="none"></svg>
+            </figure>
+            <figure class="hist">
+              <figcaption><span class="hist__k">IT load</span><span class="hist__v">0.06 – 1,840 MW</span></figcaption>
+              <svg id="hist-it" viewBox="0 0 320 56" preserveAspectRatio="none"></svg>
+            </figure>
+            <figure class="hist">
+              <figcaption><span class="hist__k">PUE</span><span class="hist__v">1.05 – 1.90</span></figcaption>
+              <svg id="hist-pue" viewBox="0 0 320 56" preserveAspectRatio="none"></svg>
+            </figure>
+            <figure class="hist">
+              <figcaption><span class="hist__k">Filters</span><span class="hist__v">4 – 6,810</span></figcaption>
+              <svg id="hist-filters" viewBox="0 0 320 56" preserveAspectRatio="none"></svg>
+            </figure>
+          </div>
+        </div>
+
+        <aside class="map-panel" aria-live="polite">
+          <header>
+            <div class="eyebrow">Site detail</div>
+            <h3 id="site-title">—</h3>
+            <p id="site-sub" class="muted">Each modeled site carries a full HVAC and building-physics parameterization.</p>
+          </header>
+          <dl class="kv" id="site-kv">
+            <div><dt>County</dt><dd>—</dd></div>
+            <div><dt>Status</dt><dd>—</dd></div>
+            <div><dt>Floor area</dt><dd>—</dd></div>
+            <div><dt>Ceiling height</dt><dd>—</dd></div>
+            <div><dt>IT load</dt><dd>—</dd></div>
+            <div><dt>PUE</dt><dd>—</dd></div>
+            <div><dt>System type</dt><dd>—</dd></div>
+            <div><dt>Air fraction</dt><dd>—</dd></div>
+            <div><dt>System capacity</dt><dd>—</dd></div>
+            <div><dt>Filters</dt><dd>—</dd></div>
+            <div><dt>eGRID region</dt><dd>—</dd></div>
+            <div><dt>Coordinates</dt><dd>—</dd></div>
+          </dl>
+          <p class="map-panel__note">
+            Sites are modeled as parameterized archetypes; exact lat/long points are public-safe.
+          </p>
+        </aside>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ ARCHETYPE -->
+  <section id="archetype" class="section archetype">
+    <div class="container">
+      <header class="section__head">
+        <div class="eyebrow">§&nbsp;III.&nbsp; From state to site</div>
+        <h2>This is how statewide data becomes building-level insight.</h2>
+        <p class="lede">
+          9F translates inventory parameters into realistic per-site archetypes — full geometries, HVAC topologies, filter counts, operating schedules. Every modeled finding lands on plausible mechanics, not aggregate assumptions.
+        </p>
+      </header>
+
+      <div class="intent" role="note" aria-live="polite">
+        <div class="intent__row">
+          <span class="intent__k">Bound state</span>
+          <span class="intent__prompt">Archetype generated from the selected Virginia site. Building volume, IT load, system type, and filter counts derive from that record.</span>
+        </div>
+        <div class="intent__state">
+          <span class="intent__state-k">Derived from</span>
+          <span class="intent__state-v" id="intent-arch">Default representative archetype · select a site to bind →</span>
+        </div>
+      </div>
+
+      <div class="arch__row">
+        <div class="arch__viz" aria-hidden="true">
+          <svg id="arch-svg" viewBox="0 0 520 360" preserveAspectRatio="xMidYMid meet"></svg>
+          <div class="arch__legend">
+            <span><span class="dot dot--outside"></span> Outdoor particles</span>
+            <span><span class="dot dot--inside"></span> Indoor particles (post-filtration)</span>
+          </div>
+        </div>
+        <aside class="arch__panel">
+          <div class="arch__panel-head">
+            <h3 id="arch-title">Representative archetype · Northern Virginia</h3>
+            <p class="muted" id="arch-sub">A flagship default until you pick a site in the inventory above. Click any Virginia point to render this section as that specific facility.</p>
+          </div>
+          <dl class="kv kv--tight" id="arch-kv">
+            <div><dt>Total building volume</dt><dd id="arch-volume">743,224&nbsp;m³</dd></div>
+            <div><dt>Total IT capacity</dt><dd id="arch-it">280&nbsp;MW</dd></div>
+            <div><dt>Floor area · ceiling</dt><dd id="arch-floor">~38,000 m² · ~19.5 m</dd></div>
+            <div><dt>System type</dt><dd id="arch-system">Direct liquid cooling (DLC)</dd></div>
+            <div><dt>Air fraction</dt><dd id="arch-air">20% air · 80% liquid</dd></div>
+            <div><dt>System capacity</dt><dd id="arch-capacity">113 m³/s vent · 487 m³/s recirc</dd></div>
+            <div><dt>Filter count</dt><dd id="arch-filters">122 vent · 523 recirc</dd></div>
+            <div><dt>PUE</dt><dd id="arch-pue">1.07</dd></div>
+            <div><dt>Outdoor PM<sub>2.5</sub></dt><dd id="arch-pm25">6.49 µg/m³ <span class="muted">[0.20 – 35.54]</span></dd></div>
+            <div><dt>eGRID region</dt><dd id="arch-egrid">RFCE</dd></div>
+          </dl>
+        </aside>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ FILTERSTUDIO -->
+  <section id="filterstudio" class="section product product--fs">
+    <div class="container">
+      <header class="section__head">
+        <div class="eyebrow">§&nbsp;IV.&nbsp; FilterStudio</div>
+        <h2>Filters, modeled the way buildings actually run.</h2>
+        <p class="lede">
+          Small filtration choices can create outsized economic consequences in data centers. FilterStudio quantifies which decisions reduce energy use, climate damages, and public-health harms at scale — against real building archetypes, over time, not lab-condition snapshots.
+        </p>
+      </header>
+
+      <div class="fs__panel">
+        <div class="fs__panel-head">
+          <div>
+            <div class="eyebrow eyebrow--sm">FilterStudio · TBO Comparison</div>
+            <h3>Two high-performance filters, same MERV rating.</h3>
+          </div>
+          <div class="fs__toggle" role="group" aria-label="Toggle filter view">
+            <button class="chip" data-fs="A" type="button">Filter A</button>
+            <button class="chip" data-fs="B" type="button">Filter B</button>
+            <button class="chip is-active" data-fs="AB" type="button">Compare</button>
+          </div>
+        </div>
+
+        <div class="intent" role="note" aria-live="polite">
+          <div class="intent__row">
+            <span class="intent__k">Comparison</span>
+            <span class="intent__prompt">Toggle Filter A vs Filter B to see how one same-MERV decision changes energy, health, performance, and society outcomes across the archetype.</span>
+          </div>
+          <div class="intent__state">
+            <span class="intent__state-k">Viewing</span>
+            <span class="intent__state-v" id="fs-viewing">Both filters · compare mode</span>
+          </div>
+        </div>
+
+        <div class="fs__pillars fs__pillars--four">
+          <div class="pillar" data-pillar="energy">
+            <header><span>Energy</span><span class="pillar__delta" data-delta="energy">A wins · 36% less</span></header>
+            <div class="pillar__metric">
+              <b id="fs-energy-a">204,096</b>
+              <span class="u">kWh/y</span>
+              <small id="fs-energy-b">vs 318,411 (B)</small>
+            </div>
+          </div>
+          <div class="pillar" data-pillar="health">
+            <header><span>Health</span><span class="pillar__delta" data-delta="health">B wins · 29% lower</span></header>
+            <div class="pillar__metric">
+              <b id="fs-health-a">0.17</b>
+              <span class="u">µg/m³ PM₂.₅</span>
+              <small id="fs-health-b">vs 0.12 (B)</small>
+            </div>
+          </div>
+          <div class="pillar" data-pillar="performance">
+            <header><span>Performance</span><span class="pillar__delta" data-delta="performance">A wins · 38% less</span></header>
+            <div class="pillar__metric">
+              <b id="fs-perf-a">135.3</b>
+              <span class="u">Pa pressure drop</span>
+              <small id="fs-perf-b">vs 217.8 (B)</small>
+            </div>
+          </div>
+          <div class="pillar" data-pillar="society">
+            <header><span>Society</span><span class="pillar__delta">Statewide rollup</span></header>
+            <div class="pillar__metric">
+              <b>$3.2<span class="u">M</span></b>
+              <span class="u">climate + health avoided</span>
+              <small>scenario-invariant · across all 412 sites</small>
+            </div>
+          </div>
+        </div>
+
+        <div class="fs__charts">
+          <figure class="chart">
+            <figcaption>
+              <span class="chart__title">Pressure drop vs dust loading</span>
+              <span class="chart__sub">Representative archetype · lower curve = lower fan energy</span>
+            </figcaption>
+            <svg id="fs-pressure" viewBox="0 0 480 240"></svg>
+            <div class="chart__legend">
+              <span><span class="sw sw--a"></span> Filter A &middot; 135.3 Pa final</span>
+              <span><span class="sw sw--b"></span> Filter B &middot; 217.8 Pa final</span>
+            </div>
+          </figure>
+          <figure class="chart">
+            <figcaption>
+              <span class="chart__title">Indoor PM<sub>2.5</sub> over time</span>
+              <span class="chart__sub">Representative archetype · lower curve = cleaner air</span>
+            </figcaption>
+            <svg id="fs-pm" viewBox="0 0 480 240"></svg>
+            <div class="chart__legend">
+              <span><span class="sw sw--a"></span> Filter A &middot; 0.17 µg/m³</span>
+              <span><span class="sw sw--b"></span> Filter B &middot; 0.12 µg/m³</span>
+            </div>
+          </figure>
+        </div>
+
+      </div>
+
+      <div class="fs__headline" role="region" aria-label="Statewide finding">
+        <div class="fs__headline-eyebrow">
+          <div class="eyebrow eyebrow--sm">Statewide finding · 412 modeled sites</div>
+          <div class="eyebrow eyebrow--sm fs__headline-method">Methodology · Harvard CoBE</div>
+        </div>
+        <div class="fs__headline-result">
+          <div class="fs__headline-num">$<span data-countup="39.9">0</span><span class="u">M</span></div>
+          <h3>annual co-benefits across the Virginia data center portfolio</h3>
+          <p>A single filter decision, applied across 412 sites, compounds into a step-change in energy, health, and climate outcomes. The four breakdowns below add up to this finding.</p>
+        </div>
+        <ul class="fs__headline-stats">
+          <li><b data-countup="206419" data-format="num">0</b><span class="u">MWh/y</span><label>Energy saved</label></li>
+          <li><b>$36.7<span class="u">M</span></b><span class="u">/year</span><label>Energy cost avoided</label></li>
+          <li><b>$2.83<span class="u">M</span></b><span class="u">/year</span><label>Climate damages avoided</label></li>
+          <li><b>$369<span class="u">k</span></b><span class="u">/year</span><label>Public-health damages avoided</label></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ MATRIX -->
+  <section id="matrix" class="section product product--mx">
+    <div class="container">
+      <header class="section__head">
+        <div class="eyebrow">§&nbsp;V.&nbsp; MATRIX</div>
+        <h2>Simulate before you build.</h2>
+        <p class="lede">
+          Operational and material changes inside a data center have measurable energy implications. MATRIX helps teams test those changes before they spend money implementing them — a physics-based simulation engine that returns a decision-grade map of how energy, carbon, cost, and occupant health respond.
+        </p>
+      </header>
+
+      <div class="mx__grid">
+        <div class="mx__flow" role="list" aria-label="MATRIX pipeline">
+          <div class="mx__step" role="listitem"><span class="mx__idx">01</span><b>Real building</b><small>Geometry · materials · setpoints · HVAC</small></div>
+          <div class="mx__arrow" aria-hidden="true">→</div>
+          <div class="mx__step" role="listitem"><span class="mx__idx">02</span><b>Digital sister</b><small>Parameterized twin tuned to the real building</small></div>
+          <div class="mx__arrow" aria-hidden="true">→</div>
+          <div class="mx__step" role="listitem"><span class="mx__idx">03</span><b>Rapid simulations</b><small>Thousands of scenarios, in minutes</small></div>
+          <div class="mx__arrow" aria-hidden="true">→</div>
+          <div class="mx__step" role="listitem"><span class="mx__idx">04</span><b>Decision matrix</b><small>Energy · health · society · dollars</small></div>
+        </div>
+
+        <div class="mx__panel">
+          <div class="intent" role="note" aria-live="polite">
+            <div class="intent__row">
+              <span class="intent__k">Decision lens</span>
+              <span class="intent__prompt">Cycle scenarios to see which interventions reshape the operating regime and where energy intensity bottoms out.</span>
+            </div>
+            <div class="intent__state">
+              <span class="intent__state-k">Scenario</span>
+              <span class="intent__state-v" id="intent-mx">Baseline · reference operating envelope</span>
+            </div>
+          </div>
+          <div class="mx__panel-head">
+            <div>
+              <div class="eyebrow eyebrow--sm">MATRIX · Example Decision Surface</div>
+              <h3>Envelope U-value × HVAC efficiency · energy intensity (kWh/m²)</h3>
+              <p class="mx__panel-sub muted">Each intervention reshapes the operating regime. The marker tracks where energy intensity bottoms out under the active scenario.</p>
+            </div>
+            <div class="mx__scenario" role="group" aria-label="Scenario">
+              <button class="chip is-active" data-scenario="baseline" type="button">Baseline</button>
+              <button class="chip" data-scenario="envelope" type="button">+ Envelope retrofit</button>
+              <button class="chip" data-scenario="setpoints" type="button">+ Setpoint tune</button>
+              <button class="chip" data-scenario="all" type="button">All combined</button>
+            </div>
+          </div>
+          <div class="mx__heat">
+            <svg id="mx-heat" viewBox="0 0 480 320"></svg>
+          </div>
+          <div class="mx__readout">
+            <div class="mx__readout-head">
+              <div class="eyebrow eyebrow--sm">Modeled example finding · representative archetype</div>
+            </div>
+            <div class="mx__readout-row">
+              <div>
+                <label>Annual energy savings</label>
+                <b><span id="mx-savings-pct">0.0</span>%</b>
+              </div>
+              <div>
+                <label>Annual cost savings</label>
+                <b>$<span id="mx-savings-usd">0</span></b>
+              </div>
+              <div>
+                <label>Avoided CO₂</label>
+                <b><span id="mx-co2">0</span> t/y</b>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <p class="mx__pull">
+        The capability is the takeaway: operators compare envelope, setpoint, and HVAC interventions before they spend money. The example archetype reaches <b>up to 2%</b> annual energy savings and <b>~$40k</b> annual cost under combined interventions; portfolio-level numbers depend on the buildings in question.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============================================================ HEAAL -->
+  <section id="heaal" class="section product product--hl">
+    <div class="container">
+      <header class="section__head">
+        <div class="eyebrow">§&nbsp;VI.&nbsp; H.E.A.A.L.</div>
+        <h2>Watch the air. Score the building.</h2>
+        <p class="lede">
+          Real-time building data closes the gap between modeled performance and actual conditions, giving operators a low-cost way to verify air-quality and building-health outcomes in the field. Every metric matters twice — once for the equipment that needs stable operating conditions, once for the people in and around the building.
+        </p>
+      </header>
+
+      <div class="hl__panel">
+        <div class="intent" role="note" aria-live="polite">
+          <div class="intent__row">
+            <span class="intent__k">Verification</span>
+            <span class="intent__prompt">Switch floors to inspect how real-time monitoring verifies modeled conditions against the same thresholds the science uses.</span>
+          </div>
+          <div class="intent__state">
+            <span class="intent__state-k">Floor</span>
+            <span class="intent__state-v" id="intent-hl">Floor 2 · IEQ 86 / 100</span>
+          </div>
+        </div>
+        <div class="hl__panel-head">
+          <div>
+            <div class="eyebrow eyebrow--sm">H.E.A.A.L. · Building Insights</div>
+            <h3>Building <span id="hl-bldg">BLDG-04A</span> · Floor <span id="hl-floor">2</span></h3>
+          </div>
+          <div class="hl__controls" role="group" aria-label="Floor">
+            <button class="chip" data-hl-floor="1" type="button">Fl 1</button>
+            <button class="chip is-active" data-hl-floor="2" type="button">Fl 2</button>
+            <button class="chip" data-hl-floor="3" type="button">Fl 3</button>
+          </div>
+        </div>
+
+        <div class="hl__score">
+          <div class="hl__score-num"><span id="hl-score">86</span><small>/100</small></div>
+          <div class="hl__score-meta">
+            <b>Building IEQ score</b>
+            <span class="muted">Aggregated from 18 sensors · 1-hour rolling averages</span>
+            <div class="hl__bar"><div class="hl__bar-fill" id="hl-bar"></div></div>
+          </div>
+          <ul class="hl__status"></ul>
+        </div>
+
+        <div class="hl__tiles">
+          <article class="tile" data-metric="tvoc">
+            <header><span>TVOC</span><span class="pip pip--ok"></span></header>
+            <div class="tile__val"><b id="tile-tvoc">142</b><span>µg/m³</span></div>
+            <svg class="tile__spark" viewBox="0 0 140 40" preserveAspectRatio="none"></svg>
+            <footer><span class="muted">Threshold 500</span></footer>
+          </article>
+          <article class="tile" data-metric="pm25">
+            <header><span>PM<sub>2.5</sub></span><span class="pip pip--warn"></span></header>
+            <div class="tile__val"><b id="tile-pm25">11.4</b><span>µg/m³</span></div>
+            <svg class="tile__spark" viewBox="0 0 140 40" preserveAspectRatio="none"></svg>
+            <footer><span class="muted">Threshold 12</span></footer>
+          </article>
+          <article class="tile" data-metric="trh">
+            <header><span>T &middot; RH</span><span class="pip pip--ok"></span></header>
+            <div class="tile__val"><b id="tile-t">21.4</b><span>°C / <b id="tile-rh">42</b>%</span></div>
+            <svg class="tile__spark" viewBox="0 0 140 40" preserveAspectRatio="none"></svg>
+            <footer><span class="muted">Setpoint 21–24 °C</span></footer>
+          </article>
+          <article class="tile" data-metric="co2">
+            <header><span>CO₂</span><span class="pip pip--ok"></span></header>
+            <div class="tile__val"><b id="tile-co2">612</b><span>ppm</span></div>
+            <svg class="tile__spark" viewBox="0 0 140 40" preserveAspectRatio="none"></svg>
+            <footer><span class="muted">Threshold 1000</span></footer>
+          </article>
+        </div>
+
+        <div class="hl__sensors">
+          <header>
+            <b>Sensor grid · Floor <span id="hl-floor-2">2</span></b>
+            <span class="muted">Color = current IEQ deviation</span>
+          </header>
+          <div class="hl__grid" id="hl-grid"></div>
+        </div>
+      </div>
+
+      <p class="mx__pull">
+        Low-cost sensing turns modeled performance into observed performance. Operators get a single building-health score and the underlying signal — drift before it becomes downtime, environmental conditions held against the same thresholds the science uses.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============================================================ IMPACTS -->
+  <section id="impacts" class="section impacts">
+    <div class="container">
+      <header class="section__head">
+        <div class="eyebrow">§&nbsp;VII.&nbsp; Impacts</div>
+        <h2>From building decisions to societal value.</h2>
+        <p class="lede">
+          Every modeled kWh moves more than a utility bill. 9F translates energy outcomes into the climate and public-health damages they avoid — using Harvard's Co-Benefits of the Environment (CoBE) framework — so the case isn't just operational; it's social.
+        </p>
+      </header>
+
+      <div class="imp__grid">
+        <article class="card card--imp">
+          <div class="imp__tag" aria-hidden="true">01</div>
+          <b>206,419<span class="u">&nbsp;MWh/y</span></b>
+          <h3>Energy saved</h3>
+          <p>Modeled annual electricity savings from the FilterStudio statewide comparison.</p>
+        </article>
+        <article class="card card--imp">
+          <div class="imp__tag" aria-hidden="true">02</div>
+          <b>$36.7<span class="u">M</span></b>
+          <h3>Energy cost avoided</h3>
+          <p>At a $0.18/kWh wholesale rate, applied across the 412-site Virginia portfolio.</p>
+        </article>
+        <article class="card card--imp">
+          <div class="imp__tag" aria-hidden="true">03</div>
+          <b>$2.83<span class="u">M</span></b>
+          <h3>Climate damages avoided</h3>
+          <p>Greenhouse-gas externalities converted to dollars using social cost of carbon.</p>
+        </article>
+        <article class="card card--imp">
+          <div class="imp__tag" aria-hidden="true">04</div>
+          <b>$369<span class="u">k</span></b>
+          <h3>Public-health damages avoided</h3>
+          <p>PM-attributable morbidity and mortality cost avoided, via Harvard CoBE.</p>
+        </article>
+      </div>
+
+      <div class="imp__cobe card">
+        <div>
+          <div class="eyebrow eyebrow--sm">Methodology · Harvard CoBE</div>
+          <h3>Energy deltas, translated to human and climate cost.</h3>
+        </div>
+        <p>
+          9F uses Harvard's <b>Co-Benefits of the Environment (CoBE)</b> tool to translate modeled changes in electricity use into estimated <b>public-health</b> and <b>climate damages avoided</b>. That converts a percentage point of energy savings into the language operators, regulators, and communities all share: dollars, lives, and emissions.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ TEAM -->
+  <section id="team" class="section team">
+    <div class="container">
+      <header class="section__head">
+        <div class="eyebrow">§&nbsp;VIII.&nbsp; The science behind 9F</div>
+        <h2>Building science, health science, business science.</h2>
+        <p class="lede">
+          9 Foundations is a team of building scientists, exposure researchers, modelers, and engineers. The combination is the point: data center operators need answers that hold up to a peer review and to a CFO.
+        </p>
+      </header>
+
+      <div class="team__featured card">
+        <div class="team__avatar" aria-hidden="true">
+          <svg viewBox="0 0 64 64" width="60" height="60">
+            <defs>
+              <linearGradient id="ag" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#5eead4"/>
+                <stop offset="1" stop-color="#3b82f6"/>
+              </linearGradient>
+            </defs>
+            <circle cx="32" cy="32" r="30" fill="none" stroke="url(#ag)" stroke-width="1.2"/>
+            <text x="32" y="40" text-anchor="middle" font-family="Space Grotesk" font-size="22" font-weight="600" fill="url(#ag)">JA</text>
+          </svg>
+        </div>
+        <div class="team__body">
+          <h3>Dr. Joseph G. Allen, DSc, MPH, CIH</h3>
+          <p class="team__role">CEO, 9 Foundations · Professor, Harvard T.H. Chan School of Public Health · Director, Harvard's Healthy Buildings Program</p>
+          <p>
+            Coauthor of <em>Healthy Buildings: How Indoor Spaces Can Make You Sick — or Keep You Well</em>. Keynoted the White House's first Indoor Air Quality Summit, served as Commissioner of the Lancet COVID-19 Commission and Chair of its Safe Work, Safe Schools, and Safe Travel Task Force. Featured on <em>60 Minutes</em>' "The Air We Breathe." Over 100 peer-reviewed papers in <em>JAMA</em>, <em>Science</em>, and <em>The Lancet</em>; regular contributor to the <em>New York Times</em>, <em>Washington Post</em>, <em>Harvard Business Review</em>, and <em>The Atlantic</em>.
+          </p>
+        </div>
+      </div>
+
+      <div class="team__sub-row">
+        <h3 class="team__sub">Disciplines on the engagement</h3>
+        <p class="team__placeholder muted">
+          Dr. Allen anchors the practice. The capability stripes below describe how 9F staffs data center engagements — named members from each discipline join projects as scope and timeline require.
+        </p>
+      </div>
+      <div class="team__grid">
+        <article class="card card--role">
+          <div class="role__tag">Exposure Science</div>
+          <b>Building Health &amp; Indoor Environments</b>
+          <p>Peer-reviewed research on indoor air, ventilation, filtration, and human exposure — the scientific basis underneath every 9F product.</p>
+        </article>
+        <article class="card card--role">
+          <div class="role__tag">Computational Modeling</div>
+          <b>Physics-based Simulation</b>
+          <p>Building-physics, CFD, and statistical modeling — the engine room behind MATRIX, FilterStudio, and the inventory.</p>
+        </article>
+        <article class="card card--role">
+          <div class="role__tag">HVAC &amp; Systems</div>
+          <b>Mechanical &amp; Filtration Engineering</b>
+          <p>Real-world HVAC and filtration expertise translating field data into accurate, decision-grade archetypes.</p>
+        </article>
+        <article class="card card--role">
+          <div class="role__tag">Field &amp; Sensing</div>
+          <b>IAQ Monitoring &amp; Deployment</b>
+          <p>Low-cost sensor design, calibration, and field operations — the hardware and pipelines behind H.E.A.A.L.</p>
+        </article>
+        <article class="card card--role">
+          <div class="role__tag">Health Economics</div>
+          <b>CoBE &amp; Damages Modeling</b>
+          <p>Translating modeled energy changes into estimated public-health and climate damages avoided.</p>
+        </article>
+        <article class="card card--role">
+          <div class="role__tag">Strategy</div>
+          <b>Client &amp; Portfolio Advisory</b>
+          <p>Working with operators and investors to turn modeled findings into deployment plans and capital decisions.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ CTA -->
+  <section id="cta" class="section closing">
+    <div class="closing__bg" aria-hidden="true"></div>
+    <div class="container closing__inner">
+      <div class="eyebrow eyebrow--lit"><span class="dot"></span> Talk to 9 Foundations</div>
+      <h2>Turn building decisions into measurable savings.</h2>
+      <p>We'll walk you through how the inventory, FilterStudio, MATRIX, and H.E.A.A.L. would apply to your sites — and what a modeled co-benefits analysis would look like for your portfolio.</p>
+      <div class="cta-row">
+        <a class="btn btn--primary btn--lg" href="mailto:hello@9fheaal.com?subject=Data%20Centers%20%E2%80%94%20talk%20to%20an%20expert">Talk to an expert <span aria-hidden="true">→</span></a>
+        <a class="btn btn--ghost" href="#inventory">See the Virginia case study</a>
+      </div>
+    </div>
+  </section>
+
+  </main>
+
+  <footer class="foot">
+    <div class="container foot__inner">
+      <div class="foot__brand">
+        <span class="brand__name">9 Foundations</span>
+        <span class="muted">Healthy buildings. Better business.</span>
+      </div>
+      <div class="foot__meta muted">
+        <span>© 9 Foundations, Inc. 2026. All rights reserved.</span>
+        <span>Modeled findings shown for representative archetypes; portfolio results vary by site.</span>
+      </div>
+    </div>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js" defer></script>
+  <script src="../../data.js" defer></script>
+  <script src="app.js" defer></script>
+</body>
+</html>
