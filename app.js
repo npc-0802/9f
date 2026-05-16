@@ -1454,7 +1454,16 @@
     }
     function renderPpBins(scenario) {
       if (!ppBins) return;
-      ppBins.innerHTML = PP_BINS.map((b, i) => {
+      // Header row labels the two signals:
+      //   "Distribution"  → bar length / bin %s reflect current state
+      //   "Offset Δ"      → shift from baseline
+      const head = `
+        <li class="mxp__pp-bin mxp__pp-bin--head" aria-hidden="true">
+          <span></span>
+          <span class="mxp__pp-bin-head-l">Distribution</span>
+          <span class="mxp__pp-bin-head-r">Offset Δ</span>
+        </li>`;
+      const rows = PP_BINS.map((b, i) => {
         const d = scenario.d[i];
         const abs = Math.abs(d);
         const op = deltaOpacity(abs);
@@ -1469,6 +1478,7 @@
           <span class="mxp__pp-bin-d" style="opacity:${op.toFixed(2)}">${fmtDelta(d)}</span>
         </li>`;
       }).join("");
+      ppBins.innerHTML = head + rows;
     }
 
     function renderPpScenario(idx) {

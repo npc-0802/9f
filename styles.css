@@ -2014,17 +2014,24 @@ sub, sup { font-size: 0.7em; }
   text-align: right;
   min-width: 70px;
 }
-/* OFFSET Δ column header — only on the first row */
-.mxp__pp-bin:first-child .mxp__pp-bin-d::before {
-  content: "OFFSET Δ";
-  display: block;
+/* Paired column header row: names "Distribution" and "Offset Δ" so
+   the two signals (bar length = current state vs Δ = shift from
+   baseline) are unambiguous. */
+.mxp__pp-bin--head {
+  border-bottom: 0;
+  padding: 0 0 6px;
+}
+.mxp__pp-bin--head .mxp__pp-bin-head-l,
+.mxp__pp-bin--head .mxp__pp-bin-head-r {
   font-family: var(--font-mono);
   font-size: 0.6rem;
   font-weight: 600;
   letter-spacing: 0.18em;
+  text-transform: uppercase;
   color: rgba(178,204,238,0.55);
-  margin-bottom: 2px;
 }
+.mxp__pp-bin--head .mxp__pp-bin-head-l { grid-column: 2; }
+.mxp__pp-bin--head .mxp__pp-bin-head-r { grid-column: 3; text-align: right; }
 /* Per-bin delta colors track the bin badge color so the row reads
    cohesively. The neutral "0.00%" state uses a muted version. */
 .mxp__pp-bin[data-bin="0"] .mxp__pp-bin-d { color: #6BA6F1; }
