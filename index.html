@@ -508,28 +508,82 @@
         </p>
       </header>
 
-      <!-- Image-backed platform fidelity per Feedback 3 §04. The HEAAL
-           UI is the screenshot itself; only the four parameter pills
-           (CO₂ / PM2.5 / TVOC / Temp) are functional. Clicking any pill
-           swaps the backdrop to that parameter's screenshot. Everything
-           else (SpaceTime Map, Timeseries Plot, live values, bin
-           breakdown, building tower) lives in the screenshot — no
-           synthetic recreation. -->
-      <div class="hl4" id="hl4">
-        <img class="hl4__base" id="hl4-img" src="assets/heaal/heaal-00.webp"
-             alt="H.E.A.A.L. Analytics platform · CO₂ view"
-             width="1700" height="947" decoding="async" />
-        <div class="hl4__btns" role="tablist" aria-label="H.E.A.A.L. parameter">
-          <button class="hl4__btn is-active" type="button" role="tab"
-                  data-hl-param="co2"  aria-selected="true">CO<sub>2</sub></button>
-          <button class="hl4__btn" type="button" role="tab"
-                  data-hl-param="pm25" aria-selected="false">PM<sub>2.5</sub></button>
-          <button class="hl4__btn" type="button" role="tab"
-                  data-hl-param="tvoc" aria-selected="false">TVOC</button>
-          <button class="hl4__btn" type="button" role="tab"
-                  data-hl-param="temp" aria-selected="false">Temp</button>
+      <!-- Hardcoded HTML/CSS/SVG rebuild per
+           9f_heaal_hardcoded_rebuild_brief.md. No screenshot overlay —
+           the entire H.E.A.A.L. surface is reconstructed in code.
+           Parameter pills (CO₂ / PM2.5 / TVOC / Temp) are the primary
+           interactive surface and swap bins, sensor cards, chart
+           titles, banded timeseries, and SpaceTime Map intensity. -->
+      <section class="hlx" id="hlx" aria-label="H.E.A.A.L. Analytics product panel">
+
+        <header class="hlx__topbar">
+          <div class="hlx__brand">
+            <span class="hlx__title">H.E.A.A.L. Analytics</span>
+            <span class="hlx__live"><span class="hlx__live-dot" aria-hidden="true"></span>Live data</span>
+          </div>
+          <div class="hlx__pills hlx__pills--param" role="tablist" aria-label="Parameter">
+            <button class="hlx__pill is-active" type="button" role="tab"
+                    data-hlx-param="co2"  aria-selected="true">CO<sub>2</sub></button>
+            <button class="hlx__pill" type="button" role="tab"
+                    data-hlx-param="pm25" aria-selected="false">PM<sub>2.5</sub></button>
+            <button class="hlx__pill" type="button" role="tab"
+                    data-hlx-param="tvoc" aria-selected="false">TVOC</button>
+            <button class="hlx__pill hlx__pill--menu" type="button" role="tab"
+                    data-hlx-param="temp" aria-selected="false">Temp <span class="hlx__chev" aria-hidden="true">▾</span></button>
+          </div>
+          <span class="hlx__divider" aria-hidden="true"></span>
+          <div class="hlx__pills" role="group" aria-label="Time window">
+            <span class="hlx__pill is-active" aria-current="true">30 Days</span>
+            <span class="hlx__pill" aria-disabled="true">7 Days</span>
+          </div>
+          <span class="hlx__divider" aria-hidden="true"></span>
+          <span class="hlx__pill hlx__pill--menu" aria-current="true">Building <span class="hlx__chev" aria-hidden="true">▾</span></span>
+        </header>
+
+        <div class="hlx__body">
+          <div class="hlx__left">
+            <div class="hlx__tower-row">
+              <svg class="hlx__tower" id="hlx-tower" viewBox="0 0 120 280" preserveAspectRatio="xMidYMid meet" aria-hidden="true"></svg>
+              <ul class="hlx__bins" id="hlx-bins" aria-label="Threshold bins"></ul>
+            </div>
+
+            <div class="hlx__sensor-label">
+              <span class="hlx__sensor-dot" aria-hidden="true"></span>
+              <span class="hlx__sensor-id">Sensor 2967015849</span>
+            </div>
+
+            <div class="hlx__cards" id="hlx-cards" aria-label="Live readings"></div>
+          </div>
+
+          <div class="hlx__right">
+            <div class="hlx__chart hlx__chart--st">
+              <div class="hlx__chart-head">
+                <span class="hlx__chart-title" id="hlx-st-title">H.E.A.A.L. CO<sub>2</sub> SpaceTime Map</span>
+                <span class="hlx__chart-icons" aria-hidden="true">
+                  <span class="hlx__chart-icn">⤢</span>
+                  <span class="hlx__chart-icn">↓</span>
+                </span>
+              </div>
+              <svg class="hlx__st" id="hlx-st" viewBox="0 0 600 280" preserveAspectRatio="none" aria-label="SpaceTime map"></svg>
+            </div>
+
+            <div class="hlx__chart hlx__chart--ts">
+              <div class="hlx__chart-head">
+                <span class="hlx__chart-title" id="hlx-ts-title">H.E.A.A.L. CO<sub>2</sub> Timeseries Plot</span>
+                <span class="hlx__chart-chips">
+                  <span class="hlx__chip">Floor 08</span>
+                  <span class="hlx__chip">Sensor 08</span>
+                </span>
+              </div>
+              <svg class="hlx__ts" id="hlx-ts" viewBox="0 0 600 260" preserveAspectRatio="none" aria-label="Timeseries plot"></svg>
+            </div>
+          </div>
         </div>
-      </div>
+
+        <footer class="hlx__footer">
+          <span class="hlx__footer-txt">Powered by 9 Foundations ©2026 All Rights Reserved</span>
+        </footer>
+      </section>
     </div>
   </section>
 

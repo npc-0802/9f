@@ -2215,66 +2215,256 @@ sub, sup { font-size: 0.7em; }
 .product--hl { background: var(--bg-0); }
 
 /* ============================================================ H.E.A.A.L.
-   Image-backed parameter switcher per Feedback 3 §04. The platform
-   screenshot is the visual; only 4 parameter pills (CO2 / PM2.5 / TVOC
-   / Temp) are functional. Each click swaps the backdrop image. The
-   visible pills in the image are themselves screenshotted; the
-   functional buttons here sit transparently on top of them. */
-.hl4 {
+   Hardcoded HTML/CSS/SVG rebuild per
+   9f_heaal_hardcoded_rebuild_brief.md. Real product surface — no
+   screenshot, no image overlays. Application-tight spacing, dark navy
+   ground, pill chrome, hardcoded tower + bin rows, sensor cards,
+   SpaceTime heatmap and banded Timeseries. */
+.hlx {
   position: relative;
-  width: 100%;
-  border-radius: var(--r-md);
-  overflow: hidden;
-  background: #04070c;
-  border: 1px solid var(--line-1);
-}
-.hl4__base {
-  display: block;
-  width: 100%;
-  height: auto;
-  user-select: none;
-  -webkit-user-drag: none;
-}
-/* Button strip sits over the in-image pill row near the top center.
-   Pills measured from the 1700×947 backdrop. The container holds 4
-   equally-sized buttons with the same gap as the displayed pills. */
-.hl4__btns {
-  position: absolute;
-  /* The pill strip in the image occupies roughly 43.6% → 67.0% wide,
-     1.8% → 6.9% tall. Container hugs that band; child buttons take
-     their share. */
-  left: 43.6%;
-  width: 23.4%;
-  top: 1.8%;
-  height: 5.4%;
   display: grid;
-  grid-template-columns: 0.9fr 1fr 1fr 1.3fr;
-  gap: 0.5%;
+  gap: 14px;
+  padding: 18px 22px 16px;
+  background: linear-gradient(180deg, #08111e 0%, #050c16 100%);
+  border: 1px solid rgba(40,72,116,0.55);
+  border-radius: var(--r-md);
+  color: #d3def0;
+  font-family: var(--font-display);
 }
-.hl4__btn {
+
+/* ---------- Top bar ---------- */
+.hlx__topbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding-bottom: 6px;
+}
+.hlx__brand {
+  display: flex; flex-direction: column; gap: 4px;
+  margin-right: auto;
+}
+.hlx__title {
+  font-size: 1.15rem; font-weight: 700;
+  color: #f1f5fb; letter-spacing: -0.005em;
+  font-family: var(--font-display);
+}
+.hlx__live {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-family: var(--font-mono); font-size: 0.72rem;
+  letter-spacing: 0.04em; color: #9DD05A;
+}
+.hlx__live-dot {
+  width: 7px; height: 7px; border-radius: 999px;
+  background: #7CB342; box-shadow: 0 0 8px rgba(124,179,66,0.7);
+}
+.hlx__pills { display: inline-flex; gap: 8px; }
+.hlx__pill {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 7px 14px;
   background: transparent;
-  border: 0;
-  margin: 0;
-  padding: 0;
-  font: inherit;
-  color: transparent; /* Pill text is in the image; we use this as a
-                         hit-target only. The aria-label / button text
-                         is for assistive tech. */
-  cursor: pointer;
+  border: 1px solid rgba(10,116,214,0.55);
   border-radius: 999px;
-  outline: none;
-  transition: background 120ms ease, box-shadow 120ms ease;
+  color: #6BA6F1;
+  font: inherit;
+  font-family: var(--font-display);
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: default;
+  user-select: none;
+  line-height: 1;
 }
-.hl4__btn sub { font-size: 0.7em; }
-.hl4__btn:hover,
-.hl4__btn:focus-visible {
-  background: rgba(255,255,255,0.06);
-  box-shadow: inset 0 0 0 1.5px rgba(255,255,255,0.45);
+.hlx__pill sub { font-size: 0.7em; vertical-align: baseline; position: relative; top: 2px; }
+.hlx__pill.is-active,
+.hlx__pill[aria-selected="true"] {
+  background: #1d4ea0;
+  border-color: #1d4ea0;
+  color: #f1f5fb;
+  box-shadow: 0 0 0 1px rgba(10,116,214,0.5);
 }
-.hl4__btn.is-active {
-  /* The active state is already baked into the swapped image, so this
-     ring is just confirmation for the click. */
-  background: rgba(255,255,255,0.02);
+.hlx__pills--param .hlx__pill { cursor: pointer; }
+.hlx__pills--param .hlx__pill:hover:not(.is-active):not([aria-selected="true"]) {
+  background: rgba(10,116,214,0.12);
+}
+.hlx__pill[aria-disabled="true"] {
+  color: rgba(107,166,241,0.45);
+  border-color: rgba(10,116,214,0.32);
+}
+.hlx__chev { font-size: 0.7em; opacity: 0.65; }
+.hlx__divider {
+  width: 1px; height: 24px;
+  background: rgba(40,72,116,0.45);
+}
+
+/* ---------- Body / two-column ---------- */
+.hlx__body {
+  display: grid;
+  grid-template-columns: 340px minmax(0, 1fr);
+  gap: 22px;
+  align-items: start;
+}
+@media (max-width: 920px) {
+  .hlx__body { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ---------- Left column ---------- */
+.hlx__left {
+  display: flex; flex-direction: column; gap: 16px;
+  min-width: 0;
+}
+.hlx__tower-row {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  align-items: stretch;
+  gap: 14px;
+}
+.hlx__tower { display: block; width: 100%; height: auto; }
+.hlx__bins {
+  list-style: none; margin: 0; padding: 0;
+  display: flex; flex-direction: column;
+  justify-content: space-between;
+}
+.hlx__bin {
+  display: grid;
+  grid-template-columns: 30px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(40,72,116,0.32);
+}
+.hlx__bin:last-child { border-bottom: 0; }
+.hlx__bin-badge {
+  width: 24px; height: 24px;
+  border-radius: 999px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-family: var(--font-display);
+  font-size: 0.72rem; font-weight: 700;
+  color: #07131f;
+}
+.hlx__bin-meta { display: flex; flex-direction: column; line-height: 1.1; }
+.hlx__bin-k { font-size: 0.72rem; color: rgba(178,204,238,0.62); font-family: var(--font-mono); letter-spacing: 0.02em; }
+.hlx__bin-v {
+  font-family: var(--font-display);
+  font-size: 1rem; font-weight: 700; color: #f1f5fb;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.005em;
+}
+.hlx__bin-d {
+  font-family: var(--font-mono); font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+}
+.hlx__sensor-label {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-family: var(--font-display); font-size: 0.82rem;
+  color: rgba(178,204,238,0.72);
+}
+.hlx__sensor-dot {
+  width: 7px; height: 7px; border-radius: 999px;
+  background: #7CB342; box-shadow: 0 0 6px rgba(124,179,66,0.6);
+}
+.hlx__cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-rows: auto auto;
+  gap: 8px;
+}
+.hlx__card {
+  display: flex; flex-direction: column; gap: 2px;
+  padding: 10px 12px;
+  background: rgba(10,18,30,0.7);
+  border: 1px solid rgba(40,72,116,0.45);
+  border-radius: 8px;
+  min-width: 0;
+}
+.hlx__card.is-active {
+  background: #f1f5fb;
+  border-color: #f1f5fb;
+  color: #07131f;
+  box-shadow: 0 0 0 1.5px rgba(10,116,214,0.55) inset;
+}
+.hlx__card-k {
+  font-family: var(--font-display);
+  font-size: 0.74rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: rgba(107,166,241,0.85);
+}
+.hlx__card.is-active .hlx__card-k { color: #1d4ea0; }
+.hlx__card-v {
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #f1f5fb;
+  letter-spacing: -0.012em;
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+}
+.hlx__card.is-active .hlx__card-v { color: #07131f; }
+.hlx__card-u {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  color: rgba(178,204,238,0.55);
+  letter-spacing: 0.04em;
+}
+.hlx__card.is-active .hlx__card-u { color: rgba(7,19,31,0.62); }
+.hlx__card-sub {
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  color: rgba(178,204,238,0.48);
+  border-top: 1px solid rgba(40,72,116,0.36);
+  margin-top: 3px;
+  padding-top: 3px;
+  letter-spacing: 0.02em;
+}
+.hlx__card.is-active .hlx__card-sub { color: rgba(7,19,31,0.55); border-color: rgba(7,19,31,0.14); }
+
+/* CO2 card spans first column of both rows? No — keep equal grid. */
+
+/* ---------- Right column ---------- */
+.hlx__right { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.hlx__chart {
+  display: flex; flex-direction: column; gap: 6px;
+  padding: 10px 12px;
+  background: rgba(10,18,30,0.45);
+  border: 1px solid rgba(40,72,116,0.32);
+  border-radius: 8px;
+}
+.hlx__chart-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px;
+}
+.hlx__chart-title {
+  font-family: var(--font-display);
+  font-size: 0.9rem; font-weight: 600; color: #f1f5fb;
+  letter-spacing: -0.005em;
+}
+.hlx__chart-title sub { font-size: 0.66em; vertical-align: baseline; position: relative; top: 2px; }
+.hlx__chart-icons { display: inline-flex; gap: 10px; color: rgba(178,204,238,0.5); font-family: var(--font-mono); font-size: 0.78rem; }
+.hlx__chart-icn { cursor: default; }
+.hlx__chart-chips { display: inline-flex; gap: 6px; }
+.hlx__chip {
+  padding: 3px 10px;
+  border: 1px solid rgba(10,116,214,0.55);
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.04em;
+  color: #6BA6F1;
+}
+.hlx__st { width: 100%; height: 220px; display: block; }
+.hlx__ts { width: 100%; height: 200px; display: block; }
+
+/* ---------- Footer ---------- */
+.hlx__footer {
+  display: flex; justify-content: flex-end;
+  margin-top: 2px;
+}
+.hlx__footer-txt {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  color: rgba(178,204,238,0.42);
+  letter-spacing: 0.04em;
 }
 
 

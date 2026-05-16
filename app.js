@@ -1678,45 +1678,423 @@
      on the right" layout, with restrained web-native interaction. */
 
   /* ============================================================ H.E.A.A.L.
-     Image-backed parameter switcher per Feedback 3 §04. Four pill
-     buttons (CO2 / PM2.5 / TVOC / Temp) swap among 4 platform
-     screenshots. Everything else inside the box (SpaceTime Map,
-     Timeseries Plot, live values, bin breakdown, building tower) lives
-     in the image — no synthetic recreation.
-     ================================================================ */
-  (function heaal4() {
-    const root = document.getElementById("hl4");
-    const img  = document.getElementById("hl4-img");
-    if (!root || !img) return;
+     Hardcoded reconstruction per 9f_heaal_hardcoded_rebuild_brief.md.
+     Real HTML/CSS/SVG — no screenshot, no image overlays. Parameter
+     pills (CO₂ / PM2.5 / TVOC / Temp) swap bin %s, the highlighted
+     sensor card, chart titles, the SpaceTime heatmap intensity, the
+     Timeseries plotted line + band thresholds, and the axis scale.
+     Tower geometry and the visible layout chrome are identical across
+     parameters (matches the platform behavior in the source). */
+  (function heaalHardcoded() {
+    const root = document.getElementById("hlx");
+    if (!root) return;
+    const NS = "http://www.w3.org/2000/svg";
+    const E = (tag, attrs) => {
+      const el = document.createElementNS(NS, tag);
+      if (attrs) Object.entries(attrs).forEach(([k,v]) => el.setAttribute(k, v));
+      return el;
+    };
+    const clear = (n) => { while (n.firstChild) n.removeChild(n.firstChild); };
 
-    // Image order matches chronological screenshot capture:
-    //   heaal-00 → CO₂, heaal-01 → PM₂.₅, heaal-02 → TVOC, heaal-03 → Temp.
-    const MAP = { co2: 0, pm25: 1, tvoc: 2, temp: 3 };
-    const ALT = { co2: "H.E.A.A.L. Analytics platform · CO₂ view",
-                  pm25: "H.E.A.A.L. Analytics platform · PM₂.₅ view",
-                  tvoc: "H.E.A.A.L. Analytics platform · TVOC view",
-                  temp: "H.E.A.A.L. Analytics platform · Temperature view" };
+    // ---------- Bin definitions (constant across parameters) ----------
+    const BINS = [
+      { k: "Health Optimized", letter: "H", color: "#3F8FE6", text: "#0a1422" },
+      { k: "Excellent",        letter: "E", color: "#B2CCEE", text: "#0a1422" },
+      { k: "Action",           letter: "A", color: "#E2C75E", text: "#0a1422" },
+      { k: "Alert",            letter: "A", color: "#FCBC7E", text: "#0a1422" },
+      { k: "Limit",            letter: "L", color: "#E47A6A", text: "#0a1422" },
+    ];
 
-    // Preload all four screenshots so swaps are instant.
-    Object.values(MAP).forEach((i) => {
-      const im = new Image();
-      im.src = `assets/heaal/heaal-0${i}.webp`;
-    });
+    // ---------- Parameter specs (read off the source screenshots) ----------
+    const PARAMS = {
+      co2: {
+        label: "CO<sub>2</sub>",
+        bins: [99.1, 0.9, 0.0, 0.0, 0.0],
+        card: "co2",
+        // Timeseries y-scale and bands (low / mid / high) for CO₂ (ppm).
+        ts: {
+          yMin: 300, yMax: 1200,
+          bands: [
+            { from: 300,  to: 800,  color: "#1d4ea0", opacity: 0.92 },
+            { from: 800,  to: 1000, color: "#7AA8E0", opacity: 0.78 },
+            { from: 1000, to: 1200, color: "#F5E5A1", opacity: 0.85 },
+          ],
+          axis: [300, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200],
+          shape: "office-spikes",      // low baseline ~430 with periodic spikes to ~900
+          baseline: 430, peak: 920, seed: 11,
+        },
+        // SpaceTime heatmap density — bigger = more clean blue
+        st: { cleanRatio: 0.92, breakBand: true },
+      },
+      pm25: {
+        label: "PM<sub>2.5</sub>",
+        bins: [94.0, 5.5, 0.5, 0.0, 0.0],
+        card: "pm25",
+        ts: {
+          yMin: 0, yMax: 35,
+          bands: [
+            { from: 0,  to: 12, color: "#1d4ea0", opacity: 0.92 },
+            { from: 12, to: 35, color: "#F5E5A1", opacity: 0.85 },
+          ],
+          axis: [0, 5, 10, 15, 20, 25, 30, 35],
+          shape: "very-spiky",          // noisy with many spikes
+          baseline: 3.5, peak: 28, seed: 17,
+        },
+        st: { cleanRatio: 0.75, breakBand: true, density: 0.55 },
+      },
+      tvoc: {
+        label: "TVOC",
+        bins: [90.4, 9.5, 0.0, 0.0, 0.0],
+        card: "tvoc",
+        ts: {
+          yMin: 0, yMax: 1400,
+          bands: [
+            { from: 0,    to: 800,  color: "#1d4ea0", opacity: 0.92 },
+            { from: 800,  to: 1400, color: "#7AA8E0", opacity: 0.78 },
+          ],
+          axis: [0, 200, 400, 600, 800, 1000, 1200, 1400],
+          shape: "office-spikes",
+          baseline: 180, peak: 720, seed: 23,
+        },
+        st: { cleanRatio: 0.86, breakBand: true },
+      },
+      temp: {
+        label: "Temperature",
+        bins: [61.0, 30.1, 8.6, 0.3, 0.0],
+        card: "temp",
+        ts: {
+          yMin: 50, yMax: 80,
+          bands: [
+            { from: 50, to: 68, color: "#1d4ea0", opacity: 0.92 },
+            { from: 68, to: 76, color: "#7AA8E0", opacity: 0.78 },
+            { from: 76, to: 80, color: "#F5E5A1", opacity: 0.85 },
+          ],
+          axis: [50, 55, 60, 65, 70, 75, 80],
+          shape: "cyclic",              // smooth day/night oscillation
+          baseline: 71, peak: 73, seed: 31,
+        },
+        st: { cleanRatio: 0.65, breakBand: false, tinted: true },
+      },
+    };
 
-    const btns = root.querySelectorAll(".hl4__btn");
-    btns.forEach((btn) => {
-      btn.addEventListener("click", () => {
-        const p = btn.dataset.hlParam;
-        if (!(p in MAP)) return;
-        img.src = `assets/heaal/heaal-0${MAP[p]}.webp`;
-        img.alt = ALT[p];
-        btns.forEach((b) => {
-          const on = b === btn;
-          b.classList.toggle("is-active", on);
-          b.setAttribute("aria-selected", on ? "true" : "false");
+    // Card values (constant across parameter switches; only the
+    // highlighted card changes).
+    const CARDS = [
+      { k: "co2",  label: "CO<sub>2</sub>",   v: "524", u: "ppm" },
+      { k: "pm25", label: "PM<sub>2.5</sub>", v: "4",   u: "µg/m³", sub: "Outdoor 8" },
+      { k: "tvoc", label: "TVOC",            v: "194", u: "ppb" },
+      { k: "temp", label: "Temp.",           v: "72",  u: "°F" },
+      { k: "rh",   label: "RH",              v: "32",  u: "%" },
+    ];
+
+    // X-axis date span (≈30 days)
+    const DATE_LABELS = ["4/17","4/19","4/21","4/23","4/25","4/27","4/29","5/1","5/3","5/5","5/7","5/9","5/11","5/13","5/15"];
+
+    // ---------- Seeded RNG ----------
+    function rngS(seed) { let s = seed; return () => { s = (s * 9301 + 49297) % 233280; return s / 233280; }; }
+
+    // ---------- DOM refs ----------
+    const tower = document.getElementById("hlx-tower");
+    const binsList = document.getElementById("hlx-bins");
+    const cards = document.getElementById("hlx-cards");
+    const stSvg = document.getElementById("hlx-st");
+    const tsSvg = document.getElementById("hlx-ts");
+    const stTitle = document.getElementById("hlx-st-title");
+    const tsTitle = document.getElementById("hlx-ts-title");
+    const pills = root.querySelectorAll(".hlx__pills--param .hlx__pill");
+
+    // ---------- Tower (5 isometric stacked segments) ----------
+    // Constant across parameters: top filled blue (Health Optimized),
+    // remaining 4 segments dark with a colored left-edge strip per
+    // bin. Drawn as flat-ish iso boxes stacked, matching the source.
+    function drawTower() {
+      clear(tower);
+      const W = 120, H = 280;
+      tower.setAttribute("viewBox", `0 0 ${W} ${H}`);
+      // 5 segments distributed top-to-bottom: 30, 40, 50, 60, 70 (y bands)
+      const segH = 44;
+      const startY = 10;
+      const xLeft = 22, xRight = 90;
+      const skewY = 8;   // iso roof depth
+      const segs = BINS.slice().reverse(); // bottom-up in BINS, but draw top-down with iso
+      // Actually iterate top→bottom matching BINS order
+      BINS.forEach((bin, i) => {
+        const y = startY + i * segH;
+        const isTop = i === 0;
+        // Roof slab (iso parallelogram on top of body)
+        const roof = E("polygon", {
+          points: `${xLeft},${y+skewY} ${xRight},${y+skewY} ${xRight + skewY},${y} ${xLeft - skewY},${y}`,
+          fill: isTop ? "rgba(255,255,255,0.04)" : "rgba(178,204,238,0.05)",
+          stroke: "rgba(178,204,238,0.6)",
+          "stroke-width": 1,
         });
+        // Body fill
+        const fill = isTop ? "#3F8FE6" : "rgba(178,204,238,0.04)";
+        const body = E("rect", {
+          x: xLeft, y: y + skewY, width: xRight - xLeft, height: segH - skewY - 2,
+          fill, stroke: "rgba(178,204,238,0.6)", "stroke-width": 1,
+        });
+        tower.appendChild(body);
+        tower.appendChild(roof);
+        // Colored strip on the left edge of each segment = bin color
+        const strip = E("rect", {
+          x: xLeft - 5, y: y + skewY + 6, width: 4, height: segH - skewY - 14,
+          fill: bin.color, opacity: isTop ? 0 : 0.85,
+        });
+        tower.appendChild(strip);
+        // Iso side panel (right side, slightly darker)
+        const side = E("polygon", {
+          points: `${xRight},${y+skewY} ${xRight + skewY},${y} ${xRight + skewY},${y + segH - 2 - skewY} ${xRight},${y + segH - 2}`,
+          fill: isTop ? "rgba(31,90,170,0.85)" : "rgba(0,0,0,0.18)",
+          stroke: "rgba(178,204,238,0.6)",
+          "stroke-width": 1,
+        });
+        tower.appendChild(side);
       });
+      // Base platform (slightly wider, beneath the lowest segment)
+      const baseY = startY + 5 * segH;
+      tower.appendChild(E("polygon", {
+        points: `${xLeft-5},${baseY+skewY} ${xRight+5},${baseY+skewY} ${xRight + skewY + 5},${baseY} ${xLeft - skewY - 5},${baseY}`,
+        fill: "rgba(178,204,238,0.05)",
+        stroke: "rgba(178,204,238,0.4)",
+        "stroke-width": 1,
+      }));
+    }
+
+    // ---------- Bin rows ----------
+    function renderBins(pcts) {
+      binsList.innerHTML = BINS.map((b, i) => `
+        <li class="hlx__bin">
+          <span class="hlx__bin-badge" style="background:${b.color}; color:${b.text}">${b.letter}</span>
+          <span class="hlx__bin-meta">
+            <span class="hlx__bin-k">${b.k}</span>
+          </span>
+          <span class="hlx__bin-v">${pcts[i].toFixed(1)}%</span>
+        </li>
+      `).join("");
+    }
+
+    // ---------- Sensor cards ----------
+    function renderCards(activeKey) {
+      cards.innerHTML = CARDS.map((c) => `
+        <div class="hlx__card${c.k === activeKey ? " is-active" : ""}" data-card="${c.k}">
+          <span class="hlx__card-k">${c.label}</span>
+          <span class="hlx__card-v">${c.v}<span class="hlx__card-u">&nbsp;${c.u}</span></span>
+          ${c.sub ? `<span class="hlx__card-sub">${c.sub}</span>` : ""}
+        </div>
+      `).join("");
+    }
+
+    // ---------- SpaceTime Map ----------
+    // Big blue field with a dark horizontal break band near top (the
+    // "no-data / sensor gap" line in the platform) and scattered tiny
+    // light marks across the lower band representing anomaly events.
+    function renderSpaceTime(p) {
+      clear(stSvg);
+      const W = 600, H = 280;
+      stSvg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+      const PAD = { l: 38, r: 8, t: 8, b: 22 };
+      const iw = W - PAD.l - PAD.r, ih = H - PAD.t - PAD.b;
+
+      // y-axis label (rotated)
+      const yLbl = E("text", {
+        x: -H / 2, y: 14,
+        transform: "rotate(-90)",
+        "text-anchor": "middle",
+        fill: "rgba(178,204,238,0.5)",
+        "font-size": 9, "font-family": "JetBrains Mono", "letter-spacing": "0.04em",
+      });
+      yLbl.textContent = "Sensor by Floor";
+      stSvg.appendChild(yLbl);
+
+      // Big blue heat field — overall calmness driven by cleanRatio
+      const base = E("rect", {
+        x: PAD.l, y: PAD.t, width: iw, height: ih,
+        fill: p.tinted ? "#3D7DB8" : "#3A7BC8",
+      });
+      stSvg.appendChild(base);
+
+      // Floor markers (y axis ticks at 8 and 12)
+      ["08", "12"].forEach((floor, idx) => {
+        const ty = PAD.t + ih * (idx === 0 ? 0.78 : 0.18);
+        const t = E("text", {
+          x: PAD.l - 6, y: ty + 3,
+          "text-anchor": "end",
+          fill: "rgba(178,204,238,0.6)",
+          "font-size": 9, "font-family": "JetBrains Mono", "font-variant-numeric": "tabular-nums",
+        });
+        t.textContent = floor;
+        stSvg.appendChild(t);
+      });
+
+      // Dark "break" band near the top (the floor-08 gap line)
+      if (p.breakBand) {
+        stSvg.appendChild(E("rect", {
+          x: PAD.l, y: PAD.t + ih * 0.21, width: iw, height: 3,
+          fill: "#0a131f", opacity: 0.95,
+        }));
+      }
+
+      // Scatter tiny marks across the lower band (anomaly density)
+      const r = rngS(91);
+      const N = Math.round(420 * (p.density != null ? p.density : (1 - p.cleanRatio) + 0.18));
+      for (let i = 0; i < N; i++) {
+        const x = PAD.l + r() * iw;
+        const y = PAD.t + ih * (0.35 + r() * 0.6);
+        const size = 0.6 + r() * 1.2;
+        const op = 0.35 + r() * 0.5;
+        stSvg.appendChild(E("rect", {
+          x: x.toFixed(1), y: y.toFixed(1),
+          width: size.toFixed(1), height: size.toFixed(1),
+          fill: "#e8f0fc", opacity: op.toFixed(2),
+        }));
+      }
+
+      // X-axis date labels (sparse)
+      const datesToShow = DATE_LABELS.filter((_, i) => i % 2 === 0);
+      datesToShow.forEach((d, i) => {
+        const x = PAD.l + (i / (datesToShow.length - 1)) * iw;
+        const t = E("text", {
+          x, y: H - 6,
+          "text-anchor": "middle",
+          fill: "rgba(178,204,238,0.5)",
+          "font-size": 8, "font-family": "JetBrains Mono",
+        });
+        t.textContent = d;
+        stSvg.appendChild(t);
+      });
+    }
+
+    // ---------- Timeseries Plot ----------
+    function timeseriesData(spec) {
+      // Generate N samples shaped by 'shape' kind
+      const N = 300;
+      const r = rngS(spec.seed);
+      const out = [];
+      const span = spec.peak - spec.baseline;
+      for (let i = 0; i < N; i++) {
+        const t = i / (N - 1);
+        let v = spec.baseline;
+        if (spec.shape === "office-spikes") {
+          // Periodic spikes — every ~24 hours simulated as cycles
+          const cycle = Math.sin(t * Math.PI * 28); // 14 spike peaks
+          const spike = Math.max(0, cycle) * span;
+          v = spec.baseline + spike + (r() - 0.5) * span * 0.06;
+        } else if (spec.shape === "very-spiky") {
+          // Random-looking noise around baseline with occasional jumps
+          const jitter = (r() - 0.5) * span * 0.4;
+          const event = r() > 0.92 ? span * (0.4 + r() * 0.5) : 0;
+          v = spec.baseline + jitter + event;
+        } else if (spec.shape === "cyclic") {
+          // Smooth day/night oscillation around baseline
+          const wave = Math.sin(t * Math.PI * 30) * span * 0.5;
+          const drift = Math.sin(t * Math.PI * 2) * 1.2;
+          v = spec.baseline + wave + drift;
+        }
+        out.push({ t, v });
+      }
+      return out;
+    }
+
+    function renderTimeseries(p) {
+      clear(tsSvg);
+      const W = 600, H = 260;
+      tsSvg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+      const PAD = { l: 44, r: 12, t: 10, b: 22 };
+      const iw = W - PAD.l - PAD.r, ih = H - PAD.t - PAD.b;
+      const ts = p.ts;
+      const yS = (v) => PAD.t + (1 - (v - ts.yMin) / (ts.yMax - ts.yMin)) * ih;
+      const xS = (t) => PAD.l + t * iw;
+
+      // Background bands (banded — lower good, mid warning, upper alert)
+      ts.bands.forEach((band) => {
+        const y0 = yS(band.to);
+        const y1 = yS(band.from);
+        tsSvg.appendChild(E("rect", {
+          x: PAD.l, y: y0,
+          width: iw, height: Math.max(0, y1 - y0),
+          fill: band.color, opacity: band.opacity,
+        }));
+      });
+      // Outer chart border on top of bands
+      tsSvg.appendChild(E("rect", {
+        x: PAD.l, y: PAD.t, width: iw, height: ih,
+        fill: "none", stroke: "rgba(178,204,238,0.18)", "stroke-width": 0.6,
+      }));
+
+      // Y-axis tick labels + faint gridlines
+      ts.axis.forEach((v) => {
+        const y = yS(v);
+        const t = E("text", {
+          x: PAD.l - 6, y: y + 3,
+          "text-anchor": "end",
+          fill: "rgba(178,204,238,0.6)",
+          "font-size": 9, "font-family": "JetBrains Mono", "font-variant-numeric": "tabular-nums",
+        });
+        t.textContent = String(v);
+        tsSvg.appendChild(t);
+      });
+
+      // Plot line — white with subtle markers
+      const data = timeseriesData(ts);
+      const pathD = data.map((p, i) =>
+        (i ? "L" : "M") + xS(p.t).toFixed(1) + "," + yS(Math.max(ts.yMin, Math.min(ts.yMax, p.v))).toFixed(1)
+      ).join(" ");
+      tsSvg.appendChild(E("path", {
+        d: pathD, fill: "none",
+        stroke: "#f1f5fb", "stroke-width": 1.2,
+        "stroke-linecap": "round", "stroke-linejoin": "round",
+        opacity: 0.95,
+      }));
+      // Markers every Nth point
+      data.forEach((p, i) => {
+        if (i % 8 !== 0) return;
+        tsSvg.appendChild(E("circle", {
+          cx: xS(p.t).toFixed(1),
+          cy: yS(Math.max(ts.yMin, Math.min(ts.yMax, p.v))).toFixed(1),
+          r: 1.4, fill: "#f1f5fb", opacity: 0.9,
+        }));
+      });
+
+      // X-axis date labels
+      const datesToShow = DATE_LABELS.filter((_, i) => i % 2 === 0);
+      datesToShow.forEach((d, i) => {
+        const x = PAD.l + (i / (datesToShow.length - 1)) * iw;
+        const t = E("text", {
+          x, y: H - 6,
+          "text-anchor": "middle",
+          fill: "rgba(178,204,238,0.55)",
+          "font-size": 8, "font-family": "JetBrains Mono",
+        });
+        t.textContent = d;
+        tsSvg.appendChild(t);
+      });
+    }
+
+    // ---------- Apply parameter ----------
+    function apply(key) {
+      const p = PARAMS[key];
+      if (!p) return;
+      renderBins(p.bins);
+      renderCards(p.card);
+      stTitle.innerHTML = `H.E.A.A.L. ${p.label} SpaceTime Map`;
+      tsTitle.innerHTML = `H.E.A.A.L. ${p.label} Timeseries Plot`;
+      renderSpaceTime(p.st);
+      renderTimeseries(p);
+      pills.forEach((pill) => {
+        const on = pill.dataset.hlxParam === key;
+        pill.classList.toggle("is-active", on);
+        pill.setAttribute("aria-selected", on ? "true" : "false");
+      });
+    }
+
+    pills.forEach((pill) => {
+      pill.addEventListener("click", () => apply(pill.dataset.hlxParam));
     });
+
+    // Initial render: tower once + CO₂ state
+    drawTower();
+    apply("co2");
   })();
 
   /* Legacy SVG-based HEAAL module — disabled. Replaced by heaal4 above.
