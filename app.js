@@ -1373,8 +1373,11 @@
     };
     const clearNode = (n) => { while (n.firstChild) n.removeChild(n.firstChild); };
 
-    // ---------- Tower SVG (constant — drawn once) ----------
-    function drawPpTower() {
+    // ---------- Tower SVG (live: each segment is a 0-100% bar) ----------
+    // Each segment is a horizontal bar that fills left→right in
+    // proportion to the bin's percentage. Redraws on every scenario
+    // change so the tower reflects the active state.
+    function drawPpTower(bins) {
       if (!ppTower) return;
       clearNode(ppTower);
       const W = 110, H = 320;
@@ -1383,34 +1386,42 @@
       const skew = 9;
       const segH = 56;
       const startY = 14;
+      const interior = xR - xL;
+
       PP_BINS.forEach((bin, i) => {
         const y = startY + i * segH;
-        const isTop = i === 0;
-        // Roof slab (iso parallelogram)
+        const pct = Math.max(0, Math.min(100, bins[i] || 0));
+        const fillW = (pct / 100) * interior;
+        const bodyY = y + skew;
+        const bodyH = segH - skew - 2;
+
+        // Dark base for the empty portion of the bar
+        ppTower.appendChild(svgEl("rect", {
+          x: xL, y: bodyY, width: interior, height: bodyH,
+          fill: "rgba(178,204,238,0.04)",
+        }));
+        // Bin-colored fill (proportional, left-anchored)
+        if (fillW > 0.5) {
+          ppTower.appendChild(svgEl("rect", {
+            x: xL, y: bodyY, width: fillW, height: bodyH,
+            fill: bin.color, opacity: 0.92,
+          }));
+        }
+        // Body outline
+        ppTower.appendChild(svgEl("rect", {
+          x: xL, y: bodyY, width: interior, height: bodyH,
+          fill: "none", stroke: "rgba(178,204,238,0.6)", "stroke-width": 1,
+        }));
+        // Iso roof slab
         ppTower.appendChild(svgEl("polygon", {
-          points: `${xL},${y+skew} ${xR},${y+skew} ${xR + skew},${y} ${xL - skew},${y}`,
-          fill: isTop ? "rgba(255,255,255,0.04)" : "rgba(178,204,238,0.05)",
-          stroke: "rgba(178,204,238,0.6)",
-          "stroke-width": 1,
-        }));
-        // Body fill
-        ppTower.appendChild(svgEl("rect", {
-          x: xL, y: y + skew,
-          width: xR - xL, height: segH - skew - 2,
-          fill: isTop ? "#3F8FE6" : "rgba(178,204,238,0.04)",
+          points: `${xL},${bodyY} ${xR},${bodyY} ${xR + skew},${y} ${xL - skew},${y}`,
+          fill: "rgba(178,204,238,0.05)",
           stroke: "rgba(178,204,238,0.6)", "stroke-width": 1,
-        }));
-        // Bin-colored strip on the left edge
-        ppTower.appendChild(svgEl("rect", {
-          x: xL - 5, y: y + skew + 8,
-          width: 4, height: segH - skew - 18,
-          fill: bin.color,
-          opacity: isTop ? 0 : 0.85,
         }));
         // Iso right side
         ppTower.appendChild(svgEl("polygon", {
-          points: `${xR},${y+skew} ${xR + skew},${y} ${xR + skew},${y + segH - 2 - skew} ${xR},${y + segH - 2}`,
-          fill: isTop ? "rgba(31,90,170,0.85)" : "rgba(0,0,0,0.18)",
+          points: `${xR},${bodyY} ${xR + skew},${y} ${xR + skew},${y + segH - 2 - skew} ${xR},${y + segH - 2}`,
+          fill: "rgba(0,0,0,0.22)",
           stroke: "rgba(178,204,238,0.6)", "stroke-width": 1,
         }));
       });
@@ -1463,6 +1474,7 @@
     function renderPpScenario(idx) {
       const s = SCENARIOS[idx] || SCENARIOS[0];
       if (ppScenarioLbl) ppScenarioLbl.textContent = s.l;
+      drawPpTower(s.b);
       renderPpBins(s);
     }
 
@@ -1639,9 +1651,8 @@
     wireGroup("[data-mxp-occ]");
 
     build();
-    // Draw the tower SVG once (constant across scenarios)
-    drawPpTower();
-    // Initialize at BASELINE (row 6, col 0)
+    // Initialize at BASELINE — activate() → renderPpScenario() now
+    // draws the tower per-scenario, so no separate init call needed.
     activate(6, 0, grid.querySelector('.mxp__cell.is-baseline'));
   })();
 
@@ -2002,60 +2013,63 @@
     const pills = root.querySelectorAll(".hlx__pills--param .hlx__pill");
 
     // ---------- Tower (5 isometric stacked segments) ----------
-    // Constant across parameters: top filled blue (Health Optimized),
-    // remaining 4 segments dark with a colored left-edge strip per
-    // bin. Drawn as flat-ish iso boxes stacked, matching the source.
-    function drawTower() {
+    // Each segment is now a 0-100% horizontal bar — the bin color fills
+    // from the left wall toward the right in proportion to the bin's
+    // current percentage. Re-renders on every parameter switch so the
+    // tower visibly responds to the active state.
+    function drawTower(bins) {
       clear(tower);
       const W = 120, H = 280;
       tower.setAttribute("viewBox", `0 0 ${W} ${H}`);
-      // 5 segments distributed top-to-bottom: 30, 40, 50, 60, 70 (y bands)
       const segH = 44;
       const startY = 10;
       const xLeft = 22, xRight = 90;
-      const skewY = 8;   // iso roof depth
-      const segs = BINS.slice().reverse(); // bottom-up in BINS, but draw top-down with iso
-      // Actually iterate top→bottom matching BINS order
+      const skewY = 8;
+      const interior = xRight - xLeft;
+
       BINS.forEach((bin, i) => {
         const y = startY + i * segH;
-        const isTop = i === 0;
-        // Roof slab (iso parallelogram on top of body)
-        const roof = E("polygon", {
-          points: `${xLeft},${y+skewY} ${xRight},${y+skewY} ${xRight + skewY},${y} ${xLeft - skewY},${y}`,
-          fill: isTop ? "rgba(255,255,255,0.04)" : "rgba(178,204,238,0.05)",
-          stroke: "rgba(178,204,238,0.6)",
-          "stroke-width": 1,
-        });
-        // Body fill
-        const fill = isTop ? "#3F8FE6" : "rgba(178,204,238,0.04)";
-        const body = E("rect", {
-          x: xLeft, y: y + skewY, width: xRight - xLeft, height: segH - skewY - 2,
-          fill, stroke: "rgba(178,204,238,0.6)", "stroke-width": 1,
-        });
-        tower.appendChild(body);
-        tower.appendChild(roof);
-        // Colored strip on the left edge of each segment = bin color
-        const strip = E("rect", {
-          x: xLeft - 5, y: y + skewY + 6, width: 4, height: segH - skewY - 14,
-          fill: bin.color, opacity: isTop ? 0 : 0.85,
-        });
-        tower.appendChild(strip);
-        // Iso side panel (right side, slightly darker)
-        const side = E("polygon", {
-          points: `${xRight},${y+skewY} ${xRight + skewY},${y} ${xRight + skewY},${y + segH - 2 - skewY} ${xRight},${y + segH - 2}`,
-          fill: isTop ? "rgba(31,90,170,0.85)" : "rgba(0,0,0,0.18)",
-          stroke: "rgba(178,204,238,0.6)",
-          "stroke-width": 1,
-        });
-        tower.appendChild(side);
+        const pct = Math.max(0, Math.min(100, bins[i] || 0));
+        const fillW = (pct / 100) * interior;
+        const bodyY = y + skewY;
+        const bodyH = segH - skewY - 2;
+
+        // Body background (dark base for the empty portion)
+        tower.appendChild(E("rect", {
+          x: xLeft, y: bodyY, width: interior, height: bodyH,
+          fill: "rgba(178,204,238,0.04)",
+        }));
+        // Bin-colored fill bar (left-anchored, proportional)
+        if (fillW > 0.5) {
+          tower.appendChild(E("rect", {
+            x: xLeft, y: bodyY, width: fillW, height: bodyH,
+            fill: bin.color, opacity: 0.92,
+          }));
+        }
+        // Body outline
+        tower.appendChild(E("rect", {
+          x: xLeft, y: bodyY, width: interior, height: bodyH,
+          fill: "none", stroke: "rgba(178,204,238,0.6)", "stroke-width": 1,
+        }));
+        // Iso roof slab
+        tower.appendChild(E("polygon", {
+          points: `${xLeft},${bodyY} ${xRight},${bodyY} ${xRight + skewY},${y} ${xLeft - skewY},${y}`,
+          fill: "rgba(178,204,238,0.05)",
+          stroke: "rgba(178,204,238,0.6)", "stroke-width": 1,
+        }));
+        // Iso right side
+        tower.appendChild(E("polygon", {
+          points: `${xRight},${bodyY} ${xRight + skewY},${y} ${xRight + skewY},${y + segH - 2 - skewY} ${xRight},${y + segH - 2}`,
+          fill: "rgba(0,0,0,0.22)",
+          stroke: "rgba(178,204,238,0.6)", "stroke-width": 1,
+        }));
       });
-      // Base platform (slightly wider, beneath the lowest segment)
+      // Base platform
       const baseY = startY + 5 * segH;
       tower.appendChild(E("polygon", {
         points: `${xLeft-5},${baseY+skewY} ${xRight+5},${baseY+skewY} ${xRight + skewY + 5},${baseY} ${xLeft - skewY - 5},${baseY}`,
         fill: "rgba(178,204,238,0.05)",
-        stroke: "rgba(178,204,238,0.4)",
-        "stroke-width": 1,
+        stroke: "rgba(178,204,238,0.4)", "stroke-width": 1,
       }));
     }
 
@@ -2247,6 +2261,7 @@
     function apply(key) {
       const p = PARAMS[key];
       if (!p) return;
+      drawTower(p.bins);
       renderBins(p.bins);
       renderCards(p.card);
       stTitle.innerHTML = `H.E.A.A.L. ${p.label} SpaceTime Map`;
@@ -2287,8 +2302,7 @@
       });
     });
 
-    // Initial render: tower once + CO₂ state
-    drawTower();
+    // Initial render — apply() draws everything including the tower
     apply("co2");
   })();
 
