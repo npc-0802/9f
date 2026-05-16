@@ -356,43 +356,82 @@
         <div class="eyebrow">03 &middot; MATRIX</div>
         <h2>Simulate before you build.</h2>
         <p class="lede">
-          Operational and material changes inside a data center have measurable energy implications. MATRIX helps teams test changes before spending money — a physics-based simulation engine that returns a decision-grade map of energy, carbon, cost, and occupant health.
+          MATRIX screens a portfolio of commercial buildings against two grid-interactive strategies — peak shaving and arbitrage — then drills into one building to size a battery, compare configurations, and expose the financial case. Decision-grade savings, percent of baseline, and payback on every cell.
         </p>
       </header>
 
-      <div class="mx2__head" role="toolbar" aria-label="Scenario controls">
-        <div class="mx2__scenario">
-          <span class="mx2__scenario-k">Scenario</span>
-          <span class="mx2__scenario-count" id="mx2-count">1 / 5</span>
-          <span class="mx2__scenario-name" id="mx2-name">Baseline · reference envelope</span>
+      <!-- Strategy + filter bar (governs the whole section) -->
+      <div class="mx3__controls" role="toolbar" aria-label="MATRIX controls">
+        <div class="mx3__control">
+          <span class="mx3__lbl">Strategy</span>
+          <div class="fs__chipset" role="group" aria-label="Strategy">
+            <button class="chip is-active" data-mx-mode="arbitrage"   type="button" aria-pressed="true">Arbitrage</button>
+            <button class="chip"           data-mx-mode="peakshaving" type="button" aria-pressed="false">Peak shaving</button>
+          </div>
         </div>
-        <div class="mx2__dots" role="group" aria-label="Jump to scenario">
-          <button class="mx2__dot is-active" data-mx-scenario="0" type="button" aria-pressed="true"  aria-label="Scenario 1 · Baseline"></button>
-          <button class="mx2__dot"           data-mx-scenario="1" type="button" aria-pressed="false" aria-label="Scenario 2 · Envelope retrofit"></button>
-          <button class="mx2__dot"           data-mx-scenario="2" type="button" aria-pressed="false" aria-label="Scenario 3 · Setpoint tune"></button>
-          <button class="mx2__dot"           data-mx-scenario="3" type="button" aria-pressed="false" aria-label="Scenario 4 · HVAC efficiency upgrade"></button>
-          <button class="mx2__dot"           data-mx-scenario="4" type="button" aria-pressed="false" aria-label="Scenario 5 · All combined"></button>
+        <div class="mx3__control">
+          <span class="mx3__lbl">COP</span>
+          <div class="fs__chipset" role="group" aria-label="Heat-pump COP">
+            <button class="chip"           data-mx-cop="3.0" type="button" aria-pressed="false">3.0</button>
+            <button class="chip is-active" data-mx-cop="3.5" type="button" aria-pressed="true">3.5</button>
+            <button class="chip"           data-mx-cop="4.0" type="button" aria-pressed="false">4.0</button>
+          </div>
         </div>
-        <button class="chip chip--xs" id="mx2-toggle" type="button" aria-pressed="true">⏸ Pause cycle</button>
+        <div class="mx3__control" id="mx3-export-group">
+          <span class="mx3__lbl">Export price</span>
+          <div class="fs__chipset" role="group" aria-label="Export price">
+            <button class="chip is-active" data-mx-export="mid"  type="button" aria-pressed="true">Mid &middot; 60%</button>
+            <button class="chip"           data-mx-export="high" type="button" aria-pressed="false">High &middot; 80%</button>
+          </div>
+        </div>
+        <div class="mx3__stats" id="mx3-stats" aria-live="off">
+          <span class="mx3__stat"><span class="mx3__stat-k">Net positive</span><span class="mx3__stat-v" id="mx3-positive">—</span></span>
+          <span class="mx3__stat"><span class="mx3__stat-k">Portfolio savings</span><span class="mx3__stat-v" id="mx3-total">—</span></span>
+          <span class="mx3__stat"><span class="mx3__stat-k">Avg payback &middot; ITC</span><span class="mx3__stat-v" id="mx3-payback">—</span></span>
+        </div>
       </div>
 
-      <div class="mx2">
-        <div class="mx2__figure">
-          <div class="eyebrow eyebrow--sm">Real building · digital sister</div>
-          <svg id="mx2-figure" viewBox="0 0 420 320" preserveAspectRatio="xMidYMid meet"></svg>
-          <div class="mx2__figure-caption">
-            <span id="mx2-fig-name">Configuration · Baseline envelope &amp; setpoints</span>
-            <span class="mx2__figure-sub">Click any dot above to inspect a scenario, or let the cycle run — the matrix highlight on the right re-anchors at the same cadence.</span>
+      <!-- Part 1 · Portfolio screening -->
+      <div class="mx3__portfolio">
+        <div class="mx3__map">
+          <div class="mx3__map-head">
+            <div class="eyebrow eyebrow--sm">Portfolio sample &middot; <span id="mx3-bldg-count">8</span> commercial buildings</div>
+            <span class="mx3__sample-note">Curated slice of the 50+ building source portfolio</span>
+          </div>
+          <svg id="mx3-us-map" viewBox="0 0 480 280" preserveAspectRatio="xMidYMid meet"></svg>
+          <div class="mx3__map-legend">
+            <span class="mx3__map-legend-k">Annual savings</span>
+            <span class="mx3__map-legend-bar"></span>
+            <span class="mx3__map-legend-lbl"><span>$0</span><span>$275K+</span></span>
           </div>
         </div>
-        <div class="mx2__matrix">
-          <div class="eyebrow eyebrow--sm">Decision matrix · energy intensity (kWh/m²)</div>
-          <svg id="mx2-grid" viewBox="0 0 360 320" preserveAspectRatio="xMidYMid meet"></svg>
-          <div class="mx2__matrix-axes">
-            <span class="mx2__axis-x">Envelope U-value (W/m²K) →</span>
-            <span class="mx2__axis-y">↑ HVAC efficiency (η)</span>
+        <div class="mx3__list">
+          <div class="mx3__list-head">
+            <span class="eyebrow eyebrow--sm">Buildings &middot; best config at current filters</span>
+            <span class="mx3__list-hint">Click any building to drill in &middot;</span>
           </div>
+          <div class="mx3__table" role="listbox" id="mx3-list" aria-label="Buildings"></div>
         </div>
+      </div>
+
+      <!-- Part 2 · Selected building bar -->
+      <div class="mx3__selected" id="mx3-selected" aria-live="off"></div>
+
+      <!-- Part 3 · Configuration matrix + insight panel -->
+      <div class="mx3__study">
+        <div class="mx3__grid">
+          <div class="mx3__grid-head">
+            <span class="eyebrow eyebrow--sm">Configuration matrix</span>
+            <span class="mx3__grid-axis">Battery size <span aria-hidden="true">→</span></span>
+          </div>
+          <div class="mx3__grid-table" id="mx3-grid">
+            <!-- populated by app.js: battery × duration cells -->
+          </div>
+          <span class="mx3__grid-side" aria-hidden="true">↑ Duration</span>
+        </div>
+        <aside class="mx3__panel" id="mx3-panel" aria-live="off">
+          <!-- populated by app.js: config badge → savings → financial case -->
+        </aside>
       </div>
     </div>
   </section>
@@ -541,6 +580,7 @@
   <script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js" defer></script>
   <script src="data.js" defer></script>
+  <script src="matrix-data.js" defer></script>
   <script src="app.js" defer></script>
 </body>
 </html>

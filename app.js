@@ -1294,336 +1294,469 @@
   })();
 
   /* ============================================================ MATRIX
-     Two surfaces synced on a 500 ms tick: a building front-elevation
-     figure that re-colors per scenario, and a decision-matrix grid whose
-     highlighted cell anchors to the same scenario's best operating
-     regime. Same cadence on both — figure changes, matrix snaps, the
-     pair reads as one product demonstrating a real simulation step.
+     Compact, user-led product slice of the real MATRIX dashboard.
+     Drives three connected surfaces from one state object:
+       state = { mode, cop, export_scenario, buildingId }
+     Surfaces:
+       (1) Portfolio: US map + building list, ranked by best savings at
+           the current filters.
+       (2) Selected: building identity card with baseline cost + sim count.
+       (3) Study: configuration matrix (battery × duration) with cell
+           highlight + insight panel (strategy framing → savings →
+           financial case).
+     Source-of-truth data: window.MATRIX_DATA, curated from
+     /tmp/matrix_brief_ingest/MATRIX/matrix/static/data/summary_*.json.
      ================================================================ */
 
   (function matrix() {
-    const figure = $("#mx2-figure");
-    const grid = $("#mx2-grid");
-    if (!figure || !grid) return;
+    const DATA = window.MATRIX_DATA;
+    if (!DATA) { console.warn("[MATRIX] dataset missing"); return; }
+    const sec = document.getElementById("matrix");
+    if (!sec) return;
 
-    const SVG_NS = "http://www.w3.org/2000/svg";
-    function el(tag, attrs = {}) {
-      const e = document.createElementNS(SVG_NS, tag);
-      Object.entries(attrs).forEach(([k, v]) => e.setAttribute(k, v));
-      return e;
+    // -------- State
+    const state = {
+      mode: "arbitrage",     // "arbitrage" | "peakshaving"
+      cop: 3.5,
+      exportScenario: "mid", // "mid" | "high"
+      buildingId: null,      // set on first render
+    };
+
+    // CapEx curve from summary_arbitrage.json — used when a cell has no
+    // .capex of its own (shouldn't happen with the curated data, but
+    // belt-and-suspenders). Linear-interpolate $ per kWh.
+    const CAPEX_CURVE = DATA.meta.capex_curve;
+    const ITC_RATE = DATA.meta.itc_rate || 0.30;
+    function capexFor(kwh) {
+      const c = CAPEX_CURVE;
+      if (kwh <= c[0][0]) return c[0][1];
+      if (kwh >= c[c.length - 1][0]) return c[c.length - 1][1];
+      for (let i = 0; i < c.length - 1; i++) {
+        if (kwh >= c[i][0] && kwh <= c[i + 1][0]) {
+          const t = (kwh - c[i][0]) / (c[i + 1][0] - c[i][0]);
+          return c[i][1] + (c[i + 1][1] - c[i][1]) * t;
+        }
+      }
+      return c[c.length - 1][1];
     }
-    function clear(node) { while (node.firstChild) node.removeChild(node.firstChild); }
 
-    // Scenarios cycle in this order on every 500 ms tick. Each scenario
-    // names its config, its dominant brand-blue color, and the cell on
-    // the matrix grid where its best operating regime lives. The grid
-    // is 12 cols (envelope U-value) × 8 rows (HVAC efficiency).
-    // Best regime convention: low U (left side) × high η (top side).
-    const SCENARIOS = [
-      { id: "baseline",     name: "Baseline · reference envelope",      colorA: "#1f3556", colorB: "#3a5a85", bestC: 7, bestR: 4, intensity: 198 },
-      { id: "envelope",     name: "+ Envelope retrofit",                colorA: "#0e3870", colorB: "#0A74D6", bestC: 3, bestR: 3, intensity: 174 },
-      { id: "setpoints",    name: "+ Setpoint tune",                    colorA: "#0c2e58", colorB: "#1a5396", bestC: 6, bestR: 2, intensity: 188 },
-      { id: "hvac",         name: "+ HVAC efficiency upgrade",          colorA: "#0A74D6", colorB: "#6BA6F1", bestC: 5, bestR: 1, intensity: 168 },
-      { id: "all",          name: "All combined · optimal regime",      colorA: "#6BA6F1", colorB: "#B2CCEE", bestC: 2, bestR: 1, intensity: 152 },
-    ];
-    let scenarioIdx = 0;
+    // -------- Formatters
+    const fmtUSD = (v) => {
+      if (v == null) return "—";
+      const abs = Math.abs(v), sign = v < 0 ? "−" : "";
+      if (abs >= 1e6) return sign + "$" + (abs / 1e6).toFixed(1) + "M";
+      if (abs >= 1e3) return sign + "$" + Math.round(abs / 1e3) + "K";
+      return sign + "$" + Math.round(abs);
+    };
+    const fmtUSDFull = (v) => {
+      if (v == null) return "—";
+      const sign = v < 0 ? "−" : "";
+      return sign + "$" + Math.abs(Math.round(v)).toLocaleString();
+    };
+    const fmtKWH = (kwh) => kwh >= 1000 ? `${(kwh / 1000).toFixed(kwh % 1000 === 0 ? 0 : 1)} MWh` : `${Math.round(kwh)} kWh`;
+    const fmtKW  = (kw)  => kw  >= 1000 ? `${(kw  / 1000).toFixed(kw  % 1000 === 0 ? 0 : 1)} MW`  : `${Math.round(kw)} kW`;
+    const fmtPB  = (yr)  => (yr == null || yr >= 100) ? "— yr" : `${yr.toFixed(1)} yr`;
 
-    // ------- Building figure (front elevation, animated colorway)
-    function buildFigure() {
-      clear(figure);
-      figure.setAttribute("viewBox", "0 0 420 320");
-      figure.innerHTML = `
-        <defs>
-          <linearGradient id="mx-roof" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stop-color="#23426b"/>
-            <stop offset="1" stop-color="#152946"/>
-          </linearGradient>
-        </defs>
+    // -------- Data access
+    function scenariosFor(buildingId) {
+      const bag = state.mode === "arbitrage" ? DATA.arbitrage : DATA.peakshaving;
+      return bag[buildingId] || [];
+    }
+    // Filter a building's scenarios by COP (+ export if arb)
+    function scenariosForCurrent(buildingId) {
+      return scenariosFor(buildingId).filter((s) => {
+        if (s.cop !== state.cop) return false;
+        if (state.mode === "arbitrage" && s.export_scenario !== state.exportScenario) return false;
+        return true;
+      });
+    }
+    // Best scenario for the current filters — used by the portfolio ranking
+    function bestFor(buildingId) {
+      const matches = scenariosForCurrent(buildingId);
+      if (!matches.length) return null;
+      return matches.reduce((best, s) => s.savings_usd > best.savings_usd ? s : best);
+    }
 
-        <!-- Live energy-intensity readout, top-right. Sits in clear
-             space well above the building so it reads as a chart
-             annotation, not a label sitting on the roof. -->
-        <text x="412" y="20" text-anchor="end" fill="rgba(149,163,184,0.7)" font-family="JetBrains Mono" font-size="8.5" letter-spacing="0.18em">ENERGY INTENSITY</text>
-        <text id="mx-bldg-intensity" x="412" y="40" text-anchor="end" fill="rgba(10,116,214,0.95)" font-family="JetBrains Mono" font-size="14" letter-spacing="0.04em" font-weight="600">198 kWh/m²</text>
+    // Battery × duration matrix for the currently selected building
+    function buildMatrix(buildingId) {
+      const matches = scenariosForCurrent(buildingId);
+      const batterySet = new Set(), durationSet = new Set();
+      const cells = {};
+      matches.forEach((s) => {
+        batterySet.add(s.battery_kwh);
+        durationSet.add(s.duration_hrs);
+        cells[`${s.battery_kwh}_${s.duration_hrs}`] = s;
+      });
+      const batteries = [...batterySet].sort((a, b) => a - b);
+      const durations = [...durationSet].sort((a, b) => a - b);
+      // Find best by adjusted payback (positive savings, lowest payback)
+      let bestKey = null, bestPB = Infinity;
+      Object.entries(cells).forEach(([k, s]) => {
+        if (s.savings_usd > 0 && s.payback_after_itc < bestPB) {
+          bestPB = s.payback_after_itc; bestKey = k;
+        }
+      });
+      return { cells, batteries, durations, bestKey };
+    }
 
-        <!-- Ground -->
-        <line x1="0" y1="270" x2="420" y2="270" stroke="rgba(178,204,238,0.15)" stroke-width="0.8"/>
+    // -------- Renderers
 
-        <!-- Building front -->
-        <rect id="mx-bldg-front" x="40" y="80" width="340" height="190" fill="#1f3556" stroke="rgba(178,204,238,0.3)" stroke-width="0.8"/>
-        <!-- Roof slab -->
-        <polygon id="mx-bldg-roof" points="40,80 380,80 366,60 54,60" fill="url(#mx-roof)" stroke="rgba(178,204,238,0.22)" stroke-width="0.6"/>
+    function renderStats() {
+      const best = DATA.buildings
+        .map((b) => bestFor(b.id))
+        .filter(Boolean);
+      const positive = best.filter((s) => s.savings_usd > 0).length;
+      // Net total — includes negative-savings buildings so the headline
+      // can go down under bad filters. Mirrors the source product's
+      // map-page.js aggregation (`sum + s.savings_usd`). Clamping the
+      // sign here would let the headline only ever go up, which would
+      // misrepresent the filter state and undercut the section's
+      // decision-grade framing.
+      const total    = best.reduce((sum, s) => sum + s.savings_usd, 0);
+      const paybacks = best.filter((s) => s.savings_usd > 0 && s.payback_after_itc < 100).map((s) => s.payback_after_itc);
+      const avgPB    = paybacks.length ? paybacks.reduce((a, b) => a + b, 0) / paybacks.length : 0;
+      const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+      set("mx3-positive", `${positive} / ${DATA.buildings.length}`);
+      set("mx3-total",    fmtUSD(total));
+      set("mx3-payback",  avgPB > 0 ? `${avgPB.toFixed(1)} yr` : "—");
+      set("mx3-bldg-count", DATA.buildings.length);
+    }
 
-        <!-- Server hall louvres -->
-        <g id="mx-bldg-louvres" stroke="rgba(178,204,238,0.22)" stroke-width="0.6">
-          <line x1="60"  y1="110" x2="360" y2="110"/>
-          <line x1="60"  y1="130" x2="360" y2="130"/>
-          <line x1="60"  y1="150" x2="360" y2="150"/>
-          <line x1="60"  y1="170" x2="360" y2="170"/>
-          <line x1="60"  y1="190" x2="360" y2="190"/>
-          <line x1="60"  y1="210" x2="360" y2="210"/>
-          <line x1="60"  y1="230" x2="360" y2="230"/>
-          <line x1="60"  y1="250" x2="360" y2="250"/>
-        </g>
+    // ----- US map (CONUS bounding-box projection, no state outline —
+    // keeps the marketing version lightweight; the real product uses
+    // d3.geoAlbersUsa + topojson states, but here a clean dotted backdrop
+    // reads as "national portfolio" without the load weight).
+    const MAP_BOUNDS = { lngW: -125, lngE: -66.9, latS: 24.5, latN: 49.4 };
+    function projectMap(lng, lat, W, H) {
+      const x = (lng - MAP_BOUNDS.lngW) / (MAP_BOUNDS.lngE - MAP_BOUNDS.lngW) * (W - 24) + 12;
+      // Mercator-ish: flatten by cos(lat0) for visual stability
+      const y = (1 - (lat - MAP_BOUNDS.latS) / (MAP_BOUNDS.latN - MAP_BOUNDS.latS)) * (H - 24) + 12;
+      return [x, y];
+    }
+    function renderMap() {
+      const svg = document.getElementById("mx3-us-map");
+      if (!svg) return;
+      while (svg.firstChild) svg.removeChild(svg.firstChild);
+      const W = 480, H = 280;
+      svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+      const ns = "http://www.w3.org/2000/svg";
 
-        <!-- Window pattern — fills with active highlight, the "demo
-             of an intervention scanning the building" gesture. -->
-        <g id="mx-bldg-cells"></g>
+      // Backdrop graticule — light grid suggesting a continental scale
+      const grid = document.createElementNS(ns, "g");
+      grid.setAttribute("stroke", "rgba(178,204,238,0.06)");
+      grid.setAttribute("stroke-width", "0.5");
+      for (let i = 0; i <= 8; i++) {
+        const x = (i / 8) * W;
+        const l = document.createElementNS(ns, "line");
+        l.setAttribute("x1", x); l.setAttribute("x2", x);
+        l.setAttribute("y1", 0); l.setAttribute("y2", H);
+        grid.appendChild(l);
+      }
+      for (let j = 0; j <= 5; j++) {
+        const y = (j / 5) * H;
+        const l = document.createElementNS(ns, "line");
+        l.setAttribute("y1", y); l.setAttribute("y2", y);
+        l.setAttribute("x1", 0); l.setAttribute("x2", W);
+        grid.appendChild(l);
+      }
+      svg.appendChild(grid);
 
-        <!-- Door / entrance for human scale -->
-        <rect x="190" y="232" width="40" height="38" fill="rgba(178,204,238,0.1)" stroke="rgba(178,204,238,0.35)" stroke-width="0.8"/>
-        <line x1="210" y1="232" x2="210" y2="270" stroke="rgba(178,204,238,0.35)" stroke-width="0.6"/>
+      // CONUS framing rect
+      const frame = document.createElementNS(ns, "rect");
+      frame.setAttribute("x", 8); frame.setAttribute("y", 8);
+      frame.setAttribute("width", W - 16); frame.setAttribute("height", H - 16);
+      frame.setAttribute("fill", "none");
+      frame.setAttribute("stroke", "rgba(178,204,238,0.18)");
+      frame.setAttribute("stroke-width", "0.6");
+      svg.appendChild(frame);
+
+      // Greens (matched to real product palette)
+      const colors = ["#4a5568", "#c5d96a", "#a4c639", "#7cb342", "#6ba033", "#3a6b2a"];
+      const maxSav = Math.max(1, ...DATA.buildings.map((b) => {
+        const s = bestFor(b.id); return s ? s.savings_usd : 0;
+      }));
+      const colorFor = (sav) => {
+        if (sav <= 0) return colors[0];
+        const t = Math.min(1, sav / maxSav);
+        const idx = 1 + Math.floor(t * (colors.length - 2));
+        return colors[Math.min(colors.length - 1, idx)];
+      };
+      const radiusFor = (sav) => 5 + Math.min(1, Math.max(0, sav) / maxSav) * 11;
+
+      DATA.buildings.forEach((b) => {
+        const best = bestFor(b.id);
+        const sav = best ? best.savings_usd : 0;
+        const [x, y] = projectMap(b.lng, b.lat, W, H);
+        const c = document.createElementNS(ns, "circle");
+        c.setAttribute("class", "bldg" + (b.id === state.buildingId ? " is-selected" : ""));
+        c.setAttribute("cx", x.toFixed(1));
+        c.setAttribute("cy", y.toFixed(1));
+        c.setAttribute("r", radiusFor(sav));
+        c.setAttribute("fill", colorFor(sav));
+        c.setAttribute("opacity", "0.92");
+        c.setAttribute("stroke", "rgba(255,255,255,0.25)");
+        c.setAttribute("stroke-width", "1");
+        c.dataset.bid = b.id;
+        c.addEventListener("click", () => selectBuilding(b.id));
+        c.addEventListener("mouseenter", () => c.setAttribute("opacity", "1"));
+        c.addEventListener("mouseleave", () => c.setAttribute("opacity", "0.92"));
+        svg.appendChild(c);
+      });
+    }
+
+    // ----- Building list (ranked, selectable)
+    function renderList() {
+      const list = document.getElementById("mx3-list");
+      if (!list) return;
+      const rows = DATA.buildings
+        .map((b) => ({ b, s: bestFor(b.id) }))
+        .filter((r) => r.s)
+        .sort((a, b) => b.s.savings_usd - a.s.savings_usd);
+      list.innerHTML = rows.map(({ b, s }) => {
+        const cls = state.mode === "peakshaving" ? "PS" : "Arb";
+        const klass = b.klass.replace("Commercial ", "");
+        return `<button type="button" class="mx3__row${b.id === state.buildingId ? " is-selected" : ""}" data-bid="${b.id}" aria-label="Select ${b.name}" aria-pressed="${b.id === state.buildingId}">
+          <span class="mx3__row-name">${b.name}</span>
+          <span class="mx3__row-class">${klass}</span>
+          <span class="mx3__row-state">${b.state}</span>
+          <span class="mx3__row-sav${s.savings_usd < 0 ? " is-neg" : ""}">${fmtUSD(s.savings_usd)}</span>
+          <span class="mx3__row-pb">${fmtPB(s.payback_after_itc)}</span>
+        </button>`;
+      }).join("");
+      list.querySelectorAll(".mx3__row").forEach((row) => {
+        row.addEventListener("click", () => selectBuilding(row.dataset.bid));
+      });
+    }
+
+    // ----- Selected building bar (Part 2)
+    function renderSelected() {
+      const el = document.getElementById("mx3-selected");
+      if (!el) return;
+      const b = DATA.buildings.find((x) => x.id === state.buildingId);
+      if (!b) { el.innerHTML = ""; return; }
+      const best = bestFor(b.id);
+      // Two counts: scenarios currently driving the matrix (filter-narrow)
+      // and the building's total simulation runs across the whole mode.
+      const activeCount = scenariosForCurrent(b.id).length;
+      const modeCount   = scenariosFor(b.id).length;
+      const baseline = best ? best.annual_cost_no_battery : 0;
+      el.innerHTML = `
+        <span class="mx3__sel-back" aria-hidden="true">← Portfolio</span>
+        <div class="mx3__sel-id">
+          <span class="mx3__sel-name">${b.name}</span>
+          <span class="mx3__sel-meta">
+            <span><b>${b.state}</b> · ${b.county}</span>
+            <span>${b.klass}</span>
+            <span>${b.sqft.toLocaleString()} SF · ${b.floors} floor${b.floors === 1 ? "" : "s"}</span>
+            <span>Baseline <b>${fmtUSDFull(baseline)}</b> / yr</span>
+          </span>
+        </div>
+        <div class="mx3__sel-sim">
+          <span><b>${b.total_sims.toLocaleString()}</b> simulations</span>
+          <span>${activeCount} active &middot; ${modeCount} ${state.mode === "arbitrage" ? "arbitrage" : "peak shaving"} scenarios</span>
+        </div>
       `;
-      // Cell grid inside the building — 8 rows × 12 cols of small squares
-      // that re-color in waves as scenarios cycle.
-      const cellsG = figure.querySelector("#mx-bldg-cells");
-      const ROWS = 7, COLS = 14;
-      const x0 = 56, y0 = 96, cw = 22, ch = 18, gap = 2;
-      for (let r = 0; r < ROWS; r++) {
-        for (let c = 0; c < COLS; c++) {
-          const x = x0 + c * (cw + gap);
-          const y = y0 + r * (ch + gap);
-          const sq = document.createElementNS(SVG_NS, "rect");
-          sq.setAttribute("class", "mx-cell");
-          sq.setAttribute("x", x);
-          sq.setAttribute("y", y);
-          sq.setAttribute("width", cw);
-          sq.setAttribute("height", ch);
-          sq.setAttribute("fill", "#1f3556");
-          sq.setAttribute("opacity", "0.55");
-          sq.dataset.r = r;
-          sq.dataset.c = c;
-          cellsG.appendChild(sq);
-        }
-      }
     }
 
-    function applyFigureScenario(idx) {
-      const s = SCENARIOS[idx];
-      const front = figure.querySelector("#mx-bldg-front");
-      if (front) {
-        front.setAttribute("fill", s.colorA);
-        front.style.transition = "fill 320ms cubic-bezier(.2,.8,.2,1)";
+    // ----- Configuration matrix (Part 3)
+    let highlightedKey = null;
+    function renderGrid() {
+      const wrap = document.getElementById("mx3-grid");
+      if (!wrap) return;
+      const m = buildMatrix(state.buildingId);
+      // Seed highlight: best cell if no manual selection
+      if (!highlightedKey || !m.cells[highlightedKey]) {
+        highlightedKey = m.bestKey || (m.batteries.length && m.durations.length
+          ? `${m.batteries[0]}_${m.durations[0]}` : null);
       }
-      const intensity = figure.querySelector("#mx-bldg-intensity");
-      if (intensity) intensity.textContent = s.intensity + " kWh/m²";
-      const cells = figure.querySelectorAll(".mx-cell");
-      // Cell color follows a gradient: rows closer to scenario's "best
-      // operating regime" within the building get the bright B color,
-      // farther rows fade to the darker A color. This visually
-      // expresses "the simulation is re-evaluating the whole building".
-      cells.forEach((cell) => {
-        const r = +cell.dataset.r;
-        const c = +cell.dataset.c;
-        // Pseudo-best region — mirror the matrix grid's best cell pos
-        // (mapped from 12×8 down to 14×7), so the figure highlight
-        // matches the matrix highlight conceptually.
-        const fbestR = Math.round(s.bestR / 8 * 7);
-        const fbestC = Math.round(s.bestC / 12 * 14);
-        const d = Math.sqrt((r - fbestR) ** 2 + (c - fbestC) ** 2);
-        const maxD = Math.sqrt(7 ** 2 + 14 ** 2);
-        const t = 1 - Math.min(1, d / (maxD * 0.5));
-        cell.style.transition = "fill 360ms cubic-bezier(.2,.8,.2,1), opacity 360ms cubic-bezier(.2,.8,.2,1)";
-        cell.setAttribute("fill", t > 0.5 ? s.colorB : s.colorA);
-        cell.setAttribute("opacity", (0.35 + t * 0.55).toFixed(2));
-      });
-      // Caption + intent
-      const figName = document.getElementById("mx2-fig-name");
-      if (figName) figName.textContent = "Configuration · " + s.name;
-    }
-
-    // ------- Matrix grid (right side)
-    const ROWS = 8, COLS = 12;
-    function buildGrid() {
-      clear(grid);
-      grid.setAttribute("viewBox", "0 0 360 320");
-      const pad = { l: 36, r: 18, t: 22, b: 38 };
-      const W = 360, H = 320;
-      const iw = W - pad.l - pad.r;
-      const ih = H - pad.t - pad.b;
-      const cellW = iw / COLS, cellH = ih / ROWS;
-      // Cells
-      for (let r = 0; r < ROWS; r++) {
-        for (let c = 0; c < COLS; c++) {
-          const x = pad.l + c * cellW;
-          const y = pad.t + r * cellH;
-          const rectEl = el("rect", {
-            class: "mx-grid-cell",
-            x: x + 1, y: y + 1,
-            width: cellW - 2, height: cellH - 2,
-            rx: 2, ry: 2,
-            fill: "#0e1a2c",
-            opacity: 0.4,
-          });
-          rectEl.dataset.r = r;
-          rectEl.dataset.c = c;
-          grid.appendChild(rectEl);
-        }
-      }
-      // Highlighted cell — invisible until colored by applyGridScenario
-      const hi = el("rect", {
-        id: "mx-grid-highlight",
-        x: 0, y: 0, width: cellW - 2, height: cellH - 2,
-        rx: 2, ry: 2,
-        fill: "none",
-        stroke: "#0A74D6",
-        "stroke-width": 1.8,
-        opacity: 0.95,
-      });
-      grid.appendChild(hi);
-      // Best-cell ring
-      const ring = el("circle", {
-        id: "mx-grid-ring",
-        cx: 0, cy: 0, r: Math.min(cellW, cellH) * 0.32,
-        fill: "none",
-        stroke: "#6BA6F1",
-        "stroke-width": 1.1,
-        opacity: 0.9,
-      });
-      grid.appendChild(ring);
-      // Axis labels
-      grid.appendChild(el("text", { x: pad.l + iw / 2, y: H - 12, "text-anchor": "middle", fill: "#95a3b8", "font-size": 9, "font-family": "JetBrains Mono", "letter-spacing": "0.08em" })).textContent = "U → high U-value";
-      grid.appendChild(el("text", { x: pad.l - 28, y: pad.t + ih / 2, "text-anchor": "middle", transform: `rotate(-90 ${pad.l - 28} ${pad.t + ih / 2})`, fill: "#95a3b8", "font-size": 9, "font-family": "JetBrains Mono", "letter-spacing": "0.08em" })).textContent = "↑ η";
-      // Direction marker
-      grid.appendChild(el("text", { x: pad.l + 4, y: pad.t - 8, "text-anchor": "start", fill: "rgba(10,116,214,0.85)", "font-size": 9, "font-family": "JetBrains Mono", "letter-spacing": "0.16em" })).textContent = "BETTER";
-      grid.appendChild(el("text", { x: pad.l + iw - 4, y: H - 22, "text-anchor": "end", fill: "rgba(149,163,184,0.7)", "font-size": 9, "font-family": "JetBrains Mono", "letter-spacing": "0.16em" })).textContent = "WORSE";
-
-      grid._geom = { pad, W, H, iw, ih, cellW, cellH };
-    }
-
-    function applyGridScenario(idx) {
-      const s = SCENARIOS[idx];
-      const cells = grid.querySelectorAll(".mx-grid-cell");
-      const { pad, cellW, cellH } = grid._geom;
-      // Color each cell based on its distance to the active scenario's
-      // best operating regime. Closer cells get the brighter B color,
-      // farther cells get the darker A color. Same gradient family used
-      // on the figure so the user reads them as one product.
-      const maxD = Math.sqrt(ROWS ** 2 + COLS ** 2);
-      cells.forEach((cell) => {
-        const r = +cell.dataset.r;
-        const c = +cell.dataset.c;
-        const d = Math.sqrt((r - s.bestR) ** 2 + (c - s.bestC) ** 2);
-        const t = 1 - Math.min(1, d / (maxD * 0.7));
-        cell.style.transition = "fill 360ms cubic-bezier(.2,.8,.2,1), opacity 360ms cubic-bezier(.2,.8,.2,1)";
-        const fill = t > 0.6 ? s.colorB : (t > 0.3 ? s.colorA : "#0e1a2c");
-        cell.setAttribute("fill", fill);
-        cell.setAttribute("opacity", (0.4 + t * 0.5).toFixed(2));
-      });
-      // Move the highlight rect to the best cell
-      const hi = grid.querySelector("#mx-grid-highlight");
-      const ring = grid.querySelector("#mx-grid-ring");
-      const x = pad.l + s.bestC * cellW + 1;
-      const y = pad.t + s.bestR * cellH + 1;
-      if (hi) {
-        hi.style.transition = "x 320ms cubic-bezier(.2,.8,.2,1), y 320ms cubic-bezier(.2,.8,.2,1), stroke 320ms cubic-bezier(.2,.8,.2,1)";
-        hi.setAttribute("x", x);
-        hi.setAttribute("y", y);
-        hi.setAttribute("stroke", s.colorB);
-      }
-      if (ring) {
-        ring.style.transition = "cx 320ms cubic-bezier(.2,.8,.2,1), cy 320ms cubic-bezier(.2,.8,.2,1), stroke 320ms cubic-bezier(.2,.8,.2,1)";
-        ring.setAttribute("cx", x + (cellW - 2) / 2);
-        ring.setAttribute("cy", y + (cellH - 2) / 2);
-        ring.setAttribute("stroke", s.colorB);
-      }
-    }
-
-    // Apply both surfaces + update the head readout (name, count, dots).
-    function applyScenario(idx) {
-      scenarioIdx = idx;
-      applyFigureScenario(idx);
-      applyGridScenario(idx);
-      const s = SCENARIOS[idx];
-      const $name = document.getElementById("mx2-name");
-      const $count = document.getElementById("mx2-count");
-      if ($name)  $name.textContent  = s.name;
-      if ($count) $count.textContent = `${idx + 1} / ${SCENARIOS.length}`;
-      // Dots reflect active scenario
-      $$('.mx2__dot').forEach((d, i) => {
-        const on = i === idx;
-        d.classList.toggle("is-active", on);
-        d.setAttribute("aria-pressed", on ? "true" : "false");
+      // Build header + rows
+      const colCount = m.batteries.length;
+      const gridTemplate = `auto repeat(${colCount}, minmax(0, 1fr))`;
+      const header = [`<div></div>`]
+        .concat(m.batteries.map((b) => `<div class="mx3__grid-col-lbl">${fmtKWH(b)}</div>`))
+        .join("");
+      const rows = m.durations.map((d) => {
+        const cells = m.batteries.map((batt) => {
+          const key = `${batt}_${d}`;
+          const cell = m.cells[key];
+          if (!cell) {
+            return `<div class="mx3__cell is-empty">—</div>`;
+          }
+          const isBest = key === m.bestKey;
+          const isActive = key === highlightedKey;
+          const isNeg = cell.savings_usd < 0;
+          const baseline = cell.annual_cost_no_battery || 1;
+          const pct = cell.savings_pct;
+          return `<button type="button" class="mx3__cell${isActive ? " is-active" : ""}${isBest ? " is-best" : ""}"
+              data-key="${key}" aria-pressed="${isActive}" aria-label="Battery ${fmtKWH(batt)} ${d}h duration ${fmtUSD(cell.savings_usd)} savings">
+            <span class="mx3__cell-sav${isNeg ? " is-neg" : ""}">${fmtUSD(cell.savings_usd)}</span>
+            <span class="mx3__cell-pct${isNeg ? " is-neg" : ""}">${pct.toFixed(1)}% of baseline</span>
+            <span class="mx3__cell-pb">${fmtPB(cell.payback_after_itc)} payback</span>
+          </button>`;
+        }).join("");
+        return `<div class="mx3__grid-row" style="grid-template-columns:${gridTemplate}">
+          <div class="mx3__grid-row-lbl"><span>Duration</span><b>${d}h</b></div>
+          ${cells}
+        </div>`;
+      }).join("");
+      wrap.innerHTML = `
+        <div class="mx3__grid-row" style="grid-template-columns:${gridTemplate}">${header}</div>
+        ${rows}
+      `;
+      wrap.querySelectorAll(".mx3__cell[data-key]").forEach((cell) => {
+        cell.addEventListener("click", () => {
+          highlightedKey = cell.dataset.key;
+          renderGrid();
+          renderPanel();
+        });
       });
     }
-    function step() { applyScenario((scenarioIdx + 1) % SCENARIOS.length); }
 
-    buildFigure();
-    buildGrid();
-    applyScenario(0);
-
-    // CADENCE = 1500 ms — INTENTIONAL DEVIATION from the stakeholder's
-    // 500 ms ask in WEBSITE PAGE FEEDBACK.docx. At 500 ms with ~360 ms
-    // applyFigureScenario / applyGridScenario transitions, the user
-    // never gets a stable frame: scenario captions change faster than
-    // they can be read, and the figure-to-matrix coupling the brief
-    // wanted ("matrix highlight should change at the same pace") reads
-    // as decorative motion rather than an analytic surface. The
-    // synchronized figure-plus-matrix concept is preserved at the slower
-    // tick; user ownership of the demo is restored via scenario dots
-    // (click any to jump + pause) and the play/pause toggle below.
-    // If you revert to 500 ms, also remove those controls or the
-    // section reverts to "watch only" mode the UX review flagged.
-    const CADENCE = 1500;
-    let timer = 0;
-    let inView = false;
-    let userPaused = false;
-    function setToggleLabel(playing) {
-      const $t = document.getElementById("mx2-toggle");
-      if (!$t) return;
-      $t.textContent = playing ? "⏸ Pause cycle" : "▶ Resume cycle";
-      $t.setAttribute("aria-pressed", playing ? "true" : "false");
-    }
-    function start() {
-      if (timer || REDUCED || userPaused) return;
-      timer = setInterval(step, CADENCE);
-      setToggleLabel(true);
-    }
-    function stop()  {
-      if (!timer) { setToggleLabel(false); return; }
-      clearInterval(timer); timer = 0;
-      setToggleLabel(false);
-    }
-    function userToggle() {
-      if (timer) {
-        userPaused = true;
-        stop();
-      } else {
-        userPaused = false;
-        if (inView) start();
+    // ----- Insight panel
+    function renderPanel() {
+      const panel = document.getElementById("mx3-panel");
+      if (!panel) return;
+      const m = buildMatrix(state.buildingId);
+      const cell = m.cells[highlightedKey];
+      if (!cell) {
+        panel.innerHTML = `<div class="mx3__p-foot">No matching configurations under current filters. Try a different COP or strategy.</div>`;
+        return;
       }
+      const grossCapex = cell.capex || (cell.battery_kwh * capexFor(cell.battery_kwh));
+      const itcCredit = grossCapex * ITC_RATE;
+      const netCapex = grossCapex - itcCredit;
+      const isNeg = cell.savings_usd < 0;
+      const baseline = cell.annual_cost_no_battery;
+      const withBat = cell.annual_cost_battery;
+      const isArb = state.mode === "arbitrage";
+      const strategyTitle = isArb ? "Arbitrage Spread Captured" : "Peak Demand Reduction";
+      const configSub = isArb
+        ? `${cell.duration_hrs}h duration · COP ${cell.cop} · Export ${state.exportScenario === "high" ? "80% of retail" : "60% of retail"}`
+        : `${fmtKW(cell.target_kw || 0)} demand target · ${cell.duration_hrs}h · COP ${cell.cop}`;
+      const savingsContext = isNeg
+        ? "net cost increase under these assumptions"
+        : (isArb ? "annual arbitrage revenue captured" : "annual demand-charge savings");
+      panel.innerHTML = `
+        <div class="mx3__p-config">
+          <div class="mx3__p-config-title">${fmtKWH(cell.battery_kwh)} / ${fmtKW(cell.power_kw)} PCS</div>
+          <div class="mx3__p-config-sub">${configSub}</div>
+        </div>
+
+        <div class="mx3__p-section">
+          <span class="mx3__p-section-k">${strategyTitle}</span>
+          <div class="mx3__p-hero">
+            <span class="mx3__p-hero-v${isNeg ? " is-neg" : ""}">${fmtUSD(cell.savings_usd)}</span>
+            <span class="mx3__p-hero-sub">${cell.savings_pct.toFixed(1)}% of baseline · ${savingsContext}</span>
+          </div>
+          <div class="mx3__p-rows">
+            <div class="mx3__p-row"><span class="mx3__p-row-k">Without battery</span><span class="mx3__p-row-v">${fmtUSDFull(baseline)}/yr</span></div>
+            <div class="mx3__p-row"><span class="mx3__p-row-k">With battery</span><span class="mx3__p-row-v${withBat < 0 ? " is-neg" : ""}">${fmtUSDFull(withBat)}/yr</span></div>
+          </div>
+        </div>
+
+        <div class="mx3__p-section">
+          <span class="mx3__p-section-k">Financial Case</span>
+          <div class="mx3__p-pb-hero">
+            <span class="mx3__p-pb-v">${cell.payback_after_itc < 100 ? cell.payback_after_itc.toFixed(1) : "—"}</span>
+            <span class="mx3__p-pb-unit">year payback &middot; with ITC</span>
+          </div>
+          <div class="mx3__p-rows">
+            <div class="mx3__p-row"><span class="mx3__p-row-k">CapEx</span><span class="mx3__p-row-v">${fmtUSDFull(grossCapex)}</span></div>
+            <div class="mx3__p-row"><span class="mx3__p-row-k">ITC credit (${Math.round(ITC_RATE * 100)}%)</span><span class="mx3__p-row-v is-accent">−${fmtUSDFull(itcCredit)}</span></div>
+            <div class="mx3__p-row"><span class="mx3__p-row-k">Net cost</span><span class="mx3__p-row-v">${fmtUSDFull(netCapex)}</span></div>
+          </div>
+        </div>
+
+        <div class="mx3__p-foot">LFP chemistry · CapEx curve from ${DATA.meta.source} · ${DATA.meta.mode_arbitrage_scenarios.toLocaleString()} arbitrage + ${DATA.meta.mode_peakshaving_scenarios.toLocaleString()} peak-shaving scenarios in the source dataset</div>
+      `;
     }
 
-    // Dot clicks → jump to that scenario and pause auto-cycle so the
-    // user can dwell. They can resume by clicking the toggle.
-    $$('.mx2__dot').forEach((dot) => {
-      dot.addEventListener("click", () => {
-        const idx = parseInt(dot.dataset.mxScenario, 10);
-        if (!Number.isFinite(idx) || idx < 0 || idx >= SCENARIOS.length) return;
-        userPaused = true;
-        stop();
-        applyScenario(idx);
+    // -------- Selection
+    function selectBuilding(bid) {
+      if (state.buildingId === bid) return;
+      state.buildingId = bid;
+      highlightedKey = null;
+      renderMap();
+      renderList();
+      renderSelected();
+      renderGrid();
+      renderPanel();
+    }
+
+    // -------- Mode / filter changes
+    function applyMode(mode) {
+      state.mode = mode;
+      // Toggle export-price chip group visibility
+      const exportGroup = document.getElementById("mx3-export-group");
+      if (exportGroup) exportGroup.style.display = mode === "arbitrage" ? "" : "none";
+      highlightedKey = null;
+      renderAll();
+    }
+    function applyCop(cop) {
+      state.cop = parseFloat(cop);
+      highlightedKey = null;
+      renderAll();
+    }
+    function applyExport(exp) {
+      state.exportScenario = exp;
+      highlightedKey = null;
+      renderAll();
+    }
+    function renderAll() {
+      // If current building has no scenarios under new filters, fall back
+      // to the first building that does.
+      if (!scenariosForCurrent(state.buildingId).length) {
+        const fallback = DATA.buildings.find((b) => scenariosForCurrent(b.id).length);
+        if (fallback) state.buildingId = fallback.id;
+      }
+      renderStats();
+      renderMap();
+      renderList();
+      renderSelected();
+      renderGrid();
+      renderPanel();
+    }
+
+    // -------- Wire controls
+    $$('[data-mx-mode]').forEach((btn) => {
+      btn.addEventListener("click", () => {
+        $$('[data-mx-mode]').forEach((b) => {
+          const on = b === btn;
+          b.classList.toggle("is-active", on);
+          b.setAttribute("aria-pressed", on ? "true" : "false");
+        });
+        applyMode(btn.dataset.mxMode);
       });
     });
-    const $toggle = document.getElementById("mx2-toggle");
-    if ($toggle) $toggle.addEventListener("click", userToggle);
+    $$('[data-mx-cop]').forEach((btn) => {
+      btn.addEventListener("click", () => {
+        $$('[data-mx-cop]').forEach((b) => {
+          const on = b === btn;
+          b.classList.toggle("is-active", on);
+          b.setAttribute("aria-pressed", on ? "true" : "false");
+        });
+        applyCop(btn.dataset.mxCop);
+      });
+    });
+    $$('[data-mx-export]').forEach((btn) => {
+      btn.addEventListener("click", () => {
+        $$('[data-mx-export]').forEach((b) => {
+          const on = b === btn;
+          b.classList.toggle("is-active", on);
+          b.setAttribute("aria-pressed", on ? "true" : "false");
+        });
+        applyExport(btn.dataset.mxExport);
+      });
+    });
 
-    const mxSection = document.getElementById("matrix");
-    if (mxSection) {
-      const io = new IntersectionObserver((entries) => {
-        inView = entries[0].isIntersecting;
-        if (inView && !userPaused) start();
-        else if (!inView) {
-          // Pause when out of view, but don't mark as user-paused so
-          // the cycle resumes on re-entry.
-          clearInterval(timer); timer = 0;
-        }
-      }, { threshold: 0.25 });
-      io.observe(mxSection);
-    } else {
-      start();
-    }
-    window.addEventListener("beforeunload", stop);
+    // -------- Initial paint
+    // Seed selected building = highest savings under default filters.
+    const seedBest = DATA.buildings
+      .map((b) => ({ b, s: bestFor(b.id) }))
+      .filter((r) => r.s)
+      .sort((a, b) => b.s.savings_usd - a.s.savings_usd)[0];
+    if (seedBest) state.buildingId = seedBest.b.id;
+    renderAll();
   })();
 
   /* ============================================================ H.E.A.A.L.
