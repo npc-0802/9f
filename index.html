@@ -482,10 +482,19 @@
             </div>
           </div>
 
-          <aside class="mxp__panel" aria-label="Healthy People · scenario-specific IEQ distribution">
-            <img class="mxp__panel-img" id="mxp-panel" src="assets/matrix-panel/panel-00.webp"
-                 alt="Healthy People · Baseline · no temperature setback"
-                 width="720" height="767" decoding="async" />
+          <aside class="mxp__panel" id="mxp-panel" aria-label="Healthy People · scenario-specific IEQ distribution">
+            <header class="mxp__pp-head">
+              <span class="mxp__pp-title">HEALTHY PEOPLE</span>
+              <div class="mxp__pp-occ">
+                <span class="mxp__pp-occ-l">All Occupied Hours</span>
+                <span class="mxp__pp-occ-r is-active">Monday</span>
+              </div>
+              <span class="mxp__pp-scenario" id="mxp-pp-scenario">Baseline</span>
+            </header>
+            <div class="mxp__pp-body">
+              <svg class="mxp__pp-tower" id="mxp-pp-tower" viewBox="0 0 110 320" preserveAspectRatio="xMidYMid meet" aria-hidden="true"></svg>
+              <ul class="mxp__pp-bins" id="mxp-pp-bins" aria-label="Threshold bins with offset Δ"></ul>
+            </div>
           </aside>
         </div>
 

@@ -1294,7 +1294,160 @@
     const grid = document.getElementById("mxp-grid");
     const panel = document.getElementById("mxp-panel");
     const readout = document.getElementById("mxp-readout");
+    const ppTower = document.getElementById("mxp-pp-tower");
+    const ppBins = document.getElementById("mxp-pp-bins");
+    const ppScenarioLbl = document.getElementById("mxp-pp-scenario");
     if (!root || !grid || !panel) return;
+
+    // ---------- 49 scenario data payloads ----------
+    // Values transcribed from the 49 source MATRIX platform screenshots
+    // (one per cell). Each entry: { l: scenario label, b: bin %s,
+    // d: offset Δ values }. b/d arrays in order H/E/A/A/L.
+    const SCENARIOS = [
+      { l: "Baseline",          b: [79.3,14.5,3.2,1.0,2.0], d: [0,0,0,0,0] },
+      { l: "W −2°F / S 0",      b: [67.6,21.6,6.1,1.5,3.2], d: [-11.70,7.12,2.93,0.51,1.15] },
+      { l: "W −3°F / S 0",      b: [62.3,22.3,8.0,3.1,4.3], d: [-16.92,7.76,4.83,2.04,2.29] },
+      { l: "W −4°F / S 0",      b: [59.2,22.9,9.2,3.7,5.1], d: [-20.10,8.40,5.98,2.67,3.05] },
+      { l: "W −5°F / S 0",      b: [54.2,19.7,8.8,5.2,12.1], d: [-25.06,5.22,5.60,4.20,10.05] },
+      { l: "W −6°F / S 0",      b: [53.6,16.8,8.9,5.7,15.0], d: [-25.70,2.29,5.73,4.71,12.98] },
+      { l: "W −7°F / S 0",      b: [52.7,16.2,7.5,5.3,18.3], d: [-26.59,1.65,4.33,4.33,16.28] },
+      { l: "W 0 / S +2°F",      b: [79.4,14.4,3.1,1.1,2.0], d: [0.13,-0.13,-0.13,0.13,0] },
+      { l: "W −2°F / S +2°F",   b: [67.7,21.5,6.0,1.7,3.2], d: [-11.58,7.00,2.80,0.64,1.15] },
+      { l: "W −3°F / S +2°F",   b: [62.5,22.1,7.9,3.2,4.3], d: [-16.79,7.63,4.71,2.16,2.29] },
+      { l: "W −4°F / S +2°F",   b: [59.3,22.8,9.0,3.8,5.1], d: [-19.97,8.27,5.85,2.80,3.05] },
+      { l: "W −5°F / S +2°F",   b: [54.3,19.6,8.7,5.3,12.1], d: [-24.94,5.09,5.47,4.33,10.05] },
+      { l: "W −6°F / S +2°F",   b: [53.7,16.7,8.8,5.9,15.0], d: [-25.57,2.16,5.60,4.83,12.98] },
+      { l: "W −7°F / S +2°F",   b: [52.8,16.0,7.4,5.5,18.3], d: [-26.46,1.53,4.20,4.45,16.28] },
+      { l: "W 0 / S +3°F",      b: [79.3,14.6,2.9,1.1,2.0], d: [0,0.13,-0.25,0.13,0] },
+      { l: "W −2°F / S +3°F",   b: [67.6,21.8,5.9,1.7,3.2], d: [-11.70,7.25,2.67,0.64,1.15] },
+      { l: "W −3°F / S +3°F",   b: [62.3,22.4,7.8,3.2,4.3], d: [-16.92,7.89,4.58,2.16,2.29] },
+      { l: "W −4°F / S +3°F",   b: [59.2,23.0,8.9,3.8,5.1], d: [-20.10,8.52,5.73,2.80,3.05] },
+      { l: "W −5°F / S +3°F",   b: [54.2,19.8,8.5,5.3,12.1], d: [-25.06,5.34,5.34,4.33,10.05] },
+      { l: "W −6°F / S +3°F",   b: [53.6,16.9,8.7,5.9,15.0], d: [-25.70,2.42,5.47,4.83,12.98] },
+      { l: "W −7°F / S +3°F",   b: [52.7,16.3,7.3,5.5,18.3], d: [-26.59,1.78,4.07,4.45,16.28] },
+      { l: "W 0 / S +4°F",      b: [79.0,15.0,2.8,1.1,2.0], d: [-0.25,0.51,-0.38,0.13,0] },
+      { l: "W −2°F / S +4°F",   b: [67.3,22.1,5.7,1.7,3.2], d: [-11.96,7.63,2.54,0.64,1.15] },
+      { l: "W −3°F / S +4°F",   b: [62.1,22.8,7.6,3.2,4.3], d: [-17.18,8.27,4.45,2.16,2.29] },
+      { l: "W −4°F / S +4°F",   b: [58.9,23.4,8.8,3.8,5.1], d: [-20.36,8.91,5.60,2.80,3.05] },
+      { l: "W −5°F / S +4°F",   b: [53.9,20.2,8.4,5.3,12.1], d: [-25.32,5.73,5.22,4.33,10.05] },
+      { l: "W −6°F / S +4°F",   b: [53.3,17.3,8.5,5.9,15.0], d: [-25.95,2.80,5.34,4.83,12.98] },
+      { l: "W −7°F / S +4°F",   b: [52.4,16.7,7.1,5.5,18.3], d: [-26.84,2.16,3.94,4.45,16.28] },
+      { l: "W 0 / S +5°F",      b: [78.9,15.0,2.9,1.1,2.0], d: [-0.38,0.51,-0.25,0.13,0] },
+      { l: "W −2°F / S +5°F",   b: [67.2,22.1,5.9,1.7,3.2], d: [-12.09,7.63,2.67,0.64,1.15] },
+      { l: "W −3°F / S +5°F",   b: [62.0,22.8,7.8,3.2,4.3], d: [-17.30,8.27,4.58,2.16,2.29] },
+      { l: "W −4°F / S +5°F",   b: [58.8,23.4,8.9,3.8,5.1], d: [-20.48,8.91,5.73,2.80,3.05] },
+      { l: "W −5°F / S +5°F",   b: [53.8,20.2,8.5,5.3,12.1], d: [-25.45,5.73,5.34,4.33,10.05] },
+      { l: "W −6°F / S +5°F",   b: [53.2,17.3,8.7,5.9,15.0], d: [-26.08,2.80,5.47,4.83,12.98] },
+      { l: "W −7°F / S +5°F",   b: [52.3,16.7,7.3,5.5,18.3], d: [-26.97,2.16,4.07,4.45,16.28] },
+      { l: "W 0 / S +6°F",      b: [78.8,15.1,2.9,1.1,2.0], d: [-0.51,0.64,-0.25,0.13,0] },
+      { l: "W −2°F / S +6°F",   b: [67.0,22.3,5.9,1.7,3.2], d: [-12.21,7.76,2.67,0.64,1.15] },
+      { l: "W −3°F / S +6°F",   b: [61.8,22.9,7.8,3.2,4.3], d: [-17.43,8.40,4.58,2.16,2.29] },
+      { l: "W −4°F / S +6°F",   b: [58.7,23.5,8.9,3.8,5.1], d: [-20.61,9.03,5.73,2.80,3.05] },
+      { l: "W −5°F / S +6°F",   b: [53.7,20.4,8.5,5.3,12.1], d: [-25.57,5.85,5.34,4.33,10.05] },
+      { l: "W −6°F / S +6°F",   b: [53.1,17.4,8.7,5.9,15.0], d: [-26.21,2.93,5.47,4.83,12.98] },
+      { l: "W −7°F / S +6°F",   b: [52.2,16.8,7.3,5.5,18.3], d: [-27.10,2.29,4.07,4.45,16.28] },
+      { l: "W 0 / S +7°F",      b: [78.6,15.3,2.8,1.3,2.0], d: [-0.64,0.76,-0.38,0.25,0] },
+      { l: "W −2°F / S +7°F",   b: [66.9,22.4,5.7,1.8,3.2], d: [-12.34,7.89,2.54,0.76,1.15] },
+      { l: "W −3°F / S +7°F",   b: [61.7,23.0,7.6,3.3,4.3], d: [-17.56,8.52,4.45,2.29,2.29] },
+      { l: "W −4°F / S +7°F",   b: [58.5,23.7,8.8,3.9,5.1], d: [-20.74,9.16,5.60,2.93,3.05] },
+      { l: "W −5°F / S +7°F",   b: [53.6,20.5,8.4,5.5,12.1], d: [-25.70,5.98,5.22,4.45,10.05] },
+      { l: "W −6°F / S +7°F",   b: [52.9,17.6,8.5,6.0,15.0], d: [-26.34,3.05,5.34,4.96,12.98] },
+      { l: "W −7°F / S +7°F",   b: [52.0,16.9,7.1,5.6,18.3], d: [-27.23,2.42,3.94,4.58,16.28] },
+    ];
+
+    // Bin metadata — letter, label, badge color (match HEAAL palette
+    // and the source platform). Order H/E/A/A/L top→bottom.
+    const PP_BINS = [
+      { letter: "H", label: "Health Optimized", color: "#3F8FE6" },
+      { letter: "E", label: "Excellent",        color: "#B2CCEE" },
+      { letter: "A", label: "Action",           color: "#E2C75E" },
+      { letter: "A", label: "Alert",            color: "#FCBC7E" },
+      { letter: "L", label: "Limit",            color: "#E47A6A" },
+    ];
+
+    const NS_SVG = "http://www.w3.org/2000/svg";
+    const svgEl = (tag, attrs) => {
+      const el = document.createElementNS(NS_SVG, tag);
+      if (attrs) Object.entries(attrs).forEach(([k,v]) => el.setAttribute(k, v));
+      return el;
+    };
+    const clearNode = (n) => { while (n.firstChild) n.removeChild(n.firstChild); };
+
+    // ---------- Tower SVG (constant — drawn once) ----------
+    function drawPpTower() {
+      if (!ppTower) return;
+      clearNode(ppTower);
+      const W = 110, H = 320;
+      ppTower.setAttribute("viewBox", `0 0 ${W} ${H}`);
+      const xL = 16, xR = 88;
+      const skew = 9;
+      const segH = 56;
+      const startY = 14;
+      PP_BINS.forEach((bin, i) => {
+        const y = startY + i * segH;
+        const isTop = i === 0;
+        // Roof slab (iso parallelogram)
+        ppTower.appendChild(svgEl("polygon", {
+          points: `${xL},${y+skew} ${xR},${y+skew} ${xR + skew},${y} ${xL - skew},${y}`,
+          fill: isTop ? "rgba(255,255,255,0.04)" : "rgba(178,204,238,0.05)",
+          stroke: "rgba(178,204,238,0.6)",
+          "stroke-width": 1,
+        }));
+        // Body fill
+        ppTower.appendChild(svgEl("rect", {
+          x: xL, y: y + skew,
+          width: xR - xL, height: segH - skew - 2,
+          fill: isTop ? "#3F8FE6" : "rgba(178,204,238,0.04)",
+          stroke: "rgba(178,204,238,0.6)", "stroke-width": 1,
+        }));
+        // Bin-colored strip on the left edge
+        ppTower.appendChild(svgEl("rect", {
+          x: xL - 5, y: y + skew + 8,
+          width: 4, height: segH - skew - 18,
+          fill: bin.color,
+          opacity: isTop ? 0 : 0.85,
+        }));
+        // Iso right side
+        ppTower.appendChild(svgEl("polygon", {
+          points: `${xR},${y+skew} ${xR + skew},${y} ${xR + skew},${y + segH - 2 - skew} ${xR},${y + segH - 2}`,
+          fill: isTop ? "rgba(31,90,170,0.85)" : "rgba(0,0,0,0.18)",
+          stroke: "rgba(178,204,238,0.6)", "stroke-width": 1,
+        }));
+      });
+      // Base platform
+      const baseY = startY + PP_BINS.length * segH;
+      ppTower.appendChild(svgEl("polygon", {
+        points: `${xL-5},${baseY+skew} ${xR+5},${baseY+skew} ${xR + skew + 5},${baseY} ${xL - skew - 5},${baseY}`,
+        fill: "rgba(178,204,238,0.05)",
+        stroke: "rgba(178,204,238,0.4)", "stroke-width": 1,
+      }));
+    }
+
+    // ---------- Bin rows render ----------
+    function fmtDelta(d) {
+      if (Math.abs(d) < 0.005) return "0.00%";
+      const sign = d > 0 ? "+" : "−";
+      return sign + Math.abs(d).toFixed(2) + "%";
+    }
+    function renderPpBins(scenario) {
+      if (!ppBins) return;
+      ppBins.innerHTML = PP_BINS.map((b, i) => `
+        <li class="mxp__pp-bin" data-bin="${i}" data-zero="${Math.abs(scenario.d[i]) < 0.005}">
+          <span class="mxp__pp-bin-badge" style="background:${b.color}">${b.letter}</span>
+          <span class="mxp__pp-bin-meta">
+            <span class="mxp__pp-bin-v">${scenario.b[i].toFixed(1)}%</span>
+            <span class="mxp__pp-bin-k">${b.label}</span>
+          </span>
+          <span class="mxp__pp-bin-d">${fmtDelta(scenario.d[i])}</span>
+        </li>
+      `).join("");
+    }
+
+    function renderPpScenario(idx) {
+      const s = SCENARIOS[idx] || SCENARIOS[0];
+      if (ppScenarioLbl) ppScenarioLbl.textContent = s.l;
+      renderPpBins(s);
+    }
 
     const ROWS = 7, COLS = 7;
     // Row labels (top → bottom): +7°F .. +2°F, then 0 (BASELINE row)
@@ -1395,23 +1548,18 @@
       });
     }
 
-    // Preload all 49 cropped panel images so swaps are instant
-    for (let i = 0; i < 49; i++) {
-      const im = new Image();
-      im.src = `assets/matrix-panel/panel-${String(i).padStart(2, "0")}.webp`;
-    }
-
-    // (row, col) → panel index. BASELINE = panel 0; otherwise
-    // (6 − row) × 7 + col gives the chronological capture order.
-    function panelIndexFor(r, c) {
+    // (row, col) → scenario index. BASELINE = scenario 0; otherwise
+    // (6 − row) × 7 + col gives the index into the SCENARIOS array,
+    // matching the order panel screenshots were originally captured.
+    function scenarioIndexFor(r, c) {
       return (6 - r) * 7 + c;
     }
 
     let activeCell = null;
     function activate(r, c, cellEl) {
-      const idx = panelIndexFor(r, c);
-      const safeIdx = String(idx).padStart(2, "0");
-      panel.src = `assets/matrix-panel/panel-${safeIdx}.webp`;
+      const idx = scenarioIndexFor(r, c);
+      // Hardcoded panel render (replaces previous <img> swap path)
+      renderPpScenario(idx);
 
       const vals = CELLS[r][c];
       const isBaseline = vals === null;
@@ -1420,9 +1568,6 @@
       const reductionLbl = isBaseline
         ? "no setback · baseline"
         : `${vals[0].toFixed(1)}% – ${vals[1].toFixed(1)}% energy reduction`;
-      panel.alt = isBaseline
-        ? "Healthy People · Baseline · no temperature setback"
-        : `Healthy People · winter ${wLbl} / summer ${sLbl}`;
       if (readout) {
         readout.textContent = isBaseline
           ? "Baseline · no setback · 0.00% offset across all bins"
@@ -1452,6 +1597,8 @@
     // controls to keyboard or AT users.
 
     build();
+    // Draw the tower SVG once (constant across scenarios)
+    drawPpTower();
     // Initialize at BASELINE (row 6, col 0)
     activate(6, 0, grid.querySelector('.mxp__cell.is-baseline'));
   })();
