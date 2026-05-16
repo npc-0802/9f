@@ -1717,12 +1717,14 @@ sub, sup { font-size: 0.7em; }
 /* --- Two-column body --- */
 .mxp__body {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 360px;
+  grid-template-columns: minmax(0, 1fr) 320px;
   gap: 22px;
-  align-items: start;
+  /* stretch so the panel column can match the matrix's height — image
+     scales up to fill rather than sitting under-scaled at the top */
+  align-items: stretch;
 }
 @media (max-width: 920px) {
-  .mxp__body { grid-template-columns: minmax(0, 1fr); }
+  .mxp__body { grid-template-columns: minmax(0, 1fr); align-items: start; }
 }
 .mxp__matrix {
   padding: 16px 14px;
@@ -1857,18 +1859,30 @@ sub, sup { font-size: 0.7em; }
   color: rgba(178,204,238,0.6);
   letter-spacing: 0.06em;
 }
-/* --- Image-backed Healthy People panel --- */
+/* --- Image-backed Healthy People panel ---
+   The cropped screenshot already carries the platform's inner frame
+   (rounded corner outline, header padding, Monday toggle). Wrapping it
+   in our own card created an "image-in-a-card" double-frame. Container
+   is now a transparent stage; the image's own border IS the panel edge.
+   align-self: stretch + object-fit: cover lets the image scale up to
+   match the matrix column's height so the two surfaces feel sized to
+   each other instead of the panel reading as under-scaled. */
 .mxp__panel {
+  align-self: stretch;
+  display: block;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
   padding: 0;
-  background: rgba(10,18,30,0.6);
-  border: 1px solid rgba(40,72,116,0.4);
-  border-radius: 10px;
   overflow: hidden;
 }
 .mxp__panel-img {
   display: block;
   width: 100%;
-  height: auto;
+  height: 100%;
+  min-height: 100%;
+  object-fit: cover;
+  object-position: center top;
   user-select: none;
   -webkit-user-drag: none;
 }
