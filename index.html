@@ -35,7 +35,7 @@
         <span class="brand__crumb">Data&nbsp;Centers</span>
       </a>
       <nav class="topnav__links" aria-label="Sections">
-        <a href="#inventory">Inventory</a>
+        <a href="#inventory">Virginia Data Center Inventory</a>
         <a href="#filterstudio">FilterStudio</a>
         <a href="#matrix">MATRIX</a>
         <a href="#heaal">H.E.A.A.L.</a>
@@ -123,7 +123,7 @@
     <div class="container">
       <header class="section__head section__head--row">
         <div>
-          <div class="eyebrow">01 &middot; Inventory</div>
+          <div class="eyebrow">01 &middot; Virginia Data Center Inventory</div>
           <h2>Map the portfolio, building by building.</h2>
           <p class="lede">
             9F scientists built a parameterized inventory of every existing and planned data center in Virginia — one of the world's densest data center hubs. Each of the 412 sites carries publicly-sourced building dimensions and a modeled HVAC profile that drive its energy, equipment, and air-quality outcomes.
@@ -218,7 +218,7 @@
     <div class="container">
       <header class="section__head">
         <div class="eyebrow">02 &middot; FilterStudio</div>
-        <h2>Select filters that are right for your building.</h2>
+        <h2>Select the right filters for your building.</h2>
         <p class="lede">
           Small filtration choices can create outsized economic consequences. FilterStudio quantifies which filters reduce energy use, equipment damages, climate damages, and public-health harms — against real building conditions, over time, not lab snapshots.
         </p>
@@ -242,46 +242,10 @@
         </div>
         <ul class="fs__headline-stats">
           <li><b data-countup="206419" data-format="num">0</b><span class="u">MWh/y</span><label>Energy saved</label></li>
-          <li><b>$36.7<span class="u">M</span></b><span class="u">/year</span><label>Energy cost avoided</label></li>
-          <li><b>$2.83<span class="u">M</span></b><span class="u">/year</span><label>Climate damages avoided</label></li>
-          <li><b>$369<span class="u">k</span></b><span class="u">/year</span><label>Public-health damages avoided</label></li>
+          <li><b>$<span data-countup="36.7">0</span><span class="u">M</span></b><span class="u">/year</span><label>Energy cost avoided</label></li>
+          <li><b>$<span data-countup="2.83">0</span><span class="u">M</span></b><span class="u">/year</span><label>Climate damages avoided</label></li>
+          <li><b>$<span data-countup="369">0</span><span class="u">k</span></b><span class="u">/year</span><label>Public-health damages avoided</label></li>
         </ul>
-        <details class="fs__method">
-          <summary class="fs__method-toggle">
-            <span class="fs__method-toggle-lbl">How this is calculated</span>
-            <span class="fs__method-toggle-cue" aria-hidden="true">+</span>
-          </summary>
-          <div class="fs__method-body">
-            <p class="fs__method-lede">
-              These are <em>modeled co-benefits</em>, not invoiced totals. The
-              $39.9M figure aggregates energy-cost, climate-damage, and
-              public-health-damage line items across the 412-site Virginia
-              portfolio using filter-comparison energy deltas from FilterStudio.
-            </p>
-            <dl class="fs__method-rows">
-              <div>
-                <dt>Climate valuation</dt>
-                <dd>Harvard <abbr title="Co-Benefits of the Environment">CoBE</abbr> per-MWh climate factor &middot; derived from the social cost of carbon at the EPA-style central rate. Energy delta × per-MWh factor = climate damages avoided.</dd>
-              </div>
-              <div>
-                <dt>Public-health valuation</dt>
-                <dd>CoBE per-MWh health factor &middot; PM<sub>2.5</sub>-attributable morbidity and mortality valued at a value-of-statistical-life (VSL) basis consistent with the source framework.</dd>
-              </div>
-              <div>
-                <dt>Energy cost</dt>
-                <dd>Energy delta × $0.18 / kWh (Virginia wholesale-adjacent reference rate). Site-specific tariffs will deviate; the figure is a portfolio-aggregate proxy, not a procurement quote.</dd>
-              </div>
-              <div>
-                <dt>Per-site variance</dt>
-                <dd>Per-site results vary by eGRID region (RFCE / SRVC for the modeled portfolio), outdoor PM<sub>2.5</sub> baseline, system type (DLC / DEC), and ventilation/recirculation split. The statewide total smooths across this distribution.</dd>
-              </div>
-              <div>
-                <dt>Scope of claim</dt>
-                <dd>Modeled against the 412-site Virginia inventory using a single filter-pair comparison (Filter A vs Filter B) per site, holding all other building parameters at their inventory values. Cross-market extrapolation requires re-parameterization.</dd>
-              </div>
-            </dl>
-          </div>
-        </details>
       </div>
 
       <div class="fs__panel">
@@ -296,9 +260,9 @@
           <div class="fs__control">
             <span class="fs__control-lbl">Filter</span>
             <div class="fs__chipset" role="group" aria-label="Filter">
-              <button class="chip" data-fs-filter="A" type="button" aria-pressed="false">Filter A</button>
+              <button class="chip is-active" data-fs-filter="A" type="button" aria-pressed="true">Filter A</button>
               <button class="chip" data-fs-filter="B" type="button" aria-pressed="false">Filter B</button>
-              <button class="chip is-active" data-fs-filter="compare" type="button" aria-pressed="true">Compare &middot; Total Co-Benefits</button>
+              <button class="chip" data-fs-filter="compare" type="button" aria-pressed="false">Compare &middot; Total Co-Benefits</button>
             </div>
           </div>
         </div>
@@ -320,11 +284,33 @@
         <div class="intent" role="note" aria-live="off">
           <div class="intent__row">
             <span class="intent__k">Comparison</span>
-            <span class="intent__prompt">Pick a case study and either filter, or stay in Compare to see the Total Co-Benefits stack. The animated figure on the left echoes the deck's case-study setup; the three plots on the right echo Key Insights #1, #3, and #6 from the deck.</span>
+            <span class="intent__prompt">Pick a case study and either filter, or stay in Compare to see how the two filters' total co-benefits cost stack against each other. The three plots on the right echo Key Insights #1, #3, and #6 from the deck.</span>
           </div>
           <div class="intent__state">
             <span class="intent__state-k">Viewing</span>
-            <span class="intent__state-v" id="fs-viewing">Data Center A &middot; Compare</span>
+            <span class="intent__state-v" id="fs-viewing">Data Center A &middot; Filter A</span>
+          </div>
+        </div>
+
+        <!-- Case-study Total Co-Benefits of Ownership cost — moved up
+             from the bottom of the section per feedback. Headline-scale
+             comparative cost signal that swaps between Data Center A
+             and B. Filter A = blue, Filter B = green. -->
+        <div class="fs__cost" id="fs-cost" aria-label="Case-study total co-benefits of ownership">
+          <div class="fs__cost-head">
+            <span class="eyebrow eyebrow--sm">Total Co-Benefits of Ownership &middot; <span id="fs-cost-case">Data Center A</span></span>
+            <span class="fs__cost-foot muted">Modeled annual cost difference at the case-study site.</span>
+          </div>
+          <div class="fs__cost-pair">
+            <div class="fs__cost-side fs__cost-side--a" data-fs-cost-filter="A">
+              <span class="fs__cost-tag">Filter A</span>
+              <span class="fs__cost-val" id="fs-cost-a">$230,785.95</span>
+            </div>
+            <span class="fs__cost-vs" aria-hidden="true">vs</span>
+            <div class="fs__cost-side fs__cost-side--b" data-fs-cost-filter="B">
+              <span class="fs__cost-tag">Filter B</span>
+              <span class="fs__cost-val" id="fs-cost-b">$150,310.68</span>
+            </div>
           </div>
         </div>
 
@@ -338,41 +324,47 @@
           </div>
           <div class="fs__charts">
             <figure class="fs__chart fs__chart--performance">
-              <figcaption>
-                <span class="fs__chart-tag">KEY INSIGHT #1 &middot; Performance</span>
-                <span class="fs__chart-k">Dust feed vs pressure drop</span>
-                <span class="fs__chart-v" id="fs-pressure-readout">—</span>
+              <figcaption class="fs__chart-cap">
+                <div class="fs__chart-lhs">
+                  <span class="fs__chart-tag">KEY INSIGHT #1 &middot; Performance</span>
+                  <span class="fs__chart-k">Dust feed vs pressure drop</span>
+                  <span class="fs__chart-lead" id="fs-pressure-lead">— Pa at one year</span>
+                </div>
+                <div class="fs__chart-rhs fs__chart-rhs--performance">
+                  <span class="fs__chart-v" id="fs-pressure-readout">—</span>
+                </div>
               </figcaption>
               <svg id="fs-pressure" viewBox="0 0 480 140" preserveAspectRatio="none"></svg>
             </figure>
             <figure class="fs__chart fs__chart--health">
-              <figcaption>
-                <span class="fs__chart-tag">KEY INSIGHT #3 &middot; Health</span>
-                <span class="fs__chart-k">Indoor PM<sub>2.5</sub> over time</span>
-                <span class="fs__chart-v" id="fs-pm-readout">—</span>
+              <figcaption class="fs__chart-cap">
+                <div class="fs__chart-lhs">
+                  <span class="fs__chart-tag">KEY INSIGHT #3 &middot; Health</span>
+                  <span class="fs__chart-k">Indoor PM<sub>2.5</sub> over time</span>
+                  <span class="fs__chart-lead" id="fs-pm-lead">— µg/m³ annual average</span>
+                </div>
+                <div class="fs__chart-rhs fs__chart-rhs--health">
+                  <span class="fs__chart-v" id="fs-pm-readout">—</span>
+                </div>
               </figcaption>
               <svg id="fs-pm" viewBox="0 0 480 140" preserveAspectRatio="none"></svg>
             </figure>
             <figure class="fs__chart fs__chart--energy">
-              <figcaption>
-                <span class="fs__chart-tag">KEY INSIGHT #6 &middot; Energy</span>
-                <span class="fs__chart-k">Fan energy consumption</span>
-                <span class="fs__chart-v" id="fs-energy-readout">—</span>
+              <figcaption class="fs__chart-cap">
+                <div class="fs__chart-lhs">
+                  <span class="fs__chart-tag">KEY INSIGHT #6 &middot; Energy</span>
+                  <span class="fs__chart-k">Annual fan energy</span>
+                  <span class="fs__chart-lead" id="fs-energy-lead">— kWh/y total</span>
+                </div>
+                <div class="fs__chart-rhs fs__chart-rhs--energy">
+                  <span class="fs__chart-v" id="fs-energy-readout">—</span>
+                </div>
               </figcaption>
               <svg id="fs-energy" viewBox="0 0 480 140" preserveAspectRatio="none"></svg>
             </figure>
           </div>
         </div>
 
-        <div class="fs__readout">
-          <div class="fs__readout-head">
-            <span class="eyebrow eyebrow--sm" id="fs-readout-mode">Comparison mode</span>
-            <span class="fs__readout-sub" id="fs-readout-sub">Filter A vs Filter B · 1 Year Period</span>
-          </div>
-          <div class="fs__deltas" id="fs-deltas" aria-live="off">
-            <!-- populated by app.js — 6 comparative tiles or 3 single-filter tiles -->
-          </div>
-        </div>
       </div>
 
     </div>
@@ -389,63 +381,118 @@
         </p>
       </header>
 
-      <!-- Chapter chrome — echoes slide 16's tabbed header strip. The
-           inactive tabs are presentation-recognition cues only; "Healthy
-           Defaults" is the live chapter rendered below. -->
-      <div class="mx16__chrome" role="toolbar" aria-label="MATRIX chapter chrome">
-        <div class="mx16__brand">
-          <span class="mx16__brand-mark">MATRIX</span>
-        </div>
-        <div class="mx16__tabs" role="tablist">
-          <span class="mx16__tab" data-mx16-tab="generation" aria-disabled="true">Generation</span>
-          <span class="mx16__tab is-active" data-mx16-tab="healthy" aria-current="page">Healthy Defaults</span>
-          <span class="mx16__tab" data-mx16-tab="saving" aria-disabled="true">Saving Details</span>
-          <span class="mx16__tab" data-mx16-tab="financial" aria-disabled="true">Financial</span>
-          <span class="mx16__tab" data-mx16-tab="opt" aria-disabled="true">Optimization</span>
-        </div>
-        <span class="mx16__sim-badge">
-          <span class="mx16__sim-k">Matrix Simulations</span>
-          <span class="mx16__sim-v" id="mx16-sim-count">12,552 runs</span>
-        </span>
-      </div>
+      <!-- Functional rebuild of the platform MATRIX surface per
+           Feedback 3 §03. Chrome (brand, intervention tabs, title,
+           setback time controls, heatmap grid, legend) is live HTML.
+           The Healthy People panel on the right is image-backed —
+           cropped from each scenario screenshot — and swaps on cell
+           hover. The matrix grid itself is the only meaningful
+           interactive surface; tabs/time controls are presentational
+           reference labels matching the platform composition. -->
+      <div class="mxp" id="mxp">
+        <header class="mxp__chrome">
+          <span class="mxp__brand">MATRIX</span>
+          <span class="mxp__title-lhs">
+            <span class="mxp__title-k">Healthy Energy</span>
+            <span class="mxp__title-sub">Weekend temperature setback analysis &middot; Office Tower</span>
+          </span>
+          <span class="mxp__chrome-meta">
+            <span class="mxp__chrome-pill">FRI 18:00 → MON 06:00</span>
+            <span class="mxp__chrome-live"><span class="mxp__chrome-dot"></span>LIVE SIMULATION · v1.2.4</span>
+          </span>
+        </header>
 
-      <!-- Section title + subtitle (slide 16 typography) -->
-      <div class="mx16__title">
-        <h3 class="mx16__h3">Reduction in Annual Energy Consumption</h3>
-        <p class="mx16__sub">Range represents model sensitivity to baseline deadband · HVAC shift &times; outdoor temperature</p>
-      </div>
+        <!-- Intervention tabs + setback timing controls + clock + unit
+             toggles are all display-only labels. The 49 scenario panels
+             were captured at one fixed default (Weekend Setback, FRI
+             18:00 → MON 06:00, 24h, °F), so honestly there's no extra
+             state these chips can drive. They render as inert reference
+             tokens — same visual weight as the platform — but they do
+             not behave like live controls. -->
+        <div class="mxp__tabs" role="group" aria-label="Intervention type (reference)">
+          <span class="mxp__tabs-k">INTERVENTION</span>
+          <span class="mxp__tab is-active" aria-current="true">Weekend Setback</span>
+          <span class="mxp__tab" aria-disabled="true">Evening Setback</span>
+          <span class="mxp__tab" aria-disabled="true">Ventilation</span>
+          <span class="mxp__tab" aria-disabled="true">All Combined</span>
+        </div>
 
-      <!-- Matrix grid (left) + Healthy People building panel (right) -->
-      <div class="mx16__body">
-        <div class="mx16__matrix">
-          <span class="mx16__matrix-title">Healthy Energy</span>
-          <div class="mx16__grid-wrap">
-            <div class="mx16__grid-ylabel" aria-hidden="true">↑ HVAC shift (°F)</div>
-            <div class="mx16__grid" id="mx16-grid">
-              <!-- populated by app.js -->
+        <div class="mxp__title-block">
+          <h3 class="mxp__h3">Reduction in Annual Energy Consumption</h3>
+          <p class="mxp__h3-sub">Range represents model sensitivity to baseline deadband</p>
+        </div>
+
+        <div class="mxp__controls" aria-label="Setback timing (reference)">
+          <div class="mxp__control">
+            <span class="mxp__control-k">Setback start — Friday Evening</span>
+            <div class="mxp__seg" role="group" aria-label="Setback start (fixed reference)">
+              <span class="mxp__seg-btn is-active" aria-current="true">18:00</span>
+              <span class="mxp__seg-btn" aria-disabled="true">20:00</span>
+              <span class="mxp__seg-btn" aria-disabled="true">22:00</span>
             </div>
-            <div class="mx16__grid-xlabel" aria-hidden="true">Outdoor temperature (°F) →</div>
+            <span class="mxp__control-foot">Begins <em>Friday 18:00</em></span>
           </div>
-          <div class="mx16__legend">
-            <span class="mx16__legend-k">Energy reduction</span>
-            <span class="mx16__legend-bar"></span>
-            <span class="mx16__legend-lbl"><span>0%</span><span>8%+</span></span>
+          <div class="mxp__control">
+            <span class="mxp__control-k">Setback end — Monday Morning</span>
+            <div class="mxp__seg" role="group" aria-label="Setback end (fixed reference)">
+              <span class="mxp__seg-btn" aria-disabled="true">02:00</span>
+              <span class="mxp__seg-btn" aria-disabled="true">04:00</span>
+              <span class="mxp__seg-btn is-active" aria-current="true">06:00</span>
+            </div>
+            <span class="mxp__control-foot">Ends <em>Monday 06:00</em></span>
+          </div>
+          <div class="mxp__control">
+            <span class="mxp__control-k">Clock Format</span>
+            <div class="mxp__seg" role="group" aria-label="Clock format (fixed reference)">
+              <span class="mxp__seg-btn is-active" aria-current="true">24h</span>
+              <span class="mxp__seg-btn" aria-disabled="true">12h</span>
+            </div>
           </div>
         </div>
 
-        <aside class="mx16__healthy" aria-label="Healthy People · IEQ distribution">
-          <header class="mx16__healthy-head">
-            <span class="eyebrow eyebrow--sm">Healthy People</span>
-            <span class="mx16__healthy-cell" id="mx16-cell-readout">Hover any cell &middot; baseline shown</span>
-          </header>
-          <div class="mx16__healthy-body">
-            <svg id="mx16-bldg" class="mx16__healthy-bldg" viewBox="0 0 120 280" preserveAspectRatio="xMidYMid meet" aria-hidden="true"></svg>
-            <div class="mx16__bins" id="mx16-bins">
-              <!-- 5 rows populated by app.js (Health Optimized / Excellent / Action / Alert / Limit) -->
+        <div class="mxp__body">
+          <div class="mxp__matrix">
+            <div class="mxp__matrix-head">
+              <div class="mxp__unit-toggle" role="group" aria-label="Unit (fixed reference)">
+                <span class="mxp__unit-btn is-active" aria-current="true">°F</span>
+                <span class="mxp__unit-btn" aria-disabled="true">°C</span>
+              </div>
+              <span class="mxp__matrix-title">HEALTHY ENERGY</span>
+              <span class="mxp__sim-badge">
+                <span class="mxp__sim-icn" aria-hidden="true"></span>
+                <span class="mxp__sim-stack">
+                  <span class="mxp__sim-k">Matrix Simulations</span>
+                  <span class="mxp__sim-v">1,323 scenarios analyzed</span>
+                </span>
+              </span>
+            </div>
+
+            <div class="mxp__grid-wrap">
+              <div class="mxp__y-axis-lbl" aria-hidden="true">SUMMER WEEKEND TEMPERATURE OFFSET (°F)</div>
+              <div class="mxp__grid" id="mxp-grid" role="grid" aria-label="Energy reduction matrix · 7×7 setback scenarios">
+                <!-- populated by app.js: 7 row-label cells + 49 data cells + 7 col-label cells -->
+              </div>
+              <div class="mxp__x-axis-lbl" aria-hidden="true">WINTER WEEKEND TEMPERATURE OFFSET (°F)</div>
+            </div>
+
+            <div class="mxp__legend">
+              <span class="mxp__legend-k">% REDUCTION</span>
+              <span class="mxp__legend-bar"></span>
+              <span class="mxp__legend-ticks"><span>0%</span><span>4.4%</span><span>8.8%</span></span>
             </div>
           </div>
-          <p class="mx16__healthy-foot">Building tilt = same population, different operating point. As setback gets aggressive at hot or cold extremes, more occupants land in Action / Alert / Limit bins.</p>
-        </aside>
+
+          <aside class="mxp__panel" aria-label="Healthy People · scenario-specific IEQ distribution">
+            <img class="mxp__panel-img" id="mxp-panel" src="assets/matrix-panel/panel-00.webp"
+                 alt="Healthy People · Baseline · no temperature setback"
+                 width="540" height="622" decoding="async" />
+          </aside>
+        </div>
+
+        <div class="mxp__readout">
+          <span class="mxp__readout-k">Hover</span>
+          <span class="mxp__readout-v" id="mxp-readout">Baseline · no setback · 0.00% offset across all bins</span>
+        </div>
       </div>
     </div>
   </section>
@@ -461,104 +508,26 @@
         </p>
       </header>
 
-      <div class="hl2">
-        <!-- Operator-console header strip — slide-18 fidelity rebuild.
-             "Reference console" replaces the deck's "Live data" label
-             because readings on this build are seeded synthetic. The
-             30d / 7d markers are non-interactive reference labels
-             matching the deck's tab strip without claiming a window
-             switch the data layer doesn't support. -->
-        <div class="hl2__console" role="toolbar" aria-label="H.E.A.A.L. reference console">
-          <div class="hl2__console-left">
-            <span class="hl2__live" aria-hidden="true"><span class="hl2__live-pip"></span>Reference console</span>
-          </div>
-          <div class="hl2__console-tabs">
-            <div class="fs__chipset hl2__param-tabs" role="group" aria-label="Parameter">
-              <button class="chip is-active" data-hl-param="trh"  type="button" aria-pressed="true">TRH</button>
-              <button class="chip"           data-hl-param="co2"  type="button" aria-pressed="false">CO<sub>2</sub></button>
-              <button class="chip"           data-hl-param="pm25" type="button" aria-pressed="false">PM<sub>2.5</sub></button>
-              <button class="chip"           data-hl-param="tvoc" type="button" aria-pressed="false">TVOC</button>
-            </div>
-            <div class="hl2__range-marks" role="presentation" aria-hidden="true">
-              <span class="hl2__range-mark is-active">30 days</span>
-              <span class="hl2__range-mark">7 days</span>
-            </div>
-          </div>
-          <div class="hl2__console-right">
-            <span class="hl2__bldgid" aria-label="Building ID">
-              <span class="hl2__bldgid-k">BLDGID</span>
-              <span class="hl2__bldgid-v">BLDG-04A</span>
-            </span>
-          </div>
-        </div>
-        <p class="hl2__disclosure" aria-label="Build disclosure">
-          TRH selection is temperature-only in this web build. Readings shown are seeded synthetic and modeled against the deck's threshold bins; 30 / 7-day markers are reference labels only. Production H.E.A.A.L. deployments use live sensor streams.
-        </p>
-
-        <!-- Slide-18 two-column body: building plot + score breakdown +
-             live values on the LEFT; SpaceTime Map → Floor/Sensor →
-             Timeseries Plot on the RIGHT. -->
-        <div class="hl2__layout hl2__layout--slide18">
-          <div class="hl2__left">
-            <div class="hl2__plot">
-              <div class="eyebrow eyebrow--sm">Building plot &middot; <span id="hl-bldg-label">BLDG-04A &middot; Floor 2</span></div>
-              <svg id="hl-plot" viewBox="0 0 360 240" preserveAspectRatio="xMidYMid meet"></svg>
-            </div>
-
-            <!-- 5-bin score breakdown overlaid below the plot — matches
-                 slide 18's % stack (Health Optimized · Excellent ·
-                 Action · Alert · Limit). Numbers come from the active
-                 floor's sensor readings binned against the parameter
-                 thresholds. -->
-            <div class="hl2__bins" id="hl-bins" aria-label="Threshold bin breakdown">
-              <!-- populated by app.js -->
-            </div>
-
-            <!-- Live values mini-grid — five readings echoing the
-                 deck's slide-18 callouts (CO₂ / PM₂.₅ / TVOC / Temp / RH). -->
-            <div class="hl2__live-vals" id="hl-live-vals" aria-label="Live readings">
-              <!-- populated by app.js -->
-            </div>
-          </div>
-
-          <div class="hl2__right">
-            <div class="hl2__heat">
-              <div class="hl2__heat-head">
-                <span class="eyebrow eyebrow--sm" id="hl-heat-title">H.E.A.A.L. Temperature &middot; SpaceTime Map</span>
-                <span class="hl2__heat-axes">sensors × 24 h</span>
-              </div>
-              <svg id="hl-heat" viewBox="0 0 480 130" preserveAspectRatio="none"></svg>
-              <div class="hl2__legend" id="hl-plot-legend"></div>
-            </div>
-
-            <!-- Floor / Sensor toggle sits between the two charts on the
-                 right, mirroring slide-18 placement. -->
-            <div class="hl2__view-toggle" role="toolbar" aria-label="View">
-              <div class="hl2__view-group">
-                <span class="hl2__view-lbl">Floor</span>
-                <div class="fs__chipset" role="group" aria-label="Floor">
-                  <button class="chip" data-hl-floor="1" type="button" aria-pressed="false">1 · West</button>
-                  <button class="chip is-active" data-hl-floor="2" type="button" aria-pressed="true">2 · Mech</button>
-                  <button class="chip" data-hl-floor="3" type="button" aria-pressed="false">3 · East</button>
-                </div>
-              </div>
-              <div class="hl2__view-group">
-                <span class="hl2__view-lbl">Sensor</span>
-                <div class="fs__chipset" role="group" aria-label="Sensor view">
-                  <button class="chip is-active" data-hl-sensor="aggregate" type="button" aria-pressed="true">Aggregate</button>
-                  <button class="chip" data-hl-sensor="bysensor"  type="button" aria-pressed="false">By sensor</button>
-                </div>
-              </div>
-            </div>
-
-            <div class="hl2__time">
-              <div class="hl2__time-head">
-                <span class="eyebrow eyebrow--sm" id="hl-time-title">H.E.A.A.L. Temperature &middot; Timeseries Plot</span>
-                <span class="hl2__time-val"><b id="hl-time-now">21.4</b><span class="u" id="hl-time-unit">°C</span></span>
-              </div>
-              <svg id="hl-time" viewBox="0 0 480 140" preserveAspectRatio="none"></svg>
-            </div>
-          </div>
+      <!-- Image-backed platform fidelity per Feedback 3 §04. The HEAAL
+           UI is the screenshot itself; only the four parameter pills
+           (CO₂ / PM2.5 / TVOC / Temp) are functional. Clicking any pill
+           swaps the backdrop to that parameter's screenshot. Everything
+           else (SpaceTime Map, Timeseries Plot, live values, bin
+           breakdown, building tower) lives in the screenshot — no
+           synthetic recreation. -->
+      <div class="hl4" id="hl4">
+        <img class="hl4__base" id="hl4-img" src="assets/heaal/heaal-00.webp"
+             alt="H.E.A.A.L. Analytics platform · CO₂ view"
+             width="1700" height="947" decoding="async" />
+        <div class="hl4__btns" role="tablist" aria-label="H.E.A.A.L. parameter">
+          <button class="hl4__btn is-active" type="button" role="tab"
+                  data-hl-param="co2"  aria-selected="true">CO<sub>2</sub></button>
+          <button class="hl4__btn" type="button" role="tab"
+                  data-hl-param="pm25" aria-selected="false">PM<sub>2.5</sub></button>
+          <button class="hl4__btn" type="button" role="tab"
+                  data-hl-param="tvoc" aria-selected="false">TVOC</button>
+          <button class="hl4__btn" type="button" role="tab"
+                  data-hl-param="temp" aria-selected="false">Temp</button>
         </div>
       </div>
     </div>

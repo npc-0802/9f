@@ -926,20 +926,16 @@ sub, sup { font-size: 0.7em; }
   padding: 12px 16px 10px;
   border-left-width: 3px;
 }
-.fs__chart figcaption {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  grid-template-areas:
-    "tag value"
-    "title value";
-  gap: 2px 14px;
+.fs__chart figcaption,
+.fs__chart .fs__chart-cap {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
   margin-bottom: 8px;
-  align-items: baseline;
 }
-/* KEY INSIGHT #N · Lane — small mono tag echoing the deck's chart-title
-   convention. Color comes from the lane modifier below. */
+.fs__chart-lhs { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .fs__chart-tag {
-  grid-area: tag;
   font-family: var(--font-mono);
   font-size: 0.66rem;
   font-weight: 600;
@@ -948,24 +944,54 @@ sub, sup { font-size: 0.7em; }
   color: var(--accent-2);
 }
 .fs__chart-k {
-  grid-area: title;
   font-family: var(--font-display);
   color: var(--ink-1);
   font-weight: 600;
   font-size: 0.92rem;
   letter-spacing: 0.005em;
 }
+/* Top-left lead readout: "[N] Pa at one year", "YY μg/m³ annual
+   average", etc. Slightly weightier than the title to read as a
+   primary stat. */
+.fs__chart-lead {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--ink-2);
+  letter-spacing: 0.04em;
+  margin-top: 2px;
+  font-variant-numeric: tabular-nums;
+}
+/* Top-right boxed stat — Feedback 3 §02.9. Frame border matches the
+   chart's category (Performance=blue, Health=purple, Energy=pink).
+   The inner A/B text spans are colored separately (A=blue, B=green). */
+.fs__chart-rhs {
+  flex-shrink: 0;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1.5px solid var(--line-1);
+  background: rgba(8,14,24,0.55);
+  white-space: nowrap;
+}
+.fs__chart-rhs--performance { border-color: #0A74D6; box-shadow: 0 0 0 1px rgba(10,116,214,0.18); }
+.fs__chart-rhs--health      { border-color: #A266C9; box-shadow: 0 0 0 1px rgba(162,102,201,0.18); }
+.fs__chart-rhs--energy      { border-color: #D85E80; box-shadow: 0 0 0 1px rgba(216,94,128,0.18); }
 .fs__chart-v {
-  grid-area: value;
+  display: inline-block;
   font-family: var(--font-mono);
   color: var(--ink-3);
-  font-size: 0.72rem;
-  letter-spacing: 0.06em;
+  font-size: 0.74rem;
+  letter-spacing: 0.04em;
   font-variant-numeric: tabular-nums;
-  text-transform: uppercase;
 }
-.fs__chart-v span { color: var(--ink-1); }
-.fs__chart svg { width: 100%; height: 124px; display: block; }
+.fs__chart-v b { font-weight: 700; }
+.fs__readout-row { display: inline-flex; align-items: baseline; gap: 4px; }
+.fs__readout-a, .fs__readout-a b { color: #4FA1FF; }
+.fs__readout-b, .fs__readout-b b { color: #9DD05A; }
+.fs__chart svg { width: 100%; height: 150px; display: block; }
+@media (max-width: 720px) {
+  .fs__chart figcaption, .fs__chart .fs__chart-cap { flex-direction: column; align-items: stretch; }
+  .fs__chart-rhs { align-self: flex-start; }
+}
 /* Lane colors — same five-category vocabulary the deck uses:
    Performance (royal) · Health (purple) · Energy (pink-red) ·
    Society (yellow) · Dollars (green). The chart's left-border picks
@@ -1113,6 +1139,83 @@ sub, sup { font-size: 0.7em; }
 }
 .fs__arch-legend .dot--outdoor { background: var(--bin-alert); }
 .fs__arch-legend .dot--indoor  { background: var(--accent-2); }
+
+/* Case-study Total Co-Benefits of Ownership cost — Feedback 3 §02.10.
+   Sits between the intent block and the visual figure as a headline
+   comparative cost signal. Filter A blue, Filter B green. */
+.fs__cost {
+  margin: 14px 0 18px;
+  padding: 16px 18px;
+  background: linear-gradient(135deg, rgba(10,116,214,0.07), rgba(124,179,66,0.07));
+  border: 1px solid var(--line-1);
+  border-radius: var(--r-md);
+}
+.fs__cost-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 18px; flex-wrap: wrap; margin-bottom: 10px;
+}
+.fs__cost-foot {
+  font-family: var(--font-mono); font-size: 0.7rem; letter-spacing: 0.04em;
+}
+.fs__cost-pair {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center; gap: 16px;
+}
+.fs__cost-side {
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  border: 1.5px solid;
+  background: rgba(6,12,22,0.5);
+}
+.fs__cost-side--a { border-color: #0A74D6; }
+.fs__cost-side--b { border-color: #7CB342; }
+.fs__cost-tag {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+.fs__cost-side--a .fs__cost-tag { color: #4FA1FF; }
+.fs__cost-side--b .fs__cost-tag { color: #9DD05A; }
+.fs__cost-val {
+  font-family: var(--font-display);
+  font-size: clamp(1.6rem, 3.6vw, 2.4rem);
+  font-weight: 700;
+  letter-spacing: -0.012em;
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-1);
+}
+.fs__cost-side--a .fs__cost-val { color: #4FA1FF; }
+.fs__cost-side--b .fs__cost-val { color: #9DD05A; }
+.fs__cost-vs {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--ink-3);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+@media (max-width: 720px) {
+  .fs__cost-pair { grid-template-columns: 1fr; }
+  .fs__cost-vs { justify-self: center; padding: 4px 0; }
+}
+
+/* Filter chipset coloring — Feedback 3 §02.6 mandates Filter A=blue,
+   Filter B=green everywhere. Style the chips themselves so the control
+   layer matches the chart legend. */
+.fs__chipset .chip[data-fs-filter="A"].is-active {
+  background: rgba(10,116,214,0.18);
+  border-color: rgba(10,116,214,0.6);
+  color: #4FA1FF;
+}
+.fs__chipset .chip[data-fs-filter="B"].is-active {
+  background: rgba(124,179,66,0.18);
+  border-color: rgba(124,179,66,0.6);
+  color: #9DD05A;
+}
 
 /* Readout zone — visually distinct title bar above the tile strip so
    the mode change (Compare vs Single filter) is unmistakable. The
@@ -1462,6 +1565,333 @@ sub, sup { font-size: 0.7em; }
 
 .product--mx { background: linear-gradient(180deg, #08111e, var(--bg-0)); }
 
+/* ============================================================ MATRIX
+   Functional rebuild of the platform per Feedback 3 §03. The whole
+   chrome (brand, intervention tabs, title, setback time controls,
+   heatmap matrix grid, legend) is live HTML; only the Healthy People
+   right panel is image-backed (cropped from each scenario screenshot).
+   Hovering a matrix cell swaps the cropped panel image. */
+.mxp {
+  position: relative;
+  display: grid;
+  gap: 18px;
+  padding: 18px 22px 22px;
+  background: linear-gradient(180deg, #0a1726 0%, #07101c 60%, #050c16 100%);
+  border: 1px solid rgba(40,72,116,0.55);
+  border-radius: var(--r-md);
+  color: #d3def0;
+  font-family: var(--font-display);
+}
+/* --- Top chrome --- */
+.mxp__chrome {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 18px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(40,72,116,0.45);
+}
+.mxp__brand {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 0.78rem;
+  letter-spacing: 0.18em;
+  color: #C5D96A;
+}
+.mxp__title-lhs { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.mxp__title-k { font-weight: 700; font-size: 1.05rem; color: #f1f5fb; letter-spacing: -0.005em; }
+.mxp__title-sub {
+  font-family: var(--font-mono); font-size: 0.7rem;
+  color: rgba(178,204,238,0.55); letter-spacing: 0.04em;
+}
+.mxp__chrome-meta { display: inline-flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.mxp__chrome-pill {
+  padding: 5px 12px; border-radius: 999px;
+  background: rgba(10,116,214,0.16);
+  border: 1px solid rgba(10,116,214,0.45);
+  font-family: var(--font-mono); font-size: 0.7rem;
+  letter-spacing: 0.08em; color: #6BA6F1;
+}
+.mxp__chrome-live {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-family: var(--font-mono); font-size: 0.7rem;
+  color: rgba(178,204,238,0.7); letter-spacing: 0.08em;
+}
+.mxp__chrome-dot {
+  width: 7px; height: 7px; border-radius: 999px;
+  background: #7CB342; box-shadow: 0 0 8px rgba(124,179,66,0.7);
+}
+/* --- Intervention tabs --- */
+.mxp__tabs {
+  display: flex; align-items: stretch; gap: 0;
+  padding: 4px 4px;
+  background: rgba(178,204,238,0.04);
+  border: 1px solid rgba(40,72,116,0.45);
+  border-radius: 8px;
+  align-self: flex-start;
+  width: auto;
+}
+.mxp__tabs-k {
+  display: inline-flex; align-items: center; padding: 0 14px 0 8px;
+  font-family: var(--font-mono); font-size: 0.66rem;
+  letter-spacing: 0.18em; color: rgba(178,204,238,0.55);
+}
+/* Intervention tab tokens are non-interactive reference labels — the
+   49 panel screenshots were captured at Weekend Setback. Rendered as
+   <span> in the HTML; styled to look platform-faithful but with
+   default cursor so they don't read as live buttons. */
+.mxp__tab {
+  padding: 6px 14px;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  font: inherit;
+  font-family: var(--font-display);
+  font-size: 0.82rem; font-weight: 500;
+  color: rgba(178,204,238,0.55);
+  cursor: default;
+  user-select: none;
+}
+.mxp__tab.is-active {
+  background: linear-gradient(180deg, rgba(124,179,66,0.32), rgba(124,179,66,0.18));
+  color: #DAEF9C;
+  box-shadow: inset 0 0 0 1px rgba(124,179,66,0.6);
+}
+.mxp__tab[aria-disabled="true"] { color: rgba(178,204,238,0.32); }
+/* --- Section title --- */
+.mxp__h3 {
+  font-size: 1.6rem; font-weight: 700; color: #f1f5fb;
+  letter-spacing: -0.012em; margin: 0;
+}
+.mxp__h3-sub {
+  margin: 4px 0 0; font-family: var(--font-mono);
+  font-size: 0.78rem; color: rgba(178,204,238,0.55);
+  letter-spacing: 0.04em;
+}
+/* --- Timing controls --- */
+.mxp__controls {
+  display: flex; gap: 32px; flex-wrap: wrap;
+  padding: 4px 0 2px;
+}
+.mxp__control { display: flex; flex-direction: column; gap: 6px; }
+.mxp__control-k {
+  font-family: var(--font-mono); font-size: 0.66rem;
+  letter-spacing: 0.18em; text-transform: uppercase;
+  color: rgba(178,204,238,0.55);
+}
+.mxp__control-foot {
+  font-family: var(--font-mono); font-size: 0.7rem;
+  color: rgba(178,204,238,0.55); letter-spacing: 0.04em;
+}
+.mxp__control-foot em { color: #6BA6F1; font-style: normal; font-weight: 500; }
+.mxp__seg, .mxp__unit-toggle {
+  display: inline-flex; align-self: flex-start;
+  padding: 3px; gap: 0;
+  background: rgba(178,204,238,0.04);
+  border: 1px solid rgba(40,72,116,0.45);
+  border-radius: 999px;
+}
+/* Setback timing / clock-format / unit chips are reference tokens
+   (the panel screenshots are locked to one combination of defaults).
+   Rendered as <span>; default cursor; no hover transition. */
+.mxp__seg-btn, .mxp__unit-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 14px;
+  background: transparent;
+  border: 0;
+  border-radius: 999px;
+  font: inherit;
+  font-family: var(--font-mono); font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+  color: rgba(178,204,238,0.45);
+  cursor: default;
+  user-select: none;
+  letter-spacing: 0.04em;
+}
+.mxp__seg-btn.is-active, .mxp__unit-btn.is-active {
+  background: rgba(10,116,214,0.5);
+  color: #f1f5fb;
+  box-shadow: inset 0 0 0 1px rgba(10,116,214,0.7);
+}
+/* --- Two-column body --- */
+.mxp__body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 22px;
+  align-items: start;
+}
+@media (max-width: 920px) {
+  .mxp__body { grid-template-columns: minmax(0, 1fr); }
+}
+.mxp__matrix {
+  padding: 16px 14px;
+  background: rgba(10,18,30,0.6);
+  border: 1px solid rgba(40,72,116,0.4);
+  border-radius: 10px;
+}
+.mxp__matrix-head {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+.mxp__matrix-title {
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.24em;
+  color: rgba(178,204,238,0.65);
+}
+.mxp__sim-badge {
+  display: inline-flex; gap: 9px; align-items: center;
+  padding: 6px 12px;
+  background: rgba(10,116,214,0.14);
+  border: 1px solid rgba(10,116,214,0.36);
+  border-radius: 8px;
+}
+.mxp__sim-icn {
+  width: 14px; height: 14px;
+  background: linear-gradient(135deg, #C5D96A, #7CB342);
+  border-radius: 3px;
+}
+.mxp__sim-stack { display: flex; flex-direction: column; line-height: 1.05; }
+.mxp__sim-k {
+  font-family: var(--font-display); font-weight: 600;
+  font-size: 0.78rem; color: #f1f5fb;
+}
+.mxp__sim-v {
+  font-family: var(--font-mono); font-size: 0.62rem;
+  color: rgba(178,204,238,0.55); letter-spacing: 0.04em;
+}
+/* --- Grid layout (axes + cells) --- */
+.mxp__grid-wrap {
+  display: grid;
+  grid-template-columns: 24px 56px 1fr;
+  grid-template-rows: 1fr 24px;
+  gap: 4px;
+}
+.mxp__y-axis-lbl {
+  grid-column: 1; grid-row: 1;
+  writing-mode: vertical-rl; transform: rotate(180deg);
+  align-self: center; justify-self: center;
+  font-family: var(--font-mono); font-size: 0.6rem;
+  letter-spacing: 0.18em;
+  color: rgba(178,204,238,0.5);
+}
+.mxp__x-axis-lbl {
+  grid-column: 2 / 4; grid-row: 2;
+  text-align: center;
+  font-family: var(--font-mono); font-size: 0.6rem;
+  letter-spacing: 0.18em;
+  color: rgba(178,204,238,0.5);
+}
+.mxp__grid {
+  grid-column: 2 / 4; grid-row: 1;
+  display: grid;
+  grid-template-columns: 56px repeat(7, 1fr);
+  grid-template-rows: repeat(7, minmax(38px, 1fr)) auto;
+  gap: 2px;
+}
+.mxp__row-lbl, .mxp__col-lbl {
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-mono); font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+  color: rgba(178,204,238,0.65);
+  letter-spacing: 0.04em;
+}
+.mxp__col-lbl { padding-top: 6px; }
+.mxp__cell {
+  display: flex; align-items: center; justify-content: center;
+  text-align: center;
+  font-family: var(--font-mono); font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+  color: rgba(10,16,28,0.86);
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  border: 0;
+  cursor: pointer;
+  outline: none;
+  transition: filter 120ms ease, box-shadow 120ms ease, transform 120ms ease;
+}
+.mxp__cell.is-baseline {
+  background: rgba(10,116,214,0.42);
+  color: #cfe2f9;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  font-size: 0.68rem;
+}
+.mxp__cell:focus-visible {
+  outline: 2px solid #6BA6F1;
+  outline-offset: -2px;
+  z-index: 2;
+}
+.mxp__cell:hover, .mxp__cell.is-active {
+  box-shadow: inset 0 0 0 2px rgba(255,255,255,0.85);
+  filter: brightness(1.08);
+  z-index: 1;
+}
+.mxp__legend {
+  display: flex; align-items: center; gap: 10px;
+  margin-top: 12px;
+  padding-left: 84px;
+}
+.mxp__legend-k {
+  font-family: var(--font-mono); font-size: 0.62rem;
+  letter-spacing: 0.18em;
+  color: rgba(178,204,238,0.55);
+}
+.mxp__legend-bar {
+  width: 160px; height: 6px; border-radius: 3px;
+  background: linear-gradient(90deg,
+    #f0f5e0 0%,
+    #C5D96A 35%,
+    #7CB342 65%,
+    #3A6B2A 100%);
+}
+.mxp__legend-ticks {
+  display: inline-flex; gap: 16px;
+  font-family: var(--font-mono); font-size: 0.62rem;
+  font-variant-numeric: tabular-nums;
+  color: rgba(178,204,238,0.6);
+  letter-spacing: 0.06em;
+}
+/* --- Image-backed Healthy People panel --- */
+.mxp__panel {
+  padding: 0;
+  background: rgba(10,18,30,0.6);
+  border: 1px solid rgba(40,72,116,0.4);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.mxp__panel-img {
+  display: block;
+  width: 100%;
+  height: auto;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+/* --- Hover readout --- */
+.mxp__readout {
+  display: inline-flex; gap: 12px; align-items: baseline;
+  padding: 8px 14px;
+  background: rgba(178,204,238,0.04);
+  border: 1px solid rgba(40,72,116,0.4);
+  border-radius: 999px;
+  justify-self: start;
+}
+.mxp__readout-k {
+  font-family: var(--font-mono); font-size: 0.66rem;
+  letter-spacing: 0.18em; text-transform: uppercase;
+  color: rgba(178,204,238,0.55);
+}
+.mxp__readout-v {
+  font-family: var(--font-mono); font-size: 0.78rem;
+  color: #f1f5fb; letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+}
+
 /* Chapter chrome — slide-16 tabbed header */
 .mx16__chrome {
   display: grid;
@@ -1763,6 +2193,70 @@ sub, sup { font-size: 0.7em; }
 /* ============================================================ HEAAL */
 
 .product--hl { background: var(--bg-0); }
+
+/* ============================================================ H.E.A.A.L.
+   Image-backed parameter switcher per Feedback 3 §04. The platform
+   screenshot is the visual; only 4 parameter pills (CO2 / PM2.5 / TVOC
+   / Temp) are functional. Each click swaps the backdrop image. The
+   visible pills in the image are themselves screenshotted; the
+   functional buttons here sit transparently on top of them. */
+.hl4 {
+  position: relative;
+  width: 100%;
+  border-radius: var(--r-md);
+  overflow: hidden;
+  background: #04070c;
+  border: 1px solid var(--line-1);
+}
+.hl4__base {
+  display: block;
+  width: 100%;
+  height: auto;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+/* Button strip sits over the in-image pill row near the top center.
+   Pills measured from the 1700×947 backdrop. The container holds 4
+   equally-sized buttons with the same gap as the displayed pills. */
+.hl4__btns {
+  position: absolute;
+  /* The pill strip in the image occupies roughly 43.6% → 67.0% wide,
+     1.8% → 6.9% tall. Container hugs that band; child buttons take
+     their share. */
+  left: 43.6%;
+  width: 23.4%;
+  top: 1.8%;
+  height: 5.4%;
+  display: grid;
+  grid-template-columns: 0.9fr 1fr 1fr 1.3fr;
+  gap: 0.5%;
+}
+.hl4__btn {
+  background: transparent;
+  border: 0;
+  margin: 0;
+  padding: 0;
+  font: inherit;
+  color: transparent; /* Pill text is in the image; we use this as a
+                         hit-target only. The aria-label / button text
+                         is for assistive tech. */
+  cursor: pointer;
+  border-radius: 999px;
+  outline: none;
+  transition: background 120ms ease, box-shadow 120ms ease;
+}
+.hl4__btn sub { font-size: 0.7em; }
+.hl4__btn:hover,
+.hl4__btn:focus-visible {
+  background: rgba(255,255,255,0.06);
+  box-shadow: inset 0 0 0 1.5px rgba(255,255,255,0.45);
+}
+.hl4__btn.is-active {
+  /* The active state is already baked into the swapped image, so this
+     ring is just confirmation for the click. */
+  background: rgba(255,255,255,0.02);
+}
+
 
 /* Platform-fidelity layout — building plot on the left, time series and
    space-time map stacked on the right. Score bar floats with the

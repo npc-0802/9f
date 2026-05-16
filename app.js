@@ -117,20 +117,30 @@
   $$("[data-reveal]").forEach((el) => revealIO.observe(el));
 
   function countUp(el) {
-    const target = parseFloat(el.dataset.countup);
+    const raw = el.dataset.countup;
+    const target = parseFloat(raw);
     const suffix = el.dataset.suffix || "";
     const isNum = el.dataset.format === "num";
+    // Preserve the decimal precision the author wrote (e.g. "2.83" stays
+    // 2 decimals, "36.7" stays 1, "412" stays 0).
+    const dotIdx = raw.indexOf(".");
+    const decimals = dotIdx === -1 ? 0 : (raw.length - dotIdx - 1);
     const dur = 1500;
     const start = performance.now();
     const ease = (t) => 1 - Math.pow(1 - t, 3);
+    function fmtVal(v) {
+      if (isNum) return fmt.int(v);
+      if (decimals === 0) return Math.round(v).toString();
+      return v.toFixed(decimals);
+    }
     function tick(now) {
       const t = Math.min(1, (now - start) / dur);
       const v = target * ease(t);
-      el.textContent = (isNum ? fmt.int(v) : (target >= 100 ? Math.round(v) : v.toFixed(1).replace(/\.0$/, ""))) + suffix;
+      el.textContent = fmtVal(v) + suffix;
       if (t < 1) requestAnimationFrame(tick);
     }
     if (REDUCED) {
-      el.textContent = (isNum ? fmt.int(target) : (target >= 100 ? Math.round(target) : target.toString())) + suffix;
+      el.textContent = fmtVal(target) + suffix;
     } else {
       requestAnimationFrame(tick);
     }
@@ -575,10 +585,12 @@
     function clear(node) { while (node.firstChild) node.removeChild(node.firstChild); }
 
     // ---------- Case + filter spec ----------
-    // Values lifted directly from UI mock.pdf — slide 8 (Data Center A TBO)
-    // and slide 14 (Data Center B TBO). The per-loop energy split comes
-    // from slides 7 (A) and 13 (B). All vendor names anonymized per the
-    // exact-fidelity brief.
+    // Feedback 3 reversal: Filter A = anonymized Camfil (higher pressure /
+    // lower PM / higher energy / higher TBO cost), Filter B = anonymized
+    // H&V (lower pressure / higher PM / lower energy / lower TBO cost).
+    // Pressure dots and PM averages match Feedback 3 §02.4/02.7 exactly.
+    // Energy splits (recirc + vent) match §02.8 verbatim. Cost values to
+    // the cent match §02.10. Vendor names never appear in UI.
     const CASES = {
       A: {
         label: "Data Center A",
@@ -594,10 +606,8 @@
           filterCount: "122 ventilation · 523 recirculation",
         },
         filters: {
-          // Slide 8 (A · TBO): A = lower-pressure (135 Pa), lower PM (0.12),
-          // lower energy (844K kWh/y); B = higher across the board.
-          "A": { name: "Filter A", pressureEnd: 135.32, pmMean: 0.12, pm10Mean: 0.07, energyKwh:  844442, energyRecirc:  640345, energyVent:  204097, energyCost: 150311, dustHeld: 188.99 },
-          "B": { name: "Filter B", pressureEnd: 217.83, pmMean: 0.17, pm10Mean: 0.08, energyKwh: 1296550, energyRecirc:  977841, energyVent:  318411, energyCost: 230786, dustHeld: 187.26 },
+          "A": { name: "Filter A", pressureEnd: 217.83, pmMean: 0.17, pm10Mean: 0.08, energyRecirc:  977841, energyVent:  318411, energyKwh: 1296252, energyCost: 230785.95, dustHeld: 187.26 },
+          "B": { name: "Filter B", pressureEnd: 135.32, pmMean: 0.25, pm10Mean: 0.07, energyRecirc:  640345, energyVent:  204096, energyKwh:  844441, energyCost: 150310.68, dustHeld: 188.99 },
         },
       },
       B: {
@@ -614,10 +624,8 @@
           filterCount: "645 ventilation · 645 recirculation",
         },
         filters: {
-          // Slide 14 (B · TBO): A still lower-pressure / lower energy than B.
-          // PM is reversed at this site (A 0.62 vs B 0.60) but very close.
-          "A": { name: "Filter A", pressureEnd: 138.51, pmMean: 0.62, pm10Mean: 0.29, energyKwh: 1890841, energyRecirc:  796344, energyVent: 1094498, energyCost: 336570, dustHeld: 197.53 },
-          "B": { name: "Filter B", pressureEnd: 219.86, pmMean: 0.60, pm10Mean: 0.25, energyKwh: 2918257, energyRecirc: 1215364, energyVent: 1725270, energyCost: 519500, dustHeld: 189.96 },
+          "A": { name: "Filter A", pressureEnd: 219.86, pmMean: 0.60, pm10Mean: 0.25, energyRecirc: 1215364, energyVent: 1725270, energyKwh: 2940634, energyCost: 519499.50, dustHeld: 189.96 },
+          "B": { name: "Filter B", pressureEnd: 138.51, pmMean: 0.62, pm10Mean: 0.29, energyRecirc:  796344, energyVent: 1094498, energyKwh: 1890842, energyCost: 336569.71, dustHeld: 197.53 },
         },
       },
     };
@@ -630,7 +638,10 @@
     };
 
     // ---------- State ----------
-    const state = { case: "A", filter: "compare" };
+    // Default to single-filter mode (Filter A) per Feedback 3 §02.6/02.7
+    // singular readout grammar — "[N] Pa at one year", "YY μg/m³ annual
+    // average". Compare remains an opt-in via the chip control.
+    const state = { case: "A", filter: "A" };
 
     // ---------- Formatters ----------
     const compactUSD = (v) => {
@@ -647,161 +658,219 @@
       return state.filter === "compare" ? ["A", "B"] : [state.filter];
     }
 
+    // Filter color convention per Feedback 3 §02.6: A=blue, B=green.
+    // Used by every chart, readout, archetype membrane, cost readout.
+    const FILTER_COLORS = { "A": "#0A74D6", "B": "#7CB342" };
+
     // ---------- Series builders (full-year shapes — no month scrubber) ----------
-    function pressureSeries(filter) {
+    // Pressure builds dust mass on the filter over a 1-year operating
+    // period. Endpoint dot lands at (filter.dustHeld grams, filter.pressureEnd Pa);
+    // we sample from (0, startPa) to that endpoint along an accelerating curve.
+    function pressureSeries(filter, opts = {}) {
       const startPa = 65;
-      const out = [];
+      const xEnd = filter.dustHeld;
+      const yEnd = filter.pressureEnd;
       const N = 60;
+      const out = [];
       for (let i = 0; i <= N; i++) {
         const t = i / N;
-        const pa = startPa + (filter.pressureEnd - startPa) * Math.pow(t, 1.5);
-        out.push({ t, v: pa });
+        out.push({ x: t * xEnd, y: startPa + (yEnd - startPa) * Math.pow(t, 1.5) });
       }
       return out;
     }
     function pmSeries(filter, seed) {
       const r = rng(seed);
+      const N = 240;
       const out = [];
-      const N = 240; // dense for noisy slide-6 / slide-12 character
       for (let i = 0; i <= N; i++) {
         const t = i / N;
         const seasonal = Math.sin(t * Math.PI * 2 - Math.PI / 3) * 0.025;
         const noise = (r() - 0.5) * 0.045;
-        out.push({ t, v: Math.max(0, filter.pmMean + seasonal + noise) });
+        // x = PM level (μg/m³), y = hours into the year (0..8760)
+        const pm = Math.max(0, filter.pmMean + seasonal + noise);
+        out.push({ x: pm, y: t * 8760 });
       }
       return out;
     }
 
     // ---------- Chart drawing ----------
-    const PAD = { l: 38, r: 14, t: 14, b: 22 };
+    const PAD = { l: 42, r: 14, t: 14, b: 30 };
+    // Generalized x/y scales over real (xMin..xMax) × (yMin..yMax) domains.
+    // The PM chart inverts data orientation per Feedback 3 §02.7:
+    // x = PM2.5 level (μg/m³), y = Time (hrs). The series builder above
+    // already labels coords {x, y} so the same plotter works for both
+    // pressure (x=g, y=Pa) and PM (x=μg/m³, y=hrs).
     function lineChart(svg, opts) {
       clear(svg);
       const rect = svg.getBoundingClientRect();
       const W = Math.max(360, Math.round(rect.width));
-      const H = 140;
+      const H = 150;
       svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
       svg.setAttribute("preserveAspectRatio", "none");
       const iw = W - PAD.l - PAD.r, ih = H - PAD.t - PAD.b;
-      const xS = (t) => PAD.l + t * iw;
-      const yS = (v) => PAD.t + (1 - (v - opts.yMin) / (opts.yMax - opts.yMin)) * ih;
+      const xMin = opts.xMin, xMax = opts.xMax;
+      const yMin = opts.yMin, yMax = opts.yMax;
+      const xS = (x) => PAD.l + ((x - xMin) / (xMax - xMin)) * iw;
+      const yS = (y) => PAD.t + (1 - (y - yMin) / (yMax - yMin)) * ih;
 
-      // y-axis gridlines + labels
+      // Y-axis gridlines + tick labels
       const yTicks = opts.yTicks || 4;
       for (let i = 0; i <= yTicks; i++) {
-        const v = opts.yMin + (opts.yMax - opts.yMin) * (i / yTicks);
+        const v = yMin + (yMax - yMin) * (i / yTicks);
         const y = yS(v);
         svg.appendChild(el("line", { x1: PAD.l, x2: W - PAD.r, y1: y, y2: y, stroke: "rgba(178,204,238,0.06)", "stroke-width": 0.6 }));
         const t = el("text", { x: PAD.l - 6, y: y + 3, "text-anchor": "end", fill: "#5f6c80", "font-size": 8.5, "font-family": "JetBrains Mono" });
         t.textContent = opts.fmtY ? opts.fmtY(v) : Math.round(v);
         svg.appendChild(t);
       }
-      // x-axis ticks (slide convention shows clean tick stops along the
-      // axis; we use 5 evenly-spaced labels)
-      const xLabels = opts.xLabels || ["", "", "", "", ""];
-      xLabels.forEach((lbl, i) => {
-        const t = i / (xLabels.length - 1);
-        const x = xS(t);
+      // X-axis ticks + labels
+      const xTicks = opts.xTicks || 4;
+      for (let i = 0; i <= xTicks; i++) {
+        const v = xMin + (xMax - xMin) * (i / xTicks);
+        const x = xS(v);
         svg.appendChild(el("line", { x1: x, x2: x, y1: H - PAD.b, y2: H - PAD.b + 3, stroke: "rgba(178,204,238,0.18)" }));
-        if (lbl) {
-          const tx = el("text", { x, y: H - 6, "text-anchor": "middle", fill: "#5f6c80", "font-size": 8.5, "font-family": "JetBrains Mono" });
-          tx.textContent = lbl;
-          svg.appendChild(tx);
-        }
-      });
+        const tx = el("text", { x, y: H - PAD.b + 14, "text-anchor": "middle", fill: "#5f6c80", "font-size": 8.5, "font-family": "JetBrains Mono" });
+        tx.textContent = opts.fmtX ? opts.fmtX(v) : Math.round(v);
+        svg.appendChild(tx);
+      }
+      // Axis-title labels (slide-faithful: tucked under the tick row on x,
+      // rotated on y near the top of the y-axis).
+      if (opts.xLabel) {
+        const t = el("text", { x: PAD.l + iw / 2, y: H - 2, "text-anchor": "middle", fill: "#95a3b8", "font-size": 9.5, "font-family": "JetBrains Mono", "letter-spacing": "0.06em" });
+        t.textContent = opts.xLabel;
+        svg.appendChild(t);
+      }
+      if (opts.yLabel) {
+        const yLblY = PAD.t - 3;
+        const t = el("text", { x: PAD.l, y: yLblY, "text-anchor": "start", fill: "#95a3b8", "font-size": 9.5, "font-family": "JetBrains Mono", "letter-spacing": "0.06em" });
+        t.textContent = opts.yLabel;
+        svg.appendChild(t);
+      }
       // Plot each series
       opts.series.forEach((s) => {
-        const path = s.pts.map((p, i) => (i ? "L" : "M") + xS(p.t).toFixed(1) + "," + yS(p.v).toFixed(1)).join(" ");
+        const path = s.pts.map((p, i) => (i ? "L" : "M") + xS(p.x).toFixed(1) + "," + yS(p.y).toFixed(1)).join(" ");
         svg.appendChild(el("path", {
           d: path, fill: "none",
           stroke: s.color, "stroke-width": s.width || 1.8,
           "stroke-linecap": "round", "stroke-linejoin": "round",
           opacity: s.opacity || 0.95,
         }));
-        // Endpoint marker + final-value annotation
-        if (opts.endpointLabel !== false) {
-          const last = s.pts[s.pts.length - 1];
-          svg.appendChild(el("circle", { cx: xS(last.t), cy: yS(last.v), r: 3.4, fill: s.color, stroke: "#0a1422", "stroke-width": 1.2 }));
+        if (s.dot) {
+          const dx = xS(s.dot.x), dy = yS(s.dot.y);
+          svg.appendChild(el("circle", { cx: dx, cy: dy, r: 4, fill: s.color, stroke: "#0a1422", "stroke-width": 1.3 }));
+          if (s.dotLabel) {
+            const tx = el("text", { x: dx + 7, y: dy - 4, fill: s.color, "font-size": 9, "font-family": "JetBrains Mono", "font-weight": 600 });
+            tx.textContent = s.dotLabel;
+            svg.appendChild(tx);
+          }
         }
       });
     }
 
-    // Grouped bar chart for Energy — matches slide 7 (A) / 13 (B):
-    // two groups (Recirculation, Ventilation), two bars per group
-    // (Filter A green, Filter B blue), kWh/y on Y-axis.
+    // Grouped bar chart for Energy — Feedback 3 §02.8:
+    // x = Filter (A and B groups), y = Annual fan energy (kWh/y).
+    // Each filter group shows two bars: Recirculation + Ventilation. Recirc
+    // is the saturated filter color, Vent is the same hue dimmed.
     function drawEnergyBars(svg) {
       clear(svg);
       const rect = svg.getBoundingClientRect();
       const W = Math.max(360, Math.round(rect.width));
-      const H = 140;
+      const H = 150;
       svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
       svg.setAttribute("preserveAspectRatio", "none");
       const iw = W - PAD.l - PAD.r, ih = H - PAD.t - PAD.b;
       const filters = activeFilters();
       const caseData = CASES[state.case];
-      const colors = { "A": "#7CB342", "B": "#0A74D6" };
 
-      // Compute max kWh across both loops + both filters for y-scale
+      // Y-axis max across all visible bars
       const allVals = [];
-      Object.values(caseData.filters).forEach((f) => { allVals.push(f.energyRecirc, f.energyVent); });
-      const yMax = Math.max(...allVals) * 1.18;
+      filters.forEach((fKey) => {
+        const f = caseData.filters[fKey];
+        allVals.push(f.energyRecirc, f.energyVent);
+      });
+      const yMax = Math.max(...allVals) * 1.22;
       const yS = (v) => PAD.t + (1 - v / yMax) * ih;
+      const xAxisY = H - PAD.b;
 
-      // y gridlines + labels
-      [0, yMax / 2, yMax].forEach((v) => {
+      // y gridlines + labels (5 ticks)
+      const yTicks = 4;
+      for (let i = 0; i <= yTicks; i++) {
+        const v = (yMax * i) / yTicks;
         const y = yS(v);
         svg.appendChild(el("line", { x1: PAD.l, x2: W - PAD.r, y1: y, y2: y, stroke: "rgba(178,204,238,0.06)", "stroke-width": 0.6 }));
         const tx = el("text", { x: PAD.l - 6, y: y + 3, "text-anchor": "end", fill: "#5f6c80", "font-size": 8.5, "font-family": "JetBrains Mono" });
-        tx.textContent = v >= 1e3 ? (v / 1000).toFixed(0) + "K" : Math.round(v);
+        tx.textContent = v >= 1e6 ? (v / 1e6).toFixed(1) + "M" : v >= 1e3 ? Math.round(v / 1e3) + "K" : Math.round(v).toString();
         svg.appendChild(tx);
-      });
+      }
+      // y-axis label
+      const yLbl = el("text", { x: PAD.l, y: PAD.t - 3, "text-anchor": "start", fill: "#95a3b8", "font-size": 9.5, "font-family": "JetBrains Mono", "letter-spacing": "0.06em" });
+      yLbl.textContent = "Annual fan energy (kWh/y)";
+      svg.appendChild(yLbl);
 
-      // Two groups: Recirculation, Ventilation
-      const groups = ["Recirc", "Vent"];
-      const groupW = iw / groups.length;
-      groups.forEach((groupLabel, gi) => {
+      // Groups: one per active filter
+      const groupW = iw / filters.length;
+      filters.forEach((fKey, gi) => {
+        const f = caseData.filters[fKey];
         const groupCx = PAD.l + (gi + 0.5) * groupW;
-        const barCount = filters.length;
-        const barW = Math.min(36, groupW * 0.32 / Math.max(1, barCount));
-        const gap = Math.max(2, barW * 0.18);
-        filters.forEach((fKey, bi) => {
-          const f = caseData.filters[fKey];
-          const value = gi === 0 ? f.energyRecirc : f.energyVent;
-          const offset = barCount === 1
-            ? -barW / 2
-            : (bi - (barCount - 1) / 2) * (barW + gap) - barW / 2;
+        const fill = FILTER_COLORS[fKey];
+        const lanes = [
+          { k: "Recirc", v: f.energyRecirc, fill: fill, opacity: 0.95 },
+          { k: "Vent",   v: f.energyVent,   fill: fill, opacity: 0.55 },
+        ];
+        const barW = Math.min(44, (groupW * 0.34) / lanes.length);
+        const gap = Math.max(3, barW * 0.18);
+        lanes.forEach((lane, bi) => {
+          const offset = (bi - (lanes.length - 1) / 2) * (barW + gap) - barW / 2;
           const x = groupCx + offset;
-          const y = yS(value);
+          const y = yS(lane.v);
           svg.appendChild(el("rect", {
             x: x.toFixed(1), y: y.toFixed(1),
             width: barW.toFixed(1),
-            height: Math.max(0, (H - PAD.b) - y).toFixed(1),
-            fill: colors[fKey], opacity: 0.92,
+            height: Math.max(0, xAxisY - y).toFixed(1),
+            fill: lane.fill, opacity: lane.opacity,
           }));
           // Value label above bar
           const lbl = el("text", {
             x: (x + barW / 2).toFixed(1),
             y: (y - 4).toFixed(1),
             "text-anchor": "middle",
-            fill: colors[fKey],
-            "font-size": 9.5,
+            fill: lane.fill,
+            "font-size": 9,
             "font-family": "JetBrains Mono",
             "font-weight": 600,
           });
-          lbl.textContent = value.toLocaleString();
+          lbl.textContent = lane.v.toLocaleString();
           svg.appendChild(lbl);
+          // Lane tick label below bar (Recirc / Vent)
+          const sub = el("text", {
+            x: (x + barW / 2).toFixed(1),
+            y: (xAxisY + 11).toFixed(1),
+            "text-anchor": "middle",
+            fill: "#5f6c80",
+            "font-size": 8,
+            "font-family": "JetBrains Mono",
+            "letter-spacing": "0.08em",
+          });
+          sub.textContent = lane.k;
+          svg.appendChild(sub);
         });
-        // Group label
+        // Group label = "Filter A" / "Filter B"
         const gl = el("text", {
-          x: groupCx, y: H - 6,
+          x: groupCx, y: xAxisY + 24,
           "text-anchor": "middle",
-          fill: "#95a3b8",
-          "font-size": 9,
+          fill: fill,
+          "font-size": 10,
           "font-family": "JetBrains Mono",
+          "font-weight": 600,
           "letter-spacing": "0.08em",
         });
-        gl.textContent = groupLabel + " filter";
+        gl.textContent = f.name;
         svg.appendChild(gl);
       });
+      // x-axis title — "Filter"
+      const xLbl = el("text", { x: PAD.l + iw / 2, y: H - 1, "text-anchor": "middle", fill: "#95a3b8", "font-size": 9.5, "font-family": "JetBrains Mono", "letter-spacing": "0.06em" });
+      xLbl.textContent = "Filter";
+      svg.appendChild(xLbl);
     }
 
     // ---------- Building animation per case ----------
@@ -1005,78 +1074,18 @@
       if (!REDUCED) requestAnimationFrame(archStep);
     }
 
-    // ---------- TBO / Compare zone ----------
-    function renderDeltas() {
-      const $deltas = $("#fs-deltas");
-      const $mode = document.getElementById("fs-readout-mode");
-      const $sub = document.getElementById("fs-readout-sub");
-      if (!$deltas) return;
-      const caseData = CASES[state.case];
-      const FA = caseData.filters["A"], FB = caseData.filters["B"];
-
-      if (state.filter === "compare") {
-        $deltas.classList.add("fs__deltas--compare");
-        $deltas.classList.remove("fs__deltas--single");
-        if ($mode) $mode.textContent = "Total Co-Benefits of Ownership";
-        if ($sub)  $sub.textContent = `${caseData.short} · Filter A vs Filter B · 1 Year Period`;
-
-        // Use end-of-year deck values throughout
-        const pressureDelta = FB.pressureEnd - FA.pressureEnd;
-        const pmDelta       = FB.pmMean - FA.pmMean;
-        const energyDeltaMWh = (FB.energyKwh - FA.energyKwh) / 1000;
-        const climateAvoided = energyDeltaMWh * COBENEFIT_PER_MWH.climateDollars;
-        const healthAvoided  = energyDeltaMWh * COBENEFIT_PER_MWH.healthDollars;
-        const energyCost     = (FB.energyCost - FA.energyCost);
-        const total          = climateAvoided + healthAvoided + energyCost;
-
-        const pWin = pressureDelta >= 0 ? "Filter A" : "Filter B";
-        const mWin = pmDelta       >= 0 ? "Filter A" : "Filter B";
-        const eWin = energyDeltaMWh >= 0 ? "Filter A" : "Filter B";
-        const tActor = total >= 0 ? "Filter A annual upside" : "Filter B annual upside";
-
-        const tiles = [
-          { lane: "performance", k: "Performance", actor: `${pWin} saves`, v: Math.abs(pressureDelta).toFixed(0), unit: "Pa pressure drop", sub: `A ${FA.pressureEnd.toFixed(0)} · B ${FB.pressureEnd.toFixed(0)}` },
-          { lane: "health",      k: "Health",      actor: `${mWin} cleaner by`, v: Math.abs(pmDelta).toFixed(2), unit: "µg/m³ PM₂.₅", sub: `A ${FA.pmMean.toFixed(2)} · B ${FB.pmMean.toFixed(2)}` },
-          { lane: "energy",      k: "Energy",      actor: `${eWin} saves`, v: Math.abs(energyDeltaMWh).toFixed(0), unit: "MWh / year", sub: `A ${(FA.energyKwh / 1000).toFixed(0)} · B ${(FB.energyKwh / 1000).toFixed(0)}` },
-          { lane: "society",     k: "Society · Climate", actor: `Choosing ${eWin} avoids`, v: compactUSD(Math.abs(climateAvoided)), unit: "/y", sub: "Harvard CoBE · $13.71/MWh" },
-          { lane: "society",     k: "Society · Health",  actor: `Choosing ${eWin} avoids`, v: compactUSD(Math.abs(healthAvoided)),  unit: "/y", sub: "CoBE · PM-attributable" },
-          { lane: "dollars",     k: "Dollars",     actor: tActor, v: compactUSD(Math.abs(total)), unit: "/y total", sub: "Energy + climate + health" },
-        ];
-        $deltas.innerHTML = tiles.map((t) =>
-          `<div class="fs__delta fs__delta--lane fs__delta--${t.lane}">
-            <span class="fs__delta-k">${t.k}</span>
-            <span class="fs__delta-actor">${t.actor}</span>
-            <span class="fs__delta-v">${t.v}<span class="u">${t.unit}</span></span>
-            <span class="fs__delta-sub">${t.sub}</span>
-          </div>`
-        ).join("");
-      } else {
-        // Single-filter mode: show the active filter's deck values as
-        // absolute readouts, with the comparison kept in the sub-row.
-        $deltas.classList.add("fs__deltas--single");
-        $deltas.classList.remove("fs__deltas--compare");
-        const isA = state.filter === "A";
-        const fAct = isA ? FA : FB;
-        const fOth = isA ? FB : FA;
-        const filterName = fAct.name;
-        const otherName  = fOth.name;
-        if ($mode) $mode.textContent = `Single filter · ${filterName}`;
-        if ($sub)  $sub.innerHTML = `${caseData.short} · 1 Year Period · <em>click Compare for full Total Co-Benefits</em>`;
-
-        const dir = (a, b, d) => (a < b ? "−" : "+") + Math.abs(a - b).toFixed(d);
-        const tiles = [
-          { k: "Pressure drop", v: fAct.pressureEnd.toFixed(0), unit: "Pa", sub: `vs ${otherName} ${fOth.pressureEnd.toFixed(0)} (${dir(fAct.pressureEnd, fOth.pressureEnd, 0)} Pa)` },
-          { k: "Indoor PM₂.₅",  v: fAct.pmMean.toFixed(2), unit: "µg/m³", sub: `vs ${otherName} ${fOth.pmMean.toFixed(2)} (${dir(fAct.pmMean, fOth.pmMean, 2)} µg)` },
-          { k: "Fan energy",    v: (fAct.energyKwh / 1000).toFixed(0), unit: "MWh / year", sub: `vs ${otherName} ${(fOth.energyKwh / 1000).toFixed(0)} (${dir(fAct.energyKwh / 1000, fOth.energyKwh / 1000, 0)} MWh)` },
-        ];
-        $deltas.innerHTML = tiles.map((t) =>
-          `<div class="fs__delta fs__delta--solo">
-            <span class="fs__delta-k">${t.k}</span>
-            <span class="fs__delta-v">${t.v}<span class="u">${t.unit}</span></span>
-            <span class="fs__delta-sub">${t.sub}</span>
-          </div>`
-        ).join("");
-      }
+    // ---------- Cost readout (top of section, replaces bottom TBO) ----------
+    // Renders the case-study Total Co-Benefits of Ownership cost values
+    // exactly per Feedback 3 §02.10. Filter A in blue, Filter B in green.
+    function renderCostReadout() {
+      const c = CASES[state.case];
+      const caseEl = document.getElementById("fs-cost-case");
+      const aEl = document.getElementById("fs-cost-a");
+      const bEl = document.getElementById("fs-cost-b");
+      if (caseEl) caseEl.textContent = c.label;
+      const fmt = (n) => "$" + n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      if (aEl) aEl.textContent = fmt(c.filters.A.energyCost);
+      if (bEl) bEl.textContent = fmt(c.filters.B.energyCost);
     }
 
     // ---------- Intent block + case header ----------
@@ -1114,66 +1123,100 @@
       `;
     }
 
-    // ---------- Chart redraw + readouts (slide 8 / 14 numbers) ----------
+    // ---------- Chart readouts ----------
+    // Top-left lead readouts use the exact singular grammar Feedback 3
+    // §02.6/02.7 specified ("[N] Pa at one year", "YY μg/m³ annual
+    // average"). Even in compare mode the phrase stays singular; the
+    // two values fuse as "A=NN / B=MM" so the sentence still reads as
+    // a single metric statement. Top-right boxed stats keep A blue /
+    // B green per §02.9.
     function updateReadouts() {
       const c = CASES[state.case];
       const FA = c.filters["A"], FB = c.filters["B"];
-      const setText = (id, val) => { const e = document.getElementById(id); if (e) e.innerHTML = val; };
+      const setHTML = (id, val) => { const e = document.getElementById(id); if (e) e.innerHTML = val; };
+
+      const aSpan = (txt) => `<span class="fs__readout-a">${txt}</span>`;
+      const bSpan = (txt) => `<span class="fs__readout-b">${txt}</span>`;
+
       if (state.filter === "compare") {
-        // Show A / B paired top-right (slide-8/14 values)
-        setText("fs-pressure-readout", `A <b>${FA.pressureEnd.toFixed(0)}</b> · B <b>${FB.pressureEnd.toFixed(0)}</b> Pa`);
-        setText("fs-pm-readout",       `A <b>${FA.pmMean.toFixed(2)}</b> · B <b>${FB.pmMean.toFixed(2)}</b> µg/m³`);
-        setText("fs-energy-readout",   `A <b>${FA.energyKwh.toLocaleString()}</b> · B <b>${FB.energyKwh.toLocaleString()}</b> kWh/y`);
+        // Compare leads — keep singular phrasing; values fuse as A=/B=
+        const pPair = `${aSpan("A=" + FA.pressureEnd.toFixed(0))} / ${bSpan("B=" + FB.pressureEnd.toFixed(0))}`;
+        const mPair = `${aSpan("A=" + FA.pmMean.toFixed(2))} / ${bSpan("B=" + FB.pmMean.toFixed(2))}`;
+        const ePair = `${aSpan("A=" + FA.energyKwh.toLocaleString())} / ${bSpan("B=" + FB.energyKwh.toLocaleString())}`;
+        setHTML("fs-pressure-lead", `${pPair} Pa at one year`);
+        setHTML("fs-pm-lead",       `${mPair} µg/m³ annual average`);
+        setHTML("fs-energy-lead",   `${ePair} kWh/y total`);
+        setHTML("fs-pressure-readout", `<span class="fs__readout-row">${aSpan("A <b>" + FA.pressureEnd.toFixed(0) + "</b>")} · ${bSpan("B <b>" + FB.pressureEnd.toFixed(0) + "</b>")} Pa</span>`);
+        setHTML("fs-pm-readout",       `<span class="fs__readout-row">${aSpan("A <b>" + FA.pmMean.toFixed(2) + "</b>")} · ${bSpan("B <b>" + FB.pmMean.toFixed(2) + "</b>")} µg/m³</span>`);
+        setHTML("fs-energy-readout",   `<span class="fs__readout-row">${aSpan("A <b>" + (FA.energyKwh/1000).toFixed(0) + "</b>")} · ${bSpan("B <b>" + (FB.energyKwh/1000).toFixed(0) + "</b>")} MWh/y</span>`);
       } else {
-        const f = c.filters[state.filter];
-        setText("fs-pressure-readout", `<b>${f.pressureEnd.toFixed(0)}</b> Pa`);
-        setText("fs-pm-readout",       `<b>${f.pmMean.toFixed(2)}</b> µg/m³`);
-        setText("fs-energy-readout",   `<b>${f.energyKwh.toLocaleString()}</b> kWh/y`);
+        const isA = state.filter === "A";
+        const f  = isA ? FA : FB;
+        const wrap = isA ? aSpan : bSpan;
+        setHTML("fs-pressure-lead", `${wrap(f.pressureEnd.toFixed(0))} Pa at one year`);
+        setHTML("fs-pm-lead",       `${wrap(f.pmMean.toFixed(2))} µg/m³ annual average`);
+        setHTML("fs-energy-lead",   `${wrap(f.energyKwh.toLocaleString())} kWh/y total`);
+        setHTML("fs-pressure-readout", wrap(`<b>${f.pressureEnd.toFixed(0)}</b> Pa`));
+        setHTML("fs-pm-readout",       wrap(`<b>${f.pmMean.toFixed(2)}</b> µg/m³`));
+        setHTML("fs-energy-readout",   wrap(`<b>${f.energyKwh.toLocaleString()}</b> kWh/y`));
       }
     }
 
     function redraw() {
       const caseData = CASES[state.case];
       const filters = activeFilters();
-      const COLORS = { "A": "#7CB342", "B": "#0A74D6" };
 
-      // Pressure chart — slides 5 / 11
-      const pressureSets = filters.map((fKey) => ({
-        pts: pressureSeries(caseData.filters[fKey]),
-        color: COLORS[fKey],
-      }));
-      const pMax = Math.max(...pressureSets.flatMap((s) => s.pts.map((p) => p.v))) * 1.08;
+      // Pressure chart — dust feed (g) → pressure drop (Pa). Endpoint dots
+      // land exactly on (dustHeld, pressureEnd) per Feedback 3 §02.4.
+      const pressureSets = filters.map((fKey) => {
+        const f = caseData.filters[fKey];
+        const pts = pressureSeries(f);
+        return {
+          pts,
+          color: FILTER_COLORS[fKey],
+          dot: { x: f.dustHeld, y: f.pressureEnd },
+          dotLabel: `(${f.dustHeld.toFixed(2)}, ${f.pressureEnd.toFixed(2)})`,
+        };
+      });
+      const allPa = pressureSets.flatMap((s) => s.pts.map((p) => p.y)).concat([0]);
+      const allG  = pressureSets.flatMap((s) => s.pts.map((p) => p.x));
+      const xMax = Math.max(...allG, 1) * 1.12;
+      const yMax = Math.max(...allPa) * 1.15;
       lineChart(ps, {
         series: pressureSets,
-        yMin: 0, yMax: pMax,
-        yTicks: 4,
+        xMin: 0, xMax,
+        yMin: 0, yMax,
+        xTicks: 5, yTicks: 4,
+        fmtX: (v) => Math.round(v) + "g",
         fmtY: (v) => Math.round(v),
-        xLabels: ["0g", "150g", "300g", "450g", "600g"],
+        xLabel: "Dust feed (g)",
+        yLabel: "Pressure drop (Pa)",
       });
 
-      // PM2.5 chart — slides 6 / 12 (dense noisy series, "1-year period")
+      // PM2.5 chart — Feedback 3 §02.7 TRANSPOSED orientation:
+      // x = PM2.5 level (μg/m³), y = Time (hrs).
       const pmSets = filters.map((fKey) => ({
         pts: pmSeries(caseData.filters[fKey], fKey === "A" ? 91 : 113),
-        color: COLORS[fKey],
-        width: 1.1, opacity: 0.78,
+        color: FILTER_COLORS[fKey],
+        width: 1.0, opacity: 0.78,
       }));
-      const mMax = Math.max(...pmSets.flatMap((s) => s.pts.map((p) => p.v))) * 1.2;
+      const pmVals = pmSets.flatMap((s) => s.pts.map((p) => p.x));
+      const pmXMax = Math.max(...pmVals) * 1.12;
       lineChart(pm, {
         series: pmSets,
-        yMin: 0, yMax: mMax,
-        yTicks: 4,
-        fmtY: (v) => v.toFixed(2),
-        xLabels: ["0h", "2K", "4K", "6K", "8K"],
-        endpointLabel: false,
+        xMin: 0, xMax: pmXMax,
+        yMin: 0, yMax: 8760,
+        xTicks: 4, yTicks: 4,
+        fmtX: (v) => v.toFixed(2),
+        fmtY: (v) => v >= 1000 ? (v / 1000).toFixed(1) + "K" : Math.round(v),
+        xLabel: "PM2.5 level (μg/m³)",
+        yLabel: "Time (hrs)",
       });
 
-      // Energy grouped bars — slides 7 / 13
+      // Energy bars — Feedback 3 §02.8 (x=Filter, y=Annual fan energy)
       drawEnergyBars(en);
 
-      // Top-right readouts (slide 8 / 14)
       updateReadouts();
-
-      renderDeltas();
     }
 
     // ---------- Controls ----------
@@ -1186,6 +1229,7 @@
         });
         state.case = btn.dataset.fsCase;
         renderCaseHeader();
+        renderCostReadout();
         buildArchetype();
         updateIntent();
         redraw();
@@ -1225,18 +1269,193 @@
     // ---------- Initial render ----------
     buildArchetype();
     renderCaseHeader();
+    renderCostReadout();
     updateIntent();
     redraw();
     if (!REDUCED) requestAnimationFrame(archStep);
   })();
 
   /* ============================================================ MATRIX
-     Slide-16 fidelity rebuild: "Reduction in Annual Energy Consumption"
-     heatmap (HVAC shift rows × outdoor temperature cols, green
-     gradient % savings) + a Healthy People building panel that re-tilts
-     the 5-bin IEQ distribution as you hover individual cells.
-     ================================================================ */
+     Functional rebuild of the platform matrix per Feedback 3 §03 (P1).
+     The matrix grid is real HTML — every cell has its energy-reduction
+     value (read off the screenshots, identical across all 49 scenarios)
+     and a green gradient color. Hovering a cell swaps the image-backed
+     Healthy People panel on the right (cropped from each scenario
+     screenshot) so the bin distribution, building tilt, and offsets
+     all come from authentic platform output, not freehand mockups.
+     Cell → image mapping derived from the in-image scenario labels:
+     panel index = (6 − row) × 7 + col, with row 0 = +7°F summer
+     setback at the top and col 0 = no winter setback on the left.
+     The bottom-left BASELINE cell maps to panel 00. */
 
+  (function matrixPlatform() {
+    const root = document.getElementById("mxp");
+    const grid = document.getElementById("mxp-grid");
+    const panel = document.getElementById("mxp-panel");
+    const readout = document.getElementById("mxp-readout");
+    if (!root || !grid || !panel) return;
+
+    const ROWS = 7, COLS = 7;
+    // Row labels (top → bottom): +7°F .. +2°F, then 0 (BASELINE row)
+    const ROW_LBLS = ["+7°F", "+6°F", "+5°F", "+4°F", "+3°F", "+2°F", "0"];
+    // Col labels (left → right): 0, −2°F .. −7°F
+    const COL_LBLS = ["0", "−2°F", "−3°F", "−4°F", "−5°F", "−6°F", "−7°F"];
+    // Cell %-reduction values read directly off the platform screenshots.
+    // Format: [low, high] per cell, row-major top-to-bottom. The BASELINE
+    // cell (row 6, col 0) is rendered as a literal "BASELINE" label.
+    const CELLS = [
+      // Row +7°F
+      [[1.1,1.2],[3.3,3.7],[4.3,5.0],[4.9,5.7],[6.6,7.7],[7.4,8.7],[8.1,9.5]],
+      // Row +6°F
+      [[1.1,1.1],[3.3,3.7],[4.3,4.9],[4.9,5.6],[6.6,7.7],[7.4,8.6],[8.1,9.5]],
+      // Row +5°F
+      [[1.0,1.1],[3.2,3.6],[4.2,4.9],[4.8,5.6],[6.5,7.6],[7.3,8.6],[8.0,9.4]],
+      // Row +4°F
+      [[0.8,0.9],[3.0,3.4],[4.0,4.7],[4.6,5.4],[6.3,7.4],[7.1,8.4],[7.8,9.2]],
+      // Row +3°F
+      [[0.8,0.8],[2.9,3.3],[3.9,4.6],[4.5,5.3],[6.2,7.4],[7.0,8.3],[7.7,9.2]],
+      // Row +2°F
+      [[0.6,0.6],[2.7,3.2],[3.7,4.4],[4.3,5.1],[6.0,7.2],[6.8,8.1],[7.5,9.0]],
+      // Row 0 (S=0 baseline row): col 0 = BASELINE label cell
+      [null,        [2.1,2.6],[3.1,3.8],[3.7,4.5],[5.4,6.6],[6.2,7.5],[6.9,8.4]],
+    ];
+
+    // % reduction → green gradient color. Anchored to 0% (pale) and
+    // ~8.8% (deep). Matches the screenshot legend.
+    function cellColor(pct) {
+      const t = Math.max(0, Math.min(1, pct / 8.8));
+      const stops = [
+        { p: 0.00, c: [240, 245, 224] },
+        { p: 0.18, c: [197, 217, 106] },
+        { p: 0.50, c: [124, 179,  66] },
+        { p: 1.00, c: [ 58, 107,  42] },
+      ];
+      let a = stops[0], b = stops[stops.length - 1];
+      for (let i = 0; i < stops.length - 1; i++) {
+        if (t >= stops[i].p && t <= stops[i + 1].p) { a = stops[i]; b = stops[i + 1]; break; }
+      }
+      const k = (t - a.p) / (b.p - a.p || 1);
+      const rgb = a.c.map((cc, i) => Math.round(cc + (b.c[i] - cc) * k));
+      return `rgb(${rgb.join(",")})`;
+    }
+
+    // Build grid: corner cell, 7 col labels, then 7 rows of (row-label + 7 cells)
+    function build() {
+      grid.innerHTML = "";
+      // First DOM row: corner + col labels (col-labels actually sit BELOW
+      // the cells visually — we'll inject the col-label row at the
+      // bottom via CSS row order. Simpler: top corner is empty, and
+      // we append a col-label row at the END of the grid.
+
+      // Render rows top-down
+      for (let r = 0; r < ROWS; r++) {
+        // Row label cell
+        const rlbl = document.createElement("div");
+        rlbl.className = "mxp__row-lbl";
+        rlbl.textContent = ROW_LBLS[r];
+        grid.appendChild(rlbl);
+        // Seven data cells
+        for (let c = 0; c < COLS; c++) {
+          const cell = document.createElement("button");
+          cell.type = "button";
+          cell.className = "mxp__cell";
+          cell.dataset.row = String(r);
+          cell.dataset.col = String(c);
+          cell.setAttribute("role", "gridcell");
+          cell.setAttribute("aria-selected", "false");
+          const vals = CELLS[r][c];
+          if (vals === null) {
+            cell.classList.add("is-baseline");
+            cell.textContent = "BASELINE";
+            cell.style.background = "rgba(10,116,214,0.42)";
+          } else {
+            const mid = (vals[0] + vals[1]) / 2;
+            cell.style.background = cellColor(mid);
+            cell.textContent = `${vals[0].toFixed(1)}% – ${vals[1].toFixed(1)}%`;
+          }
+          cell.setAttribute("aria-label",
+            `Summer setback ${ROW_LBLS[r]}, winter setback ${COL_LBLS[c]}`);
+          cell.addEventListener("mouseenter", () => activate(r, c, cell));
+          cell.addEventListener("focus",      () => activate(r, c, cell));
+          grid.appendChild(cell);
+        }
+      }
+      // Empty corner under row-label column
+      const corner = document.createElement("div");
+      grid.appendChild(corner);
+      // 7 column labels along the bottom
+      COL_LBLS.forEach((lbl) => {
+        const cl = document.createElement("div");
+        cl.className = "mxp__col-lbl";
+        cl.textContent = lbl;
+        grid.appendChild(cl);
+      });
+    }
+
+    // Preload all 49 cropped panel images so swaps are instant
+    for (let i = 0; i < 49; i++) {
+      const im = new Image();
+      im.src = `assets/matrix-panel/panel-${String(i).padStart(2, "0")}.webp`;
+    }
+
+    // (row, col) → panel index. BASELINE = panel 0; otherwise
+    // (6 − row) × 7 + col gives the chronological capture order.
+    function panelIndexFor(r, c) {
+      return (6 - r) * 7 + c;
+    }
+
+    let activeCell = null;
+    function activate(r, c, cellEl) {
+      const idx = panelIndexFor(r, c);
+      const safeIdx = String(idx).padStart(2, "0");
+      panel.src = `assets/matrix-panel/panel-${safeIdx}.webp`;
+
+      const vals = CELLS[r][c];
+      const isBaseline = vals === null;
+      const wLbl = COL_LBLS[c];
+      const sLbl = ROW_LBLS[r];
+      const reductionLbl = isBaseline
+        ? "no setback · baseline"
+        : `${vals[0].toFixed(1)}% – ${vals[1].toFixed(1)}% energy reduction`;
+      panel.alt = isBaseline
+        ? "Healthy People · Baseline · no temperature setback"
+        : `Healthy People · winter ${wLbl} / summer ${sLbl}`;
+      if (readout) {
+        readout.textContent = isBaseline
+          ? "Baseline · no setback · 0.00% offset across all bins"
+          : `Winter ${wLbl} · Summer ${sLbl} · ${reductionLbl}`;
+      }
+      if (activeCell) {
+        activeCell.classList.remove("is-active");
+        activeCell.setAttribute("aria-selected", "false");
+      }
+      if (cellEl) {
+        cellEl.classList.add("is-active");
+        cellEl.setAttribute("aria-selected", "true");
+        activeCell = cellEl;
+      }
+    }
+
+    grid.addEventListener("mouseleave", () => {
+      const baselineCell = grid.querySelector(".mxp__cell.is-baseline");
+      activate(6, 0, baselineCell);
+    });
+
+    // Note: intervention tabs, setback timing chips, clock-format toggle,
+    // and °F/°C toggle are all display-only reference tokens (the 49
+    // scenario panels were captured at fixed defaults — no extra state
+    // they can drive). They render as static <span>s in the HTML; no
+    // click handlers are wired up here so they don't read as live
+    // controls to keyboard or AT users.
+
+    build();
+    // Initialize at BASELINE (row 6, col 0)
+    activate(6, 0, grid.querySelector('.mxp__cell.is-baseline'));
+  })();
+
+  /* Legacy slide-16 module (heatmap + Healthy People SVG). Disabled —
+     replaced by the image-backed matrix49 above. Kept as a no-op so any
+     stale references resolve cleanly. */
   (function matrix16() {
     const grid = document.getElementById("mx16-grid");
     const bldg = document.getElementById("mx16-bldg");
@@ -1455,6 +1674,50 @@
      recognizable HEAAL "building plot on the left, scrolling parameter
      on the right" layout, with restrained web-native interaction. */
 
+  /* ============================================================ H.E.A.A.L.
+     Image-backed parameter switcher per Feedback 3 §04. Four pill
+     buttons (CO2 / PM2.5 / TVOC / Temp) swap among 4 platform
+     screenshots. Everything else inside the box (SpaceTime Map,
+     Timeseries Plot, live values, bin breakdown, building tower) lives
+     in the image — no synthetic recreation.
+     ================================================================ */
+  (function heaal4() {
+    const root = document.getElementById("hl4");
+    const img  = document.getElementById("hl4-img");
+    if (!root || !img) return;
+
+    // Image order matches chronological screenshot capture:
+    //   heaal-00 → CO₂, heaal-01 → PM₂.₅, heaal-02 → TVOC, heaal-03 → Temp.
+    const MAP = { co2: 0, pm25: 1, tvoc: 2, temp: 3 };
+    const ALT = { co2: "H.E.A.A.L. Analytics platform · CO₂ view",
+                  pm25: "H.E.A.A.L. Analytics platform · PM₂.₅ view",
+                  tvoc: "H.E.A.A.L. Analytics platform · TVOC view",
+                  temp: "H.E.A.A.L. Analytics platform · Temperature view" };
+
+    // Preload all four screenshots so swaps are instant.
+    Object.values(MAP).forEach((i) => {
+      const im = new Image();
+      im.src = `assets/heaal/heaal-0${i}.webp`;
+    });
+
+    const btns = root.querySelectorAll(".hl4__btn");
+    btns.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const p = btn.dataset.hlParam;
+        if (!(p in MAP)) return;
+        img.src = `assets/heaal/heaal-0${MAP[p]}.webp`;
+        img.alt = ALT[p];
+        btns.forEach((b) => {
+          const on = b === btn;
+          b.classList.toggle("is-active", on);
+          b.setAttribute("aria-selected", on ? "true" : "false");
+        });
+      });
+    });
+  })();
+
+  /* Legacy SVG-based HEAAL module — disabled. Replaced by heaal4 above.
+     Kept as a no-op guard so any orphaned hl-* elements don't error. */
   (function heaal() {
     const plot = document.getElementById("hl-plot");
     const time = document.getElementById("hl-time");
