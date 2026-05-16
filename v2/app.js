@@ -295,9 +295,12 @@
           .attr("opacity", 0.92);
       }
 
-      // Seed legend counts + "showing N of N" caption on first paint.
-      // The right column starts empty (no committed site); a hover or
-      // click paints the tracker lines.
+      // Initial side-panel state = the highest-IT-load site, presented as
+      // a flagship preview (not a commit). The archetype + intent blocks
+      // stay in their default state until the user explicitly selects.
+      const flagship = data.sites.slice().sort((a, b) => b.it_mw - a.it_mw)[0];
+      updatePanel(flagship, /* committed */ false);
+      // seed legend counts + "showing N of N" caption on first paint
       applyFilters();
     }
 
@@ -310,7 +313,8 @@
       const visibleSites = [];
       pointSel.classed("is-faded", (d) => {
         const faded =
-          (filterState.status !== "all" && d.status !== filterState.status);
+          (filterState.status !== "all" && d.status !== filterState.status) ||
+          (filterState.system !== "all" && d.system !== filterState.system);
         if (!faded) {
           if (d.status === "existing") existingVisible++;
           else if (d.status === "planned") plannedVisible++;
@@ -354,27 +358,16 @@
       });
       return out;
     }
-    // Histogram drawing — the stacked variant uses a taller viewBox so
-    // bars + a tracker line have room to breathe. The hist__track-line
-    // and hist__track-dot persist across redraws (they're appended last
-    // and toggled via the .is-on class from the dot-hover handler).
-    const HIST_GEOM = {
-      W: 320, H: 80,
-      padL: 6, padR: 6, padT: 10, padB: 14,
-    };
-    function histDomain(accessor) {
-      const allVals = data.sites.map(accessor).filter((v) => Number.isFinite(v));
-      return [Math.min(...allVals), Math.max(...allVals)];
-    }
     function drawHist(svgId, subset, accessor, isLog) {
       const svgNode = document.getElementById(svgId);
       if (!svgNode) return;
       while (svgNode.firstChild) svgNode.removeChild(svgNode.firstChild);
-      const N = 32;
+      const N = 28;
       const bActive = bins(subset, accessor, N, isLog);
       const bAll = bins(data.sites, accessor, N, isLog);
       const max = Math.max(1, ...bAll);
-      const { W, H, padL, padR, padT, padB } = HIST_GEOM;
+      const W = 320, H = 56;
+      const padL = 4, padR = 4, padT = 6, padB = 10;
       const bw = (W - padL - padR) / N;
       const ns = "http://www.w3.org/2000/svg";
       function elN(tag, attrs) {
@@ -410,15 +403,6 @@
           height: h.toFixed(1),
         }));
       });
-      // Tracker primitives — line + dot, appended once and reused on hover.
-      svgNode.appendChild(elN("line", {
-        class: "hist__track-line",
-        x1: padL, x2: padL, y1: padT, y2: H - padB,
-      }));
-      svgNode.appendChild(elN("circle", {
-        class: "hist__track-dot",
-        cx: padL, cy: H - padB, r: 3.4,
-      }));
     }
     function renderHistograms(subset) {
       const set = subset && subset.length ? subset : data.sites;
@@ -426,71 +410,6 @@
       drawHist("hist-it",      set, (d) => d.it_mw,    true);
       drawHist("hist-pue",     set, (d) => d.pue,      false);
       drawHist("hist-filters", set, (d) => d.filters,  true);
-    }
-
-    // Tracker — given a site, paint a vertical line + dot on each
-    // histogram at the site's value for that metric. Clearing the
-    // tracker just toggles all four off.
-    const HIST_TRACKERS = [
-      { id: "hist-floor",   valEl: "hist-floor-val",   accessor: (d) => d.floor_m2, isLog: true,  fmt: (v) => `${Math.round(v).toLocaleString()} m²` },
-      { id: "hist-it",      valEl: "hist-it-val",      accessor: (d) => d.it_mw,    isLog: true,  fmt: (v) => `${v.toFixed(2)} MW` },
-      { id: "hist-pue",     valEl: "hist-pue-val",     accessor: (d) => d.pue,      isLog: false, fmt: (v) => v.toFixed(2) },
-      { id: "hist-filters", valEl: "hist-filters-val", accessor: (d) => d.filters,  isLog: true,  fmt: (v) => Math.round(v).toLocaleString() },
-    ];
-    function setTrackers(site) {
-      HIST_TRACKERS.forEach((cfg) => {
-        const svgNode = document.getElementById(cfg.id);
-        if (!svgNode) return;
-        const line = svgNode.querySelector(".hist__track-line");
-        const dot  = svgNode.querySelector(".hist__track-dot");
-        const val  = document.getElementById(cfg.valEl);
-        if (!site) {
-          if (line) line.classList.remove("is-on");
-          if (dot)  dot.classList.remove("is-on");
-          if (val)  val.textContent = "—";
-          return;
-        }
-        const v = cfg.accessor(site);
-        if (!Number.isFinite(v)) {
-          if (line) line.classList.remove("is-on");
-          if (dot)  dot.classList.remove("is-on");
-          if (val)  val.textContent = "—";
-          return;
-        }
-        const [lo, hi] = histDomain(cfg.accessor);
-        let t;
-        if (cfg.isLog) {
-          const loL = Math.log(Math.max(0.001, lo));
-          const hiL = Math.log(Math.max(0.001, hi));
-          t = (Math.log(Math.max(0.001, v)) - loL) / (hiL - loL);
-        } else {
-          t = (v - lo) / (hi - lo);
-        }
-        t = Math.min(0.999, Math.max(0, t));
-        const { W, padL, padR, padT, H, padB } = HIST_GEOM;
-        const x = padL + t * (W - padL - padR);
-        if (line) {
-          line.setAttribute("x1", x.toFixed(1));
-          line.setAttribute("x2", x.toFixed(1));
-          line.classList.add("is-on");
-        }
-        if (dot) {
-          dot.setAttribute("cx", x.toFixed(1));
-          // place dot near the top of the bar at that x position
-          // (use a fixed mid-height for simplicity)
-          dot.setAttribute("cy", (padT + (H - padT - padB) * 0.45).toFixed(1));
-          dot.classList.add("is-on");
-        }
-        if (val) val.textContent = cfg.fmt(v);
-      });
-      const activeLbl = document.getElementById("hist-active");
-      if (activeLbl) {
-        if (site) {
-          activeLbl.textContent = `${site.id} · ${site.county} · ${site.status === "existing" ? "Existing" : "Planned"}`;
-        } else {
-          activeLbl.textContent = "— · click any site to commit";
-        }
-      }
     }
 
     // wire filter chips
@@ -509,17 +428,23 @@
       });
     });
 
-    // Hover preview drives the tracker lines on the right-column
-    // distribution graphs; commit persists the selection until another
-    // dot is clicked. The site-detail kv panel is gone — the graphs
-    // ARE the readout now.
-    let committedSite = null;
+    // Module-level pointer to whatever site the side panel is currently
+    // showing — used by the CTA so it can commit the right record even if
+    // the user got here via hover-preview rather than click.
+    let currentPanelSite = null;
+
+    // Preview: light-touch hover state. Updates the inventory side panel
+    // and the dot highlight only. The intent block stays bound to the
+    // last COMMITTED selection (or the default flagship).
     function previewSite(d, node) {
       if (!pointSel) return;
       pointSel.classed("is-active", false);
       if (node) d3.select(node).classed("is-active", true);
-      setTrackers(d);
+      updatePanel(d, /* committed */ false);
     }
+    // Commit: user explicitly selected this site. Updates the side panel
+    // and the inventory intent block to reflect the chosen record. Node
+    // is optional — if not supplied we find the matching dot ourselves.
     function commitSite(d, node) {
       if (!pointSel) return;
       const target = node || pointSel.filter((p) => p.id === d.id).node();
@@ -528,20 +453,72 @@
       if (target) {
         d3.select(target).classed("is-active", true).classed("is-committed", true);
       }
-      committedSite = d;
-      setTrackers(d);
-      const statusLabel = d.status === "existing" ? "Existing" : "Planned";
-      const summary = `<b>${d.id}</b> · ${d.county} · ${statusLabel} · ${d.system} · ${fmt.flt(d.it_mw, 1)} MW`;
-      const intentMap = document.getElementById("intent-map");
-      if (intentMap) intentMap.innerHTML = summary;
+      updatePanel(d, /* committed */ true);
     }
     function deactivate() {
-      // On hover-out, fall back to the committed site (if any). Tracker
-      // sticks to the committed record so the user keeps the position
-      // markers on screen between hovers.
+      // Clear hover highlight only — the committed dot keeps its
+      // .is-committed marker so the user can still see their selection.
       if (!pointSel) return;
       pointSel.classed("is-active", function () { return d3.select(this).classed("is-committed"); });
-      setTrackers(committedSite);
+    }
+
+    function updatePanel(d, committed) {
+      const title = $("#site-title");
+      const sub   = $("#site-sub");
+      const kv    = $("#site-kv");
+      if (!title || !kv) return;
+
+      // Remember which site is currently showing in the panel so the
+      // archetype-handoff CTA can commit the right record on click.
+      currentPanelSite = d;
+
+      title.textContent = `${d.id} · ${d.county}`;
+      const stateNote = committed
+        ? "Selected"
+        : "Previewing on hover · click to select";
+      sub.textContent = d.status === "existing"
+        ? `Existing data center in ${d.county} County · eGRID ${d.egrid} — ${stateNote}`
+        : `Planned data center in ${d.county} County · eGRID ${d.egrid} — ${stateNote}`;
+
+      const m2 = fmt.num(d.floor_m2);
+      const cap = `${fmt.flt(d.capacity_m3s)} m³/s`;
+      const air = `${Math.round(d.air_frac * 100)}%`;
+      // Briefing-style grouping echoing the deck's case-study setup
+      // (Location · Building · System Characteristics). Same row primitive
+      // as before so the kv CSS still applies; the new sub-headers carry
+      // the deck's information-architecture into the side panel.
+      const groups = [
+        { title: "Location Information", rows: [
+          ["County", d.county],
+          ["eGRID region", d.egrid],
+          ["Coordinates", `${d.lat.toFixed(3)}, ${d.lng.toFixed(3)}`],
+          ["Status", d.status[0].toUpperCase() + d.status.slice(1)],
+        ]},
+        { title: "Building Information", rows: [
+          ["Floor area", `${m2} m²`],
+          ["Ceiling height", `${fmt.flt(d.ceiling_m)} m`],
+          ["IT load", `${fmt.flt(d.it_mw, 2)} MW`],
+          ["PUE", fmt.flt(d.pue, 2)],
+        ]},
+        { title: "System Characteristics", rows: [
+          ["System type", d.system],
+          ["Air fraction", air],
+          ["System capacity", cap],
+          ["Number of filters", fmt.num(d.filters)],
+        ]},
+      ];
+      kv.innerHTML = groups.map((g) =>
+        `<div class="kv__group-title">${g.title}</div>` +
+        g.rows.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join("")
+      ).join("");
+
+      // Mirror the selected site identity into the inventory intent block.
+      if (committed) {
+        const statusLabel = d.status === "existing" ? "Existing" : "Planned";
+        const summary = `<b>${d.id}</b> · ${d.county} · ${statusLabel} · ${d.system} · ${fmt.flt(d.it_mw, 1)} MW`;
+        const intentMap = document.getElementById("intent-map");
+        if (intentMap) intentMap.innerHTML = summary;
+      }
     }
   })();
 
@@ -581,10 +558,10 @@
     // exact-fidelity brief.
     const CASES = {
       A: {
-        label: "Data Center A",
-        short: "Data Center A",
+        label: "Data Center A · Manassas, VA",
+        short: "Manassas, VA",
         site: {
-          descriptor: "Modeled Virginia data center · DLC archetype",
+          address: "11680 Hayden Road, Manassas, VA",
           totalVolume_m3: 743224,
           itCapacity_MW: 280,
           dailySchedule_h: 24,
@@ -601,10 +578,10 @@
         },
       },
       B: {
-        label: "Data Center B",
-        short: "Data Center B",
+        label: "Data Center B · Boydton, VA",
+        short: "Boydton, VA",
         site: {
-          descriptor: "Modeled Virginia data center · DEC archetype",
+          address: "101 Herbert Drive, Boydton, VA",
           totalVolume_m3: 408773,
           itCapacity_MW: 222,
           dailySchedule_h: 24,
@@ -863,7 +840,7 @@
             <text id="fs-filter-label" x="101" y="96" text-anchor="middle" fill="#0A74D6" font-family="JetBrains Mono" font-size="8.5" letter-spacing="0.12em" font-weight="600">FILTER</text>
           </g>
 
-          <text x="14" y="260" fill="rgba(149,163,184,0.55)" font-family="JetBrains Mono" font-size="8" letter-spacing="0.14em">DATA CENTER A · DLC ARCHETYPE</text>
+          <text x="14" y="260" fill="rgba(149,163,184,0.55)" font-family="JetBrains Mono" font-size="8" letter-spacing="0.14em">DATA CENTER A · MANASSAS</text>
           <g id="fs-arch-particles"></g>
         `;
       } else {
@@ -920,7 +897,7 @@
             <text id="fs-filter-label" x="101" y="64" text-anchor="middle" fill="#0A74D6" font-family="JetBrains Mono" font-size="8.5" letter-spacing="0.12em" font-weight="600">FILTER</text>
           </g>
 
-          <text x="14" y="260" fill="rgba(149,163,184,0.55)" font-family="JetBrains Mono" font-size="8" letter-spacing="0.14em">DATA CENTER B · DEC ARCHETYPE</text>
+          <text x="14" y="260" fill="rgba(149,163,184,0.55)" font-family="JetBrains Mono" font-size="8" letter-spacing="0.14em">DATA CENTER B · BOYDTON</text>
           <g id="fs-arch-particles"></g>
         `;
       }
@@ -1091,14 +1068,14 @@
     function renderCaseHeader() {
       const c = CASES[state.case];
       const nameEl = document.getElementById("fs-case-name");
-      if (nameEl) nameEl.textContent = c.label;
+      if (nameEl) nameEl.textContent = `Data Center ${state.case} · ${c.short}`;
       const site = document.getElementById("fs-site");
       if (!site) return;
       const s = c.site;
       site.innerHTML = `
         <div class="fs__site-head">
           <span class="fs__site-title">Site Characteristics</span>
-          <span class="fs__site-addr">${s.descriptor}</span>
+          <span class="fs__site-addr">${s.address}</span>
         </div>
         <div class="fs__site-col">
           <div class="fs__site-row"><dt>Total Building Volume</dt><dd>${s.totalVolume_m3.toLocaleString()} m³</dd></div>
@@ -1231,221 +1208,469 @@
   })();
 
   /* ============================================================ MATRIX
-     Slide-16 fidelity rebuild: "Reduction in Annual Energy Consumption"
-     heatmap (HVAC shift rows × outdoor temperature cols, green
-     gradient % savings) + a Healthy People building panel that re-tilts
-     the 5-bin IEQ distribution as you hover individual cells.
+     Compact, user-led product slice of the real MATRIX dashboard.
+     Drives three connected surfaces from one state object:
+       state = { mode, cop, export_scenario, buildingId }
+     Surfaces:
+       (1) Portfolio: US map + building list, ranked by best savings at
+           the current filters.
+       (2) Selected: building identity card with baseline cost + sim count.
+       (3) Study: configuration matrix (battery × duration) with cell
+           highlight + insight panel (strategy framing → savings →
+           financial case).
+     Source-of-truth data: window.MATRIX_DATA, curated from
+     /tmp/matrix_brief_ingest/MATRIX/matrix/static/data/summary_*.json.
      ================================================================ */
 
-  (function matrix16() {
-    const grid = document.getElementById("mx16-grid");
-    const bldg = document.getElementById("mx16-bldg");
-    const bins = document.getElementById("mx16-bins");
-    const readout = document.getElementById("mx16-cell-readout");
-    if (!grid || !bldg || !bins) return;
+  (function matrix() {
+    const DATA = window.MATRIX_DATA;
+    if (!DATA) { console.warn("[MATRIX] dataset missing"); return; }
+    const sec = document.getElementById("matrix");
+    if (!sec) return;
 
-    // Axes — outdoor temperature columns (low → high °F) and HVAC
-    // shift rows (-0°F at the bottom → -10°F at the top, deeper setbacks
-    // produce bigger reductions). Same shape as slide 16.
-    const OUTDOOR_TEMPS = [0, 10, 20, 30, 40, 50, 60, 70];           // °F
-    const HVAC_SHIFTS   = [-0, -2, -4, -6, -8, -10];                 // °F, displayed top-down
-    // Baseline lives in the bottom-left corner of slide 16.
+    // -------- State
+    const state = {
+      mode: "arbitrage",     // "arbitrage" | "peakshaving"
+      cop: 3.5,
+      exportScenario: "mid", // "mid" | "high"
+      buildingId: null,      // set on first render
+    };
 
-    // % energy reduction model — combine HVAC setback depth with how
-    // close the outdoor temperature is to the heating/cooling setpoint
-    // sweet spot (around 50-60°F). Deeper setbacks + mid temperatures
-    // give the biggest reductions; extreme temperatures attenuate.
-    function reductionFor(shift, outdoor) {
-      if (shift === 0) return 0;
-      const depth = Math.abs(shift) / 10;                            // 0..1
-      const distFromSweet = Math.abs(outdoor - 55) / 55;             // 0..~1.3
-      const tempPenalty = Math.max(0, 1 - distFromSweet * 0.85);
-      return Math.max(0, depth * tempPenalty * 8.4);                  // up to ~8%
-    }
-
-    // Color scale — gray (0%) → light green → deep green (8%+)
-    function cellColor(pct) {
-      if (pct <= 0) return "rgba(178,204,238,0.06)";
-      const t = Math.min(1, pct / 8);
-      // interpolate light→deep green
-      const stops = [
-        { p: 0.0, c: [197, 217, 106] },                              // c5d96a
-        { p: 0.45, c: [124, 179, 66] },                              // 7cb342
-        { p: 1.0, c: [58, 107, 42] },                                // 3a6b2a
-      ];
-      let a = stops[0], b = stops[stops.length - 1];
-      for (let i = 0; i < stops.length - 1; i++) {
-        if (t >= stops[i].p && t <= stops[i + 1].p) { a = stops[i]; b = stops[i + 1]; break; }
+    // CapEx curve from summary_arbitrage.json — used when a cell has no
+    // .capex of its own (shouldn't happen with the curated data, but
+    // belt-and-suspenders). Linear-interpolate $ per kWh.
+    const CAPEX_CURVE = DATA.meta.capex_curve;
+    const ITC_RATE = DATA.meta.itc_rate || 0.30;
+    function capexFor(kwh) {
+      const c = CAPEX_CURVE;
+      if (kwh <= c[0][0]) return c[0][1];
+      if (kwh >= c[c.length - 1][0]) return c[c.length - 1][1];
+      for (let i = 0; i < c.length - 1; i++) {
+        if (kwh >= c[i][0] && kwh <= c[i + 1][0]) {
+          const t = (kwh - c[i][0]) / (c[i + 1][0] - c[i][0]);
+          return c[i][1] + (c[i + 1][1] - c[i][1]) * t;
+        }
       }
-      const k = (t - a.p) / (b.p - a.p || 1);
-      const rgb = a.c.map((cc, i) => Math.round(cc + (b.c[i] - cc) * k));
-      return `rgb(${rgb.join(",")})`;
+      return c[c.length - 1][1];
     }
 
-    // Baseline bin distribution + how each cell tilts it. As the
-    // outdoor temperature pulls away from the comfort zone, more
-    // occupants slide from Optimized → Excellent → Action → Alert →
-    // Limit. Aggressive setbacks compound the tilt.
-    const BASELINE_BINS = [81.0, 13.3, 3.1, 1.3, 1.4];               // matches slide-16 figure
-    const BIN_NAMES = ["Health Optimized", "Excellent", "Action", "Alert", "Limit"];
-    const BIN_COLORS = ["#0a74d6", "#b2ccee", "#ffeb95", "#fcbc7e", "#f5896d"];
+    // -------- Formatters
+    const fmtUSD = (v) => {
+      if (v == null) return "—";
+      const abs = Math.abs(v), sign = v < 0 ? "−" : "";
+      if (abs >= 1e6) return sign + "$" + (abs / 1e6).toFixed(1) + "M";
+      if (abs >= 1e3) return sign + "$" + Math.round(abs / 1e3) + "K";
+      return sign + "$" + Math.round(abs);
+    };
+    const fmtUSDFull = (v) => {
+      if (v == null) return "—";
+      const sign = v < 0 ? "−" : "";
+      return sign + "$" + Math.abs(Math.round(v)).toLocaleString();
+    };
+    const fmtKWH = (kwh) => kwh >= 1000 ? `${(kwh / 1000).toFixed(kwh % 1000 === 0 ? 0 : 1)} MWh` : `${Math.round(kwh)} kWh`;
+    const fmtKW  = (kw)  => kw  >= 1000 ? `${(kw  / 1000).toFixed(kw  % 1000 === 0 ? 0 : 1)} MW`  : `${Math.round(kw)} kW`;
+    const fmtPB  = (yr)  => (yr == null || yr >= 100) ? "— yr" : `${yr.toFixed(1)} yr`;
 
-    function tiltFor(shift, outdoor) {
-      if (shift === 0) return BASELINE_BINS.slice();                 // baseline
-      // Severity score: deeper setback × distance from comfort zone (55°F)
-      const depth = Math.abs(shift) / 10;
-      const tempDist = Math.abs(outdoor - 55) / 55;
-      const severity = depth * (0.45 + tempDist * 0.95);             // 0..~1.5
-      // Tilt: shave from top bins, push into bottom bins
-      const moveFromOpt = Math.min(BASELINE_BINS[0] * 0.18, BASELINE_BINS[0] * severity * 0.18);
-      const moveFromExc = Math.min(BASELINE_BINS[1] * 0.5,  BASELINE_BINS[1] * severity * 0.5);
-      // Distribute into Action / Alert / Limit
-      const into = moveFromOpt + moveFromExc;
-      const intoAction = into * 0.55;
-      const intoAlert  = into * 0.30;
-      const intoLimit  = into * 0.15;
-      const out = [
-        BASELINE_BINS[0] - moveFromOpt,
-        BASELINE_BINS[1] - moveFromExc,
-        BASELINE_BINS[2] + intoAction,
-        BASELINE_BINS[3] + intoAlert,
-        BASELINE_BINS[4] + intoLimit,
-      ];
-      return out;
+    // -------- Data access
+    function scenariosFor(buildingId) {
+      const bag = state.mode === "arbitrage" ? DATA.arbitrage : DATA.peakshaving;
+      return bag[buildingId] || [];
     }
-
-    // ---------- Render the grid ----------
-    function renderGrid() {
-      grid.innerHTML = "";
-      // First row: empty corner + outdoor-temp column labels
-      grid.style.gridTemplateColumns = `48px repeat(${OUTDOOR_TEMPS.length}, minmax(0, 1fr))`;
-      grid.style.gridTemplateRows = `auto repeat(${HVAC_SHIFTS.length}, minmax(0, 1fr))`;
-
-      // Column-label row
-      const corner = document.createElement("div");
-      grid.appendChild(corner);
-      OUTDOOR_TEMPS.forEach((t) => {
-        const lbl = document.createElement("div");
-        lbl.className = "mx16__grid-collbl";
-        lbl.textContent = t + "°F";
-        grid.appendChild(lbl);
+    // Filter a building's scenarios by COP (+ export if arb)
+    function scenariosForCurrent(buildingId) {
+      return scenariosFor(buildingId).filter((s) => {
+        if (s.cop !== state.cop) return false;
+        if (state.mode === "arbitrage" && s.export_scenario !== state.exportScenario) return false;
+        return true;
       });
+    }
+    // Best scenario for the current filters — used by the portfolio ranking
+    function bestFor(buildingId) {
+      const matches = scenariosForCurrent(buildingId);
+      if (!matches.length) return null;
+      return matches.reduce((best, s) => s.savings_usd > best.savings_usd ? s : best);
+    }
 
-      // Data rows, top-down: deepest setback (-10°F) first
-      const rowsTopDown = HVAC_SHIFTS.slice().sort((a, b) => a - b); // [-10, -8, ..., 0]
-      rowsTopDown.forEach((shift) => {
-        const rowLbl = document.createElement("div");
-        rowLbl.className = "mx16__grid-rowlbl";
-        rowLbl.textContent = (shift === 0 ? "0" : shift) + "°F";
-        grid.appendChild(rowLbl);
-        OUTDOOR_TEMPS.forEach((outdoor) => {
-          const cell = document.createElement("div");
-          cell.className = "mx16__cell";
-          cell.dataset.shift = String(shift);
-          cell.dataset.outdoor = String(outdoor);
-          if (shift === 0 && outdoor === OUTDOOR_TEMPS[0]) {
-            cell.classList.add("is-baseline");
-            cell.textContent = "BASELINE";
-          } else {
-            const pct = reductionFor(shift, outdoor);
-            cell.style.background = cellColor(pct);
-            cell.textContent = pct.toFixed(1) + "%";
+    // Battery × duration matrix for the currently selected building
+    function buildMatrix(buildingId) {
+      const matches = scenariosForCurrent(buildingId);
+      const batterySet = new Set(), durationSet = new Set();
+      const cells = {};
+      matches.forEach((s) => {
+        batterySet.add(s.battery_kwh);
+        durationSet.add(s.duration_hrs);
+        cells[`${s.battery_kwh}_${s.duration_hrs}`] = s;
+      });
+      const batteries = [...batterySet].sort((a, b) => a - b);
+      const durations = [...durationSet].sort((a, b) => a - b);
+      // Find best by adjusted payback (positive savings, lowest payback)
+      let bestKey = null, bestPB = Infinity;
+      Object.entries(cells).forEach(([k, s]) => {
+        if (s.savings_usd > 0 && s.payback_after_itc < bestPB) {
+          bestPB = s.payback_after_itc; bestKey = k;
+        }
+      });
+      return { cells, batteries, durations, bestKey };
+    }
+
+    // -------- Renderers
+
+    function renderStats() {
+      const best = DATA.buildings
+        .map((b) => bestFor(b.id))
+        .filter(Boolean);
+      const positive = best.filter((s) => s.savings_usd > 0).length;
+      // Net total — includes negative-savings buildings so the headline
+      // can go down under bad filters. Mirrors the source product's
+      // map-page.js aggregation (`sum + s.savings_usd`). Clamping the
+      // sign here would let the headline only ever go up, which would
+      // misrepresent the filter state and undercut the section's
+      // decision-grade framing.
+      const total    = best.reduce((sum, s) => sum + s.savings_usd, 0);
+      const paybacks = best.filter((s) => s.savings_usd > 0 && s.payback_after_itc < 100).map((s) => s.payback_after_itc);
+      const avgPB    = paybacks.length ? paybacks.reduce((a, b) => a + b, 0) / paybacks.length : 0;
+      const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+      set("mx3-positive", `${positive} / ${DATA.buildings.length}`);
+      set("mx3-total",    fmtUSD(total));
+      set("mx3-payback",  avgPB > 0 ? `${avgPB.toFixed(1)} yr` : "—");
+      set("mx3-bldg-count", DATA.buildings.length);
+    }
+
+    // ----- US map (CONUS bounding-box projection, no state outline —
+    // keeps the marketing version lightweight; the real product uses
+    // d3.geoAlbersUsa + topojson states, but here a clean dotted backdrop
+    // reads as "national portfolio" without the load weight).
+    const MAP_BOUNDS = { lngW: -125, lngE: -66.9, latS: 24.5, latN: 49.4 };
+    function projectMap(lng, lat, W, H) {
+      const x = (lng - MAP_BOUNDS.lngW) / (MAP_BOUNDS.lngE - MAP_BOUNDS.lngW) * (W - 24) + 12;
+      // Mercator-ish: flatten by cos(lat0) for visual stability
+      const y = (1 - (lat - MAP_BOUNDS.latS) / (MAP_BOUNDS.latN - MAP_BOUNDS.latS)) * (H - 24) + 12;
+      return [x, y];
+    }
+    function renderMap() {
+      const svg = document.getElementById("mx3-us-map");
+      if (!svg) return;
+      while (svg.firstChild) svg.removeChild(svg.firstChild);
+      const W = 480, H = 280;
+      svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+      const ns = "http://www.w3.org/2000/svg";
+
+      // Backdrop graticule — light grid suggesting a continental scale
+      const grid = document.createElementNS(ns, "g");
+      grid.setAttribute("stroke", "rgba(178,204,238,0.06)");
+      grid.setAttribute("stroke-width", "0.5");
+      for (let i = 0; i <= 8; i++) {
+        const x = (i / 8) * W;
+        const l = document.createElementNS(ns, "line");
+        l.setAttribute("x1", x); l.setAttribute("x2", x);
+        l.setAttribute("y1", 0); l.setAttribute("y2", H);
+        grid.appendChild(l);
+      }
+      for (let j = 0; j <= 5; j++) {
+        const y = (j / 5) * H;
+        const l = document.createElementNS(ns, "line");
+        l.setAttribute("y1", y); l.setAttribute("y2", y);
+        l.setAttribute("x1", 0); l.setAttribute("x2", W);
+        grid.appendChild(l);
+      }
+      svg.appendChild(grid);
+
+      // CONUS framing rect
+      const frame = document.createElementNS(ns, "rect");
+      frame.setAttribute("x", 8); frame.setAttribute("y", 8);
+      frame.setAttribute("width", W - 16); frame.setAttribute("height", H - 16);
+      frame.setAttribute("fill", "none");
+      frame.setAttribute("stroke", "rgba(178,204,238,0.18)");
+      frame.setAttribute("stroke-width", "0.6");
+      svg.appendChild(frame);
+
+      // Greens (matched to real product palette)
+      const colors = ["#4a5568", "#c5d96a", "#a4c639", "#7cb342", "#6ba033", "#3a6b2a"];
+      const maxSav = Math.max(1, ...DATA.buildings.map((b) => {
+        const s = bestFor(b.id); return s ? s.savings_usd : 0;
+      }));
+      const colorFor = (sav) => {
+        if (sav <= 0) return colors[0];
+        const t = Math.min(1, sav / maxSav);
+        const idx = 1 + Math.floor(t * (colors.length - 2));
+        return colors[Math.min(colors.length - 1, idx)];
+      };
+      const radiusFor = (sav) => 5 + Math.min(1, Math.max(0, sav) / maxSav) * 11;
+
+      DATA.buildings.forEach((b) => {
+        const best = bestFor(b.id);
+        const sav = best ? best.savings_usd : 0;
+        const [x, y] = projectMap(b.lng, b.lat, W, H);
+        const c = document.createElementNS(ns, "circle");
+        c.setAttribute("class", "bldg" + (b.id === state.buildingId ? " is-selected" : ""));
+        c.setAttribute("cx", x.toFixed(1));
+        c.setAttribute("cy", y.toFixed(1));
+        c.setAttribute("r", radiusFor(sav));
+        c.setAttribute("fill", colorFor(sav));
+        c.setAttribute("opacity", "0.92");
+        c.setAttribute("stroke", "rgba(255,255,255,0.25)");
+        c.setAttribute("stroke-width", "1");
+        c.dataset.bid = b.id;
+        c.addEventListener("click", () => selectBuilding(b.id));
+        c.addEventListener("mouseenter", () => c.setAttribute("opacity", "1"));
+        c.addEventListener("mouseleave", () => c.setAttribute("opacity", "0.92"));
+        svg.appendChild(c);
+      });
+    }
+
+    // ----- Building list (ranked, selectable)
+    function renderList() {
+      const list = document.getElementById("mx3-list");
+      if (!list) return;
+      const rows = DATA.buildings
+        .map((b) => ({ b, s: bestFor(b.id) }))
+        .filter((r) => r.s)
+        .sort((a, b) => b.s.savings_usd - a.s.savings_usd);
+      list.innerHTML = rows.map(({ b, s }) => {
+        const cls = state.mode === "peakshaving" ? "PS" : "Arb";
+        const klass = b.klass.replace("Commercial ", "");
+        return `<button type="button" class="mx3__row${b.id === state.buildingId ? " is-selected" : ""}" data-bid="${b.id}" aria-label="Select ${b.name}" aria-pressed="${b.id === state.buildingId}">
+          <span class="mx3__row-name">${b.name}</span>
+          <span class="mx3__row-class">${klass}</span>
+          <span class="mx3__row-state">${b.state}</span>
+          <span class="mx3__row-sav${s.savings_usd < 0 ? " is-neg" : ""}">${fmtUSD(s.savings_usd)}</span>
+          <span class="mx3__row-pb">${fmtPB(s.payback_after_itc)}</span>
+        </button>`;
+      }).join("");
+      list.querySelectorAll(".mx3__row").forEach((row) => {
+        row.addEventListener("click", () => selectBuilding(row.dataset.bid));
+      });
+    }
+
+    // ----- Selected building bar (Part 2)
+    function renderSelected() {
+      const el = document.getElementById("mx3-selected");
+      if (!el) return;
+      const b = DATA.buildings.find((x) => x.id === state.buildingId);
+      if (!b) { el.innerHTML = ""; return; }
+      const best = bestFor(b.id);
+      // Two counts: scenarios currently driving the matrix (filter-narrow)
+      // and the building's total simulation runs across the whole mode.
+      const activeCount = scenariosForCurrent(b.id).length;
+      const modeCount   = scenariosFor(b.id).length;
+      const baseline = best ? best.annual_cost_no_battery : 0;
+      el.innerHTML = `
+        <span class="mx3__sel-back" aria-hidden="true">← Portfolio</span>
+        <div class="mx3__sel-id">
+          <span class="mx3__sel-name">${b.name}</span>
+          <span class="mx3__sel-meta">
+            <span><b>${b.state}</b> · ${b.county}</span>
+            <span>${b.klass}</span>
+            <span>${b.sqft.toLocaleString()} SF · ${b.floors} floor${b.floors === 1 ? "" : "s"}</span>
+            <span>Baseline <b>${fmtUSDFull(baseline)}</b> / yr</span>
+          </span>
+        </div>
+        <div class="mx3__sel-sim">
+          <span><b>${b.total_sims.toLocaleString()}</b> simulations</span>
+          <span>${activeCount} active &middot; ${modeCount} ${state.mode === "arbitrage" ? "arbitrage" : "peak shaving"} scenarios</span>
+        </div>
+      `;
+    }
+
+    // ----- Configuration matrix (Part 3)
+    let highlightedKey = null;
+    function renderGrid() {
+      const wrap = document.getElementById("mx3-grid");
+      if (!wrap) return;
+      const m = buildMatrix(state.buildingId);
+      // Seed highlight: best cell if no manual selection
+      if (!highlightedKey || !m.cells[highlightedKey]) {
+        highlightedKey = m.bestKey || (m.batteries.length && m.durations.length
+          ? `${m.batteries[0]}_${m.durations[0]}` : null);
+      }
+      // Build header + rows
+      const colCount = m.batteries.length;
+      const gridTemplate = `auto repeat(${colCount}, minmax(0, 1fr))`;
+      const header = [`<div></div>`]
+        .concat(m.batteries.map((b) => `<div class="mx3__grid-col-lbl">${fmtKWH(b)}</div>`))
+        .join("");
+      const rows = m.durations.map((d) => {
+        const cells = m.batteries.map((batt) => {
+          const key = `${batt}_${d}`;
+          const cell = m.cells[key];
+          if (!cell) {
+            return `<div class="mx3__cell is-empty">—</div>`;
           }
-          cell.addEventListener("mouseenter", () => applyCell(shift, outdoor, cell));
-          cell.addEventListener("focus",      () => applyCell(shift, outdoor, cell));
-          cell.tabIndex = 0;
-          grid.appendChild(cell);
+          const isBest = key === m.bestKey;
+          const isActive = key === highlightedKey;
+          const isNeg = cell.savings_usd < 0;
+          const baseline = cell.annual_cost_no_battery || 1;
+          const pct = cell.savings_pct;
+          return `<button type="button" class="mx3__cell${isActive ? " is-active" : ""}${isBest ? " is-best" : ""}"
+              data-key="${key}" aria-pressed="${isActive}" aria-label="Battery ${fmtKWH(batt)} ${d}h duration ${fmtUSD(cell.savings_usd)} savings">
+            <span class="mx3__cell-sav${isNeg ? " is-neg" : ""}">${fmtUSD(cell.savings_usd)}</span>
+            <span class="mx3__cell-pct${isNeg ? " is-neg" : ""}">${pct.toFixed(1)}% of baseline</span>
+            <span class="mx3__cell-pb">${fmtPB(cell.payback_after_itc)} payback</span>
+          </button>`;
+        }).join("");
+        return `<div class="mx3__grid-row" style="grid-template-columns:${gridTemplate}">
+          <div class="mx3__grid-row-lbl"><span>Duration</span><b>${d}h</b></div>
+          ${cells}
+        </div>`;
+      }).join("");
+      wrap.innerHTML = `
+        <div class="mx3__grid-row" style="grid-template-columns:${gridTemplate}">${header}</div>
+        ${rows}
+      `;
+      wrap.querySelectorAll(".mx3__cell[data-key]").forEach((cell) => {
+        cell.addEventListener("click", () => {
+          highlightedKey = cell.dataset.key;
+          renderGrid();
+          renderPanel();
         });
       });
     }
 
-    // ---------- Render the Healthy People panel ----------
-    function renderBuilding(pcts) {
-      // Stacked vertical tower made of 5 segments; each segment height
-      // is proportional to its bin percentage. As the cell hover tilts
-      // the distribution, the tower visibly shifts color weight.
-      bldg.innerHTML = "";
-      const total = pcts.reduce((a, b) => a + b, 0) || 100;
-      const top = 20, bot = 268, height = bot - top;
-      let y = top;
-      const ns = "http://www.w3.org/2000/svg";
-      // Outline frame
-      const frame = document.createElementNS(ns, "rect");
-      frame.setAttribute("x", "20"); frame.setAttribute("y", "16");
-      frame.setAttribute("width", "80"); frame.setAttribute("height", "256");
-      frame.setAttribute("fill", "none");
-      frame.setAttribute("stroke", "rgba(178,204,238,0.45)");
-      frame.setAttribute("stroke-width", "1");
-      bldg.appendChild(frame);
-      // Roof slab
-      const roof = document.createElementNS(ns, "polygon");
-      roof.setAttribute("points", "20,16 100,16 92,8 28,8");
-      roof.setAttribute("fill", "rgba(178,204,238,0.08)");
-      roof.setAttribute("stroke", "rgba(178,204,238,0.35)");
-      bldg.appendChild(roof);
+    // ----- Insight panel
+    function renderPanel() {
+      const panel = document.getElementById("mx3-panel");
+      if (!panel) return;
+      const m = buildMatrix(state.buildingId);
+      const cell = m.cells[highlightedKey];
+      if (!cell) {
+        panel.innerHTML = `<div class="mx3__p-foot">No matching configurations under current filters. Try a different COP or strategy.</div>`;
+        return;
+      }
+      const grossCapex = cell.capex || (cell.battery_kwh * capexFor(cell.battery_kwh));
+      const itcCredit = grossCapex * ITC_RATE;
+      const netCapex = grossCapex - itcCredit;
+      const isNeg = cell.savings_usd < 0;
+      const baseline = cell.annual_cost_no_battery;
+      const withBat = cell.annual_cost_battery;
+      const isArb = state.mode === "arbitrage";
+      const strategyTitle = isArb ? "Arbitrage Spread Captured" : "Peak Demand Reduction";
+      const configSub = isArb
+        ? `${cell.duration_hrs}h duration · COP ${cell.cop} · Export ${state.exportScenario === "high" ? "80% of retail" : "60% of retail"}`
+        : `${fmtKW(cell.target_kw || 0)} demand target · ${cell.duration_hrs}h · COP ${cell.cop}`;
+      const savingsContext = isNeg
+        ? "net cost increase under these assumptions"
+        : (isArb ? "annual arbitrage revenue captured" : "annual demand-charge savings");
+      panel.innerHTML = `
+        <div class="mx3__p-config">
+          <div class="mx3__p-config-title">${fmtKWH(cell.battery_kwh)} / ${fmtKW(cell.power_kw)} PCS</div>
+          <div class="mx3__p-config-sub">${configSub}</div>
+        </div>
 
-      pcts.forEach((p, i) => {
-        const h = (p / total) * height;
-        const seg = document.createElementNS(ns, "rect");
-        seg.setAttribute("x", "22");
-        seg.setAttribute("y", y.toFixed(1));
-        seg.setAttribute("width", "76");
-        seg.setAttribute("height", Math.max(0, h - 1).toFixed(1));
-        seg.setAttribute("fill", BIN_COLORS[i]);
-        seg.setAttribute("opacity", "0.92");
-        seg.style.transition = "y 320ms cubic-bezier(.2,.8,.2,1), height 320ms cubic-bezier(.2,.8,.2,1)";
-        bldg.appendChild(seg);
-        y += h;
+        <div class="mx3__p-section">
+          <span class="mx3__p-section-k">${strategyTitle}</span>
+          <div class="mx3__p-hero">
+            <span class="mx3__p-hero-v${isNeg ? " is-neg" : ""}">${fmtUSD(cell.savings_usd)}</span>
+            <span class="mx3__p-hero-sub">${cell.savings_pct.toFixed(1)}% of baseline · ${savingsContext}</span>
+          </div>
+          <div class="mx3__p-rows">
+            <div class="mx3__p-row"><span class="mx3__p-row-k">Without battery</span><span class="mx3__p-row-v">${fmtUSDFull(baseline)}/yr</span></div>
+            <div class="mx3__p-row"><span class="mx3__p-row-k">With battery</span><span class="mx3__p-row-v${withBat < 0 ? " is-neg" : ""}">${fmtUSDFull(withBat)}/yr</span></div>
+          </div>
+        </div>
+
+        <div class="mx3__p-section">
+          <span class="mx3__p-section-k">Financial Case</span>
+          <div class="mx3__p-pb-hero">
+            <span class="mx3__p-pb-v">${cell.payback_after_itc < 100 ? cell.payback_after_itc.toFixed(1) : "—"}</span>
+            <span class="mx3__p-pb-unit">year payback &middot; with ITC</span>
+          </div>
+          <div class="mx3__p-rows">
+            <div class="mx3__p-row"><span class="mx3__p-row-k">CapEx</span><span class="mx3__p-row-v">${fmtUSDFull(grossCapex)}</span></div>
+            <div class="mx3__p-row"><span class="mx3__p-row-k">ITC credit (${Math.round(ITC_RATE * 100)}%)</span><span class="mx3__p-row-v is-accent">−${fmtUSDFull(itcCredit)}</span></div>
+            <div class="mx3__p-row"><span class="mx3__p-row-k">Net cost</span><span class="mx3__p-row-v">${fmtUSDFull(netCapex)}</span></div>
+          </div>
+        </div>
+
+        <div class="mx3__p-foot">LFP chemistry · CapEx curve from ${DATA.meta.source} · ${DATA.meta.mode_arbitrage_scenarios.toLocaleString()} arbitrage + ${DATA.meta.mode_peakshaving_scenarios.toLocaleString()} peak-shaving scenarios in the source dataset</div>
+      `;
+    }
+
+    // -------- Selection
+    function selectBuilding(bid) {
+      if (state.buildingId === bid) return;
+      state.buildingId = bid;
+      highlightedKey = null;
+      renderMap();
+      renderList();
+      renderSelected();
+      renderGrid();
+      renderPanel();
+    }
+
+    // -------- Mode / filter changes
+    function applyMode(mode) {
+      state.mode = mode;
+      // Toggle export-price chip group visibility
+      const exportGroup = document.getElementById("mx3-export-group");
+      if (exportGroup) exportGroup.style.display = mode === "arbitrage" ? "" : "none";
+      highlightedKey = null;
+      renderAll();
+    }
+    function applyCop(cop) {
+      state.cop = parseFloat(cop);
+      highlightedKey = null;
+      renderAll();
+    }
+    function applyExport(exp) {
+      state.exportScenario = exp;
+      highlightedKey = null;
+      renderAll();
+    }
+    function renderAll() {
+      // If current building has no scenarios under new filters, fall back
+      // to the first building that does.
+      if (!scenariosForCurrent(state.buildingId).length) {
+        const fallback = DATA.buildings.find((b) => scenariosForCurrent(b.id).length);
+        if (fallback) state.buildingId = fallback.id;
+      }
+      renderStats();
+      renderMap();
+      renderList();
+      renderSelected();
+      renderGrid();
+      renderPanel();
+    }
+
+    // -------- Wire controls
+    $$('[data-mx-mode]').forEach((btn) => {
+      btn.addEventListener("click", () => {
+        $$('[data-mx-mode]').forEach((b) => {
+          const on = b === btn;
+          b.classList.toggle("is-active", on);
+          b.setAttribute("aria-pressed", on ? "true" : "false");
+        });
+        applyMode(btn.dataset.mxMode);
       });
-      // Ground line
-      const ground = document.createElementNS(ns, "line");
-      ground.setAttribute("x1", "10"); ground.setAttribute("x2", "110");
-      ground.setAttribute("y1", "272"); ground.setAttribute("y2", "272");
-      ground.setAttribute("stroke", "rgba(178,204,238,0.18)");
-      bldg.appendChild(ground);
-    }
+    });
+    $$('[data-mx-cop]').forEach((btn) => {
+      btn.addEventListener("click", () => {
+        $$('[data-mx-cop]').forEach((b) => {
+          const on = b === btn;
+          b.classList.toggle("is-active", on);
+          b.setAttribute("aria-pressed", on ? "true" : "false");
+        });
+        applyCop(btn.dataset.mxCop);
+      });
+    });
+    $$('[data-mx-export]').forEach((btn) => {
+      btn.addEventListener("click", () => {
+        $$('[data-mx-export]').forEach((b) => {
+          const on = b === btn;
+          b.classList.toggle("is-active", on);
+          b.setAttribute("aria-pressed", on ? "true" : "false");
+        });
+        applyExport(btn.dataset.mxExport);
+      });
+    });
 
-    function renderBins(pcts, deltas) {
-      bins.innerHTML = BIN_NAMES.map((name, i) => {
-        const d = deltas[i];
-        const dStr = d == null ? "—" : ((d >= 0 ? "+" : "−") + Math.abs(d).toFixed(2) + "%");
-        const dCls = d == null || Math.abs(d) < 0.005
-          ? ""
-          : d > 0
-            ? (i >= 2 ? " is-neg" : " is-pos")
-            : (i >= 2 ? " is-pos" : " is-neg");
-        return `<div class="mx16__bin">
-          <span class="mx16__bin-dot" style="background:${BIN_COLORS[i]}"></span>
-          <span class="mx16__bin-k">${name}</span>
-          <span class="mx16__bin-v">${pcts[i].toFixed(1)}%</span>
-          <span class="mx16__bin-d${dCls}">${dStr}</span>
-        </div>`;
-      }).join("");
-    }
-
-    // ---------- Apply hovered cell to the Healthy People panel ----------
-    let activeCell = null;
-    function applyCell(shift, outdoor, el) {
-      // Visual selection
-      if (activeCell) activeCell.classList.remove("is-active");
-      if (el) { el.classList.add("is-active"); activeCell = el; }
-
-      // Recompute distribution + deltas
-      const tilted = tiltFor(shift, outdoor);
-      const deltas = tilted.map((v, i) => +(v - BASELINE_BINS[i]).toFixed(2));
-      renderBuilding(tilted);
-      renderBins(tilted, deltas);
-
-      // Readout copy
-      const pct = reductionFor(shift, outdoor);
-      const shiftLbl = shift === 0 ? "0°F (baseline)" : `${shift}°F setback`;
-      readout.textContent = `${shiftLbl} · ${outdoor}°F outdoor · ${pct.toFixed(1)}% reduction`;
-    }
-
-    // Initial state: baseline (0°F shift, 0°F outdoor cell is BASELINE)
-    renderGrid();
-    renderBuilding(BASELINE_BINS);
-    renderBins(BASELINE_BINS, [0, 0, 0, 0, 0]);
+    // -------- Initial paint
+    // Seed selected building = highest savings under default filters.
+    const seedBest = DATA.buildings
+      .map((b) => ({ b, s: bestFor(b.id) }))
+      .filter((r) => r.s)
+      .sort((a, b) => b.s.savings_usd - a.s.savings_usd)[0];
+    if (seedBest) state.buildingId = seedBest.b.id;
+    renderAll();
   })();
 
   /* ============================================================ H.E.A.A.L.

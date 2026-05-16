@@ -85,14 +85,14 @@
         Small building decisions shape <em>big</em> data center outcomes.
       </h1>
       <p class="hero__sub">
-        Data centers are becoming one of the defining building challenges of the AI era. As demand grows, the operational and material choices inside data centers will shape energy use, equipment reliability, climate impacts, public health, and lifecycle costs. 9 Foundations &mdash; a leading healthy-buildings organization comprised of PhD-level experts &mdash; brings modeling, monitoring, and building science together to quantify those interconnections and turn building performance into measurable savings.
+        Decisions about filtration, airflow, and operation affect equipment health, energy use, public health, and climate impact. 9 Foundations quantifies those effects and helps operators turn building performance into measurable savings through low-touch modeling and monitoring.
       </p>
       <ol class="hero__frame" role="list" aria-label="Outcome framework">
-        <li><span class="frame__num">01</span><span class="frame__lbl">Energy use</span></li>
-        <li><span class="frame__num">02</span><span class="frame__lbl">Equipment reliability</span></li>
-        <li><span class="frame__num">03</span><span class="frame__lbl">Climate impacts</span></li>
-        <li><span class="frame__num">04</span><span class="frame__lbl">Public health</span></li>
-        <li><span class="frame__num">05</span><span class="frame__lbl">Lifecycle costs</span></li>
+        <li><span class="frame__num">01</span><span class="frame__lbl">Equipment health</span></li>
+        <li><span class="frame__num">02</span><span class="frame__lbl">Energy use</span></li>
+        <li><span class="frame__num">03</span><span class="frame__lbl">Public health</span></li>
+        <li><span class="frame__num">04</span><span class="frame__lbl">Climate damages</span></li>
+        <li class="frame__sum"><span aria-hidden="true">→</span> all with economic implications</li>
       </ol>
       <div class="cta-row">
         <a class="btn btn--primary" href="#cta">Talk to an expert <span aria-hidden="true">→</span></a>
@@ -124,9 +124,9 @@
       <header class="section__head section__head--row">
         <div>
           <div class="eyebrow">01 &middot; Inventory</div>
-          <h2>Map the portfolio, building by building.</h2>
+          <h2>Virginia data center inventory</h2>
           <p class="lede">
-            9F scientists built a parameterized inventory of every existing and planned data center in Virginia — one of the world's densest data center hubs. Each of the 412 sites carries publicly-sourced building dimensions and a modeled HVAC profile that drive its energy, equipment, and air-quality outcomes.
+            9F scientists assembled a statistically representative dataset of every existing and planned data center in Virginia — one of the world's densest data center hubs. Each site carries the building specs and HVAC parameters that drive its energy, equipment, and air-quality outcomes.
           </p>
           <p class="muted section__geo">Same parameterization runs against any market with public site data.</p>
         </div>
@@ -144,7 +144,7 @@
           <div class="intent" role="note" aria-live="off">
             <div class="intent__row">
               <span class="intent__k">Interaction</span>
-              <span class="intent__prompt">Hover any site to track its position across the four distribution graphs on the right. Click to commit a selection. Status filters re-scope the map, the legend counts, and the distributions together.</span>
+              <span class="intent__prompt">Hover any site to preview it in the side panel; click to commit. Status and system filters re-scope the map, the legend counts, and the distribution histograms together.</span>
             </div>
             <div class="intent__state">
               <span class="intent__state-k">Selected</span>
@@ -170,6 +170,10 @@
               <button class="chip is-active" data-filter="status" data-value="all" type="button" aria-pressed="true">All</button>
               <button class="chip" data-filter="status" data-value="existing" type="button" aria-pressed="false">Existing</button>
               <button class="chip" data-filter="status" data-value="planned" type="button" aria-pressed="false">Planned</button>
+              <span class="filters__sep" aria-hidden="true"></span>
+              <button class="chip is-active" data-filter="system" data-value="all" type="button" aria-pressed="true" title="All cooling system types">All systems</button>
+              <button class="chip" data-filter="system" data-value="DLC" type="button" aria-pressed="false" title="Direct liquid cooling — coolant carries heat directly off the chips">DLC <span class="chip__expand">direct liquid</span></button>
+              <button class="chip" data-filter="system" data-value="DEC" type="button" aria-pressed="false" title="Direct evaporative cooling — outside air cooled by water evaporation">DEC <span class="chip__expand">direct evaporative</span></button>
             </div>
           </div>
           <div class="map-showing" id="map-showing" aria-live="polite">Showing all 412 sites</div>
@@ -177,37 +181,49 @@
             <svg id="va-map" viewBox="0 0 800 500" preserveAspectRatio="xMidYMid meet" aria-label="Map of Virginia data centers"></svg>
             <div class="map-loading" id="map-loading">Loading geometry…</div>
           </div>
+          <div class="map-hist" aria-label="Inventory distributions">
+            <figure class="hist">
+              <figcaption><span class="hist__k">Floor area</span><span class="hist__v">53 – 1,086,965 m²</span></figcaption>
+              <svg id="hist-floor" viewBox="0 0 320 56" preserveAspectRatio="none"></svg>
+            </figure>
+            <figure class="hist">
+              <figcaption><span class="hist__k">IT load</span><span class="hist__v">0.06 – 1,840 MW</span></figcaption>
+              <svg id="hist-it" viewBox="0 0 320 56" preserveAspectRatio="none"></svg>
+            </figure>
+            <figure class="hist">
+              <figcaption><span class="hist__k">PUE</span><span class="hist__v">1.05 – 1.90</span></figcaption>
+              <svg id="hist-pue" viewBox="0 0 320 56" preserveAspectRatio="none"></svg>
+            </figure>
+            <figure class="hist">
+              <figcaption><span class="hist__k">Filters</span><span class="hist__v">4 – 6,810</span></figcaption>
+              <svg id="hist-filters" viewBox="0 0 320 56" preserveAspectRatio="none"></svg>
+            </figure>
+          </div>
         </div>
 
-        <!-- Distribution graphs — stacked vertically where the site-detail
-             panel used to live. Hover a site dot on the map and a tracking
-             line lands on each graph at the hovered site's value. -->
-        <aside class="map-hist map-hist--stacked" aria-label="Inventory distributions">
-          <header class="map-hist__head">
-            <div class="eyebrow">Site distributions</div>
-            <p class="muted" id="hist-sub">Hover a site on the map to mark its position across all four metrics.</p>
-            <div class="map-hist__active" id="hist-active" aria-live="polite">— · click any site to commit</div>
+        <aside class="map-panel" aria-live="polite">
+          <header>
+            <div class="eyebrow">Site detail</div>
+            <h3 id="site-title">—</h3>
+            <p id="site-sub" class="muted">Each modeled site carries a full HVAC and building-physics parameterization.</p>
           </header>
-          <figure class="hist">
-            <figcaption><span class="hist__k">Floor area</span><span class="hist__v">53 – 1,086,965 m²</span></figcaption>
-            <svg id="hist-floor" viewBox="0 0 320 80" preserveAspectRatio="none"></svg>
-            <span class="hist__mark" id="hist-floor-val">—</span>
-          </figure>
-          <figure class="hist">
-            <figcaption><span class="hist__k">IT load</span><span class="hist__v">0.06 – 1,840 MW</span></figcaption>
-            <svg id="hist-it" viewBox="0 0 320 80" preserveAspectRatio="none"></svg>
-            <span class="hist__mark" id="hist-it-val">—</span>
-          </figure>
-          <figure class="hist">
-            <figcaption><span class="hist__k">PUE</span><span class="hist__v">1.05 – 1.90</span></figcaption>
-            <svg id="hist-pue" viewBox="0 0 320 80" preserveAspectRatio="none"></svg>
-            <span class="hist__mark" id="hist-pue-val">—</span>
-          </figure>
-          <figure class="hist">
-            <figcaption><span class="hist__k">Filters</span><span class="hist__v">4 – 6,810</span></figcaption>
-            <svg id="hist-filters" viewBox="0 0 320 80" preserveAspectRatio="none"></svg>
-            <span class="hist__mark" id="hist-filters-val">—</span>
-          </figure>
+          <dl class="kv" id="site-kv">
+            <div><dt>County</dt><dd>—</dd></div>
+            <div><dt>Status</dt><dd>—</dd></div>
+            <div><dt>Floor area</dt><dd>—</dd></div>
+            <div><dt>Ceiling height</dt><dd>—</dd></div>
+            <div><dt>IT load</dt><dd>—</dd></div>
+            <div><dt>PUE</dt><dd>—</dd></div>
+            <div><dt>System type</dt><dd>—</dd></div>
+            <div><dt>Air fraction</dt><dd>—</dd></div>
+            <div><dt>System capacity</dt><dd>—</dd></div>
+            <div><dt>Filters</dt><dd>—</dd></div>
+            <div><dt>eGRID region</dt><dd>—</dd></div>
+            <div><dt>Coordinates</dt><dd>—</dd></div>
+          </dl>
+          <p class="map-panel__note">
+            Sites are modeled as parameterized archetypes; exact lat/long points are public-safe.
+          </p>
         </aside>
       </div>
     </div>
@@ -289,8 +305,8 @@
           <div class="fs__control">
             <span class="fs__control-lbl">Case study</span>
             <div class="fs__chipset" role="group" aria-label="Case study">
-              <button class="chip is-active" data-fs-case="A" type="button" aria-pressed="true">Data Center A</button>
-              <button class="chip" data-fs-case="B" type="button" aria-pressed="false">Data Center B</button>
+              <button class="chip is-active" data-fs-case="A" type="button" aria-pressed="true">Data Center A &middot; Manassas, VA</button>
+              <button class="chip" data-fs-case="B" type="button" aria-pressed="false">Data Center B &middot; Boydton, VA</button>
             </div>
           </div>
           <div class="fs__control">
@@ -307,7 +323,7 @@
         <div class="fs__case-strip" aria-live="off">
           <span class="fs__case-mark">FILTER<span>STUDIO</span></span>
           <span class="fs__case-divider" aria-hidden="true">·</span>
-          <span class="fs__case-name" id="fs-case-name">Data Center A</span>
+          <span class="fs__case-name" id="fs-case-name">Data Center A · Manassas, VA</span>
           <span class="fs__case-divider" aria-hidden="true">|</span>
           <span class="fs__case-period">1 Year Period</span>
         </div>
@@ -385,66 +401,94 @@
         <div class="eyebrow">03 &middot; MATRIX</div>
         <h2>Simulate before you build.</h2>
         <p class="lede">
-          MATRIX models how HVAC setback decisions ripple into annual energy consumption and occupant comfort. The heatmap below shows percent-reduction sensitivity across an HVAC-shift × outdoor-temperature surface; hovering a cell tilts the same building's IEQ distribution to show what people experience at that operating point.
+          MATRIX screens a portfolio of commercial buildings against two grid-interactive strategies — peak shaving and arbitrage — then drills into one building to size a battery, compare configurations, and expose the financial case. Decision-grade savings, percent of baseline, and payback on every cell.
         </p>
       </header>
 
-      <!-- Chapter chrome — echoes slide 16's tabbed header strip. The
-           inactive tabs are presentation-recognition cues only; "Healthy
-           Defaults" is the live chapter rendered below. -->
-      <div class="mx16__chrome" role="toolbar" aria-label="MATRIX chapter chrome">
-        <div class="mx16__brand">
-          <span class="mx16__brand-mark">MATRIX</span>
+      <!-- Module chapter strip — echoes the deck's MATRIX title slide
+           by naming the module + the workflow chapters audiences saw -->
+      <div class="mx3__chapter" aria-hidden="true">
+        <span class="mx3__chapter-mark">MATRIX</span>
+        <span class="mx3__chapter-divider">·</span>
+        <span class="mx3__chapter-name">Grid Interactive Buildings</span>
+        <span class="mx3__chapter-divider">|</span>
+        <span class="mx3__chapter-sub">Portfolio · Selected building · Configuration matrix · Financial case</span>
+      </div>
+      <p class="mx3__disclosure">
+        This web preview focuses on MATRIX's grid-interactive storage workflow — battery sizing, peak shaving, and arbitrage across an 8-building sample of the 50+ building source portfolio. The HVAC-setback and healthy-defaults chapters of MATRIX shown in the presentation live in the production application.
+      </p>
+
+      <!-- Strategy + filter bar (governs the whole section) -->
+      <div class="mx3__controls" role="toolbar" aria-label="MATRIX controls">
+        <div class="mx3__control">
+          <span class="mx3__lbl">Strategy</span>
+          <div class="fs__chipset" role="group" aria-label="Strategy">
+            <button class="chip is-active" data-mx-mode="arbitrage"   type="button" aria-pressed="true">Arbitrage</button>
+            <button class="chip"           data-mx-mode="peakshaving" type="button" aria-pressed="false">Peak shaving</button>
+          </div>
         </div>
-        <div class="mx16__tabs" role="tablist">
-          <span class="mx16__tab" data-mx16-tab="generation" aria-disabled="true">Generation</span>
-          <span class="mx16__tab is-active" data-mx16-tab="healthy" aria-current="page">Healthy Defaults</span>
-          <span class="mx16__tab" data-mx16-tab="saving" aria-disabled="true">Saving Details</span>
-          <span class="mx16__tab" data-mx16-tab="financial" aria-disabled="true">Financial</span>
-          <span class="mx16__tab" data-mx16-tab="opt" aria-disabled="true">Optimization</span>
+        <div class="mx3__control">
+          <span class="mx3__lbl">COP</span>
+          <div class="fs__chipset" role="group" aria-label="Heat-pump COP">
+            <button class="chip"           data-mx-cop="3.0" type="button" aria-pressed="false">3.0</button>
+            <button class="chip is-active" data-mx-cop="3.5" type="button" aria-pressed="true">3.5</button>
+            <button class="chip"           data-mx-cop="4.0" type="button" aria-pressed="false">4.0</button>
+          </div>
         </div>
-        <span class="mx16__sim-badge">
-          <span class="mx16__sim-k">Matrix Simulations</span>
-          <span class="mx16__sim-v" id="mx16-sim-count">12,552 runs</span>
-        </span>
+        <div class="mx3__control" id="mx3-export-group">
+          <span class="mx3__lbl">Export price</span>
+          <div class="fs__chipset" role="group" aria-label="Export price">
+            <button class="chip is-active" data-mx-export="mid"  type="button" aria-pressed="true">Mid &middot; 60%</button>
+            <button class="chip"           data-mx-export="high" type="button" aria-pressed="false">High &middot; 80%</button>
+          </div>
+        </div>
+        <div class="mx3__stats" id="mx3-stats" aria-live="off">
+          <span class="mx3__stat"><span class="mx3__stat-k">Net positive &middot; sample</span><span class="mx3__stat-v" id="mx3-positive">—</span></span>
+          <span class="mx3__stat"><span class="mx3__stat-k">Sample savings</span><span class="mx3__stat-v" id="mx3-total">—</span></span>
+          <span class="mx3__stat"><span class="mx3__stat-k">Avg payback &middot; ITC</span><span class="mx3__stat-v" id="mx3-payback">—</span></span>
+        </div>
       </div>
 
-      <!-- Section title + subtitle (slide 16 typography) -->
-      <div class="mx16__title">
-        <h3 class="mx16__h3">Reduction in Annual Energy Consumption</h3>
-        <p class="mx16__sub">Range represents model sensitivity to baseline deadband · HVAC shift &times; outdoor temperature</p>
-      </div>
-
-      <!-- Matrix grid (left) + Healthy People building panel (right) -->
-      <div class="mx16__body">
-        <div class="mx16__matrix">
-          <span class="mx16__matrix-title">Healthy Energy</span>
-          <div class="mx16__grid-wrap">
-            <div class="mx16__grid-ylabel" aria-hidden="true">↑ HVAC shift (°F)</div>
-            <div class="mx16__grid" id="mx16-grid">
-              <!-- populated by app.js -->
-            </div>
-            <div class="mx16__grid-xlabel" aria-hidden="true">Outdoor temperature (°F) →</div>
+      <!-- Part 1 · Portfolio screening -->
+      <div class="mx3__portfolio">
+        <div class="mx3__map">
+          <div class="mx3__map-head">
+            <div class="eyebrow eyebrow--sm">Portfolio sample &middot; <span id="mx3-bldg-count">8</span> commercial buildings</div>
+            <span class="mx3__sample-note">Curated slice of the 50+ building source portfolio</span>
           </div>
-          <div class="mx16__legend">
-            <span class="mx16__legend-k">Energy reduction</span>
-            <span class="mx16__legend-bar"></span>
-            <span class="mx16__legend-lbl"><span>0%</span><span>8%+</span></span>
+          <svg id="mx3-us-map" viewBox="0 0 480 280" preserveAspectRatio="xMidYMid meet"></svg>
+          <div class="mx3__map-legend">
+            <span class="mx3__map-legend-k">Annual savings</span>
+            <span class="mx3__map-legend-bar"></span>
+            <span class="mx3__map-legend-lbl"><span>$0</span><span>$275K+</span></span>
           </div>
         </div>
-
-        <aside class="mx16__healthy" aria-label="Healthy People · IEQ distribution">
-          <header class="mx16__healthy-head">
-            <span class="eyebrow eyebrow--sm">Healthy People</span>
-            <span class="mx16__healthy-cell" id="mx16-cell-readout">Hover any cell &middot; baseline shown</span>
-          </header>
-          <div class="mx16__healthy-body">
-            <svg id="mx16-bldg" class="mx16__healthy-bldg" viewBox="0 0 120 280" preserveAspectRatio="xMidYMid meet" aria-hidden="true"></svg>
-            <div class="mx16__bins" id="mx16-bins">
-              <!-- 5 rows populated by app.js (Health Optimized / Excellent / Action / Alert / Limit) -->
-            </div>
+        <div class="mx3__list">
+          <div class="mx3__list-head">
+            <span class="eyebrow eyebrow--sm">Buildings &middot; best config at current filters</span>
+            <span class="mx3__list-hint">Click any building to drill in &middot;</span>
           </div>
-          <p class="mx16__healthy-foot">Building tilt = same population, different operating point. As setback gets aggressive at hot or cold extremes, more occupants land in Action / Alert / Limit bins.</p>
+          <div class="mx3__table" role="listbox" id="mx3-list" aria-label="Buildings"></div>
+        </div>
+      </div>
+
+      <!-- Part 2 · Selected building bar -->
+      <div class="mx3__selected" id="mx3-selected" aria-live="off"></div>
+
+      <!-- Part 3 · Configuration matrix + insight panel -->
+      <div class="mx3__study">
+        <div class="mx3__grid">
+          <div class="mx3__grid-head">
+            <span class="eyebrow eyebrow--sm">Configuration matrix</span>
+            <span class="mx3__grid-axis">Battery size <span aria-hidden="true">→</span></span>
+          </div>
+          <div class="mx3__grid-table" id="mx3-grid">
+            <!-- populated by app.js: battery × duration cells -->
+          </div>
+          <span class="mx3__grid-side" aria-hidden="true">↑ Duration</span>
+        </div>
+        <aside class="mx3__panel" id="mx3-panel" aria-live="off">
+          <!-- populated by app.js: config badge → savings → financial case -->
         </aside>
       </div>
     </div>

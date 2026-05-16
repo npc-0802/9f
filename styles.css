@@ -663,57 +663,90 @@ sub, sup { font-size: 0.7em; }
 }
 .map-loading.is-hidden { opacity: 0; pointer-events: none; }
 
-/* Inventory distribution histograms — properly aligned system: label
-   row, value row, sparkbar. All four metrics share the same vertical
-   rhythm so floor area / IT load / PUE / filters read as one block. */
-.map-hist {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 0;
-  border-top: 1px solid var(--line-1);
-  padding: 16px 0 6px;
-  margin-top: 6px;
+/* Inventory distribution graphs — STACKED variant sitting in the
+   side column (replaces the old site-detail panel). Hovering a map
+   dot adds a tracker line at the hovered site's value across all
+   four graphs simultaneously. */
+.map-hist--stacked {
+  display: flex; flex-direction: column;
+  gap: 16px;
+  background: linear-gradient(180deg, var(--bg-2), var(--bg-1));
+  border: 1px solid var(--line-1);
+  border-radius: var(--r-lg);
+  padding: 22px;
 }
-.map-hist .hist {
+.map-hist__head { display: flex; flex-direction: column; gap: 6px; padding-bottom: 12px; border-bottom: 1px solid var(--line-2); margin-bottom: 4px; }
+.map-hist__head p { font-size: 0.84rem; }
+.map-hist__active {
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  letter-spacing: 0.04em;
+  color: var(--accent-2);
+  margin-top: 6px;
+  font-variant-numeric: tabular-nums;
+}
+.map-hist--stacked .hist {
+  position: relative;
   display: grid;
   grid-template-rows: auto auto 1fr;
   gap: 4px;
-  padding: 0 16px;
-  border-right: 1px solid var(--line-2);
   margin: 0;
+  padding: 8px 0;
+  border-bottom: 1px dashed var(--line-2);
 }
-.map-hist .hist:last-child { border-right: 0; }
-.map-hist figcaption {
-  display: contents;
+.map-hist--stacked .hist:last-child { border-bottom: 0; }
+.map-hist--stacked figcaption {
+  display: flex; justify-content: space-between; align-items: baseline;
+  gap: 14px;
 }
-.hist__k {
+.map-hist--stacked .hist__k {
   color: var(--ink-3);
   font-size: 0.7rem;
   font-family: var(--font-mono);
   text-transform: uppercase;
   letter-spacing: 0.14em;
-  grid-row: 1;
 }
-.hist__v {
+.map-hist--stacked .hist__v {
   color: var(--ink-1);
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.01em;
-  grid-row: 2;
 }
-.map-hist svg { width: 100%; height: 52px; display: block; grid-row: 3; align-self: end; }
-.map-hist .bar-ghost { fill: rgba(178,204,238,0.06); }
+.map-hist--stacked svg {
+  width: 100%;
+  height: 80px;
+  display: block;
+}
+.hist__mark {
+  position: absolute;
+  bottom: 8px; right: 0;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--accent-2);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  pointer-events: none;
+}
+.map-hist .bar-ghost { fill: rgba(178,204,238,0.08); }
 .map-hist .bar-active { fill: var(--accent); opacity: 0.85; }
 .map-hist .bar-baseline { stroke: var(--line-2); stroke-width: 0.5; }
-@media (max-width: 900px) {
-  .map-hist { grid-template-columns: repeat(2, 1fr); }
-  .map-hist .hist:nth-child(2) { border-right: 0; }
+.map-hist .hist__track-line {
+  stroke: var(--accent-2);
+  stroke-width: 1.4;
+  stroke-dasharray: 3 3;
+  opacity: 0;
+  transition: opacity 160ms var(--ease);
 }
-@media (max-width: 480px) {
-  .map-hist { grid-template-columns: 1fr; }
-  .map-hist .hist { border-right: 0; border-bottom: 1px solid var(--line-2); padding-bottom: 8px; }
+.map-hist .hist__track-line.is-on { opacity: 0.9; }
+.map-hist .hist__track-dot {
+  fill: var(--accent-2);
+  stroke: var(--bg-0);
+  stroke-width: 1.2;
+  opacity: 0;
+  transition: opacity 160ms var(--ease);
 }
+.map-hist .hist__track-dot.is-on { opacity: 1; }
 
 /* Map dots */
 .dc-dot { transition: r var(--t-fast) var(--ease), opacity var(--t-fast); cursor: pointer; }
@@ -767,6 +800,24 @@ sub, sup { font-size: 0.7em; }
   text-align: right;
 }
 .kv--tight > div { padding: 7px 0; }
+/* Briefing-style sub-headers — echo the deck's "Location Information"
+   / "Building Information" / "System Characteristics" sectioning above
+   the kv rows. Mono accent, top rule. */
+.kv__group-title {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--accent);
+  padding: 12px 0 6px;
+  margin-top: 6px;
+  border-top: 1px solid var(--line-1);
+}
+.kv__group-title:first-child {
+  padding-top: 0;
+  margin-top: 0;
+  border-top: 0;
+}
 
 /* ============================================================ PRODUCTS — shared */
 
@@ -851,16 +902,21 @@ sub, sup { font-size: 0.7em; }
 }
 .chip--xs { padding: 4px 10px; font-size: 0.7rem; }
 
-/* Main visual zone — three stacked charts on the left, building
-   archetype figure on the right. Charts show real conditions advancing
-   through one operating year. */
+/* Main visual zone — building animation figure on the LEFT, three
+   stacked graphs on the RIGHT (per slide-fidelity brief). Mobile
+   stacks figure-first then graphs to preserve the same hierarchy. */
 .fs__visual {
   display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(280px, 1fr);
+  grid-template-columns: minmax(300px, 1fr) minmax(0, 1.6fr);
   gap: 20px;
   margin-bottom: 22px;
+  align-items: start;
 }
-@media (max-width: 980px) { .fs__visual { grid-template-columns: 1fr; } }
+@media (max-width: 980px) {
+  .fs__visual { grid-template-columns: 1fr; }
+  .fs__visual .fs__archetype { order: 1; }
+  .fs__visual .fs__charts    { order: 2; }
+}
 .fs__charts { display: flex; flex-direction: column; gap: 10px; }
 .fs__chart {
   margin: 0;
@@ -868,19 +924,39 @@ sub, sup { font-size: 0.7em; }
   border: 1px solid var(--line-1);
   border-radius: var(--r-md);
   padding: 12px 16px 10px;
+  border-left-width: 3px;
 }
 .fs__chart figcaption {
-  display: flex; justify-content: space-between; align-items: baseline;
-  gap: 14px; margin-bottom: 6px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "tag value"
+    "title value";
+  gap: 2px 14px;
+  margin-bottom: 8px;
+  align-items: baseline;
+}
+/* KEY INSIGHT #N · Lane — small mono tag echoing the deck's chart-title
+   convention. Color comes from the lane modifier below. */
+.fs__chart-tag {
+  grid-area: tag;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--accent-2);
 }
 .fs__chart-k {
+  grid-area: title;
   font-family: var(--font-display);
   color: var(--ink-1);
   font-weight: 600;
-  font-size: 0.9rem;
-  letter-spacing: 0.02em;
+  font-size: 0.92rem;
+  letter-spacing: 0.005em;
 }
 .fs__chart-v {
+  grid-area: value;
   font-family: var(--font-mono);
   color: var(--ink-3);
   font-size: 0.72rem;
@@ -890,6 +966,128 @@ sub, sup { font-size: 0.7em; }
 }
 .fs__chart-v span { color: var(--ink-1); }
 .fs__chart svg { width: 100%; height: 124px; display: block; }
+/* Lane colors — same five-category vocabulary the deck uses:
+   Performance (royal) · Health (purple) · Energy (pink-red) ·
+   Society (yellow) · Dollars (green). The chart's left-border picks
+   up the lane color so the KEY INSIGHT card carries the same lane
+   signal as the TBO summary below. */
+.fs__chart--performance { border-left-color: #0A74D6; }
+.fs__chart--performance .fs__chart-tag { color: #6BA6F1; }
+.fs__chart--health      { border-left-color: #A266C9; }
+.fs__chart--health      .fs__chart-tag { color: #C39DD9; }
+.fs__chart--energy      { border-left-color: #D85E80; }
+.fs__chart--energy      .fs__chart-tag { color: #E48BA3; }
+.fs__chart--society     { border-left-color: #E2C75E; }
+.fs__chart--society     .fs__chart-tag { color: #F1DC8F; }
+.fs__chart--dollars     { border-left-color: #7CB342; }
+.fs__chart--dollars     .fs__chart-tag { color: #A4C639; }
+
+/* Case-study strip — echoes the deck's slide header that names the
+   case and the period. Sits above the site characteristics + charts so
+   audience members read it the same way as the slides. */
+.fs__case-strip {
+  display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
+  padding: 12px 16px;
+  background: linear-gradient(90deg, rgba(10,116,214,0.16), rgba(10,116,214,0.02));
+  border: 1px solid rgba(10,116,214,0.32);
+  border-radius: var(--r-md);
+  margin-bottom: 14px;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  color: var(--ink-2);
+}
+.fs__case-mark {
+  font-family: var(--font-display);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #7CB342;
+  font-size: 0.86rem;
+}
+.fs__case-mark span { color: var(--ink-1); }
+.fs__case-divider { color: var(--ink-4); }
+.fs__case-name {
+  font-family: var(--font-display);
+  font-weight: 600;
+  color: var(--ink-1);
+  letter-spacing: 0.005em;
+  font-size: 0.92rem;
+}
+.fs__case-period {
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--ink-3);
+  font-size: 0.72rem;
+}
+
+/* Site characteristics — briefing block matching the deck's address /
+   building / system info card on the case-study setup slides. Two
+   column groups (Building · System) plus a header strip. */
+.fs__site {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0;
+  border: 1px solid var(--line-1);
+  border-radius: var(--r-md);
+  background: linear-gradient(180deg, var(--bg-2), var(--bg-1));
+  padding: 14px 18px;
+  margin-bottom: 14px;
+}
+@media (max-width: 720px) { .fs__site { grid-template-columns: 1fr; } }
+.fs__site-head {
+  grid-column: 1 / -1;
+  display: flex; justify-content: space-between; align-items: baseline;
+  gap: 14px; flex-wrap: wrap;
+  padding-bottom: 10px; margin-bottom: 12px;
+  border-bottom: 1px solid var(--line-2);
+}
+.fs__site-title {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--accent);
+  font-weight: 600;
+}
+.fs__site-addr {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--ink-2);
+  letter-spacing: 0.02em;
+}
+.fs__site-col {
+  display: grid; grid-template-columns: 1fr; gap: 4px;
+  padding: 0 8px;
+}
+.fs__site-col + .fs__site-col {
+  border-left: 1px solid var(--line-2);
+  padding-left: 20px;
+  margin-left: 8px;
+}
+@media (max-width: 720px) {
+  .fs__site-col + .fs__site-col { border-left: 0; padding-left: 8px; margin-left: 0; border-top: 1px solid var(--line-2); padding-top: 10px; margin-top: 10px; }
+}
+.fs__site-row {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  padding: 4px 0;
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  letter-spacing: 0.01em;
+}
+.fs__site-row dt {
+  color: var(--ink-3);
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.fs__site-row dd {
+  margin: 0;
+  color: var(--ink-1);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
 
 .fs__archetype {
   position: relative;
@@ -1000,6 +1198,30 @@ sub, sup { font-size: 0.7em; }
 .fs__delta--win .fs__delta-v { color: var(--accent-2); }
 .fs__delta--total .fs__delta-v { color: var(--accent); }
 .fs__delta--total .fs__delta-actor { color: var(--accent); }
+
+/* TBO lane chrome — the deck's color-coded category stack (Performance
+   royal · Health purple · Energy pink-red · Society yellow · Dollars
+   green). Tile gets a tinted left rule + lane-colored value so the
+   compare strip reads like a continuation of the deck's TBO summary. */
+.fs__delta--lane { border-left: 3px solid transparent; padding-left: 12px; }
+.fs__delta--performance { border-left-color: #0A74D6; }
+.fs__delta--performance .fs__delta-v     { color: #6BA6F1; }
+.fs__delta--performance .fs__delta-actor { color: #6BA6F1; }
+.fs__delta--health      { border-left-color: #A266C9; }
+.fs__delta--health      .fs__delta-v     { color: #C39DD9; }
+.fs__delta--health      .fs__delta-actor { color: #C39DD9; }
+.fs__delta--energy      { border-left-color: #D85E80; }
+.fs__delta--energy      .fs__delta-v     { color: #E48BA3; }
+.fs__delta--energy      .fs__delta-actor { color: #E48BA3; }
+.fs__delta--society     { border-left-color: #E2C75E; }
+.fs__delta--society     .fs__delta-v     { color: #F1DC8F; }
+.fs__delta--society     .fs__delta-actor { color: #F1DC8F; }
+.fs__delta--dollars     { border-left-color: #7CB342; }
+.fs__delta--dollars     .fs__delta-v     { color: #A4C639; }
+.fs__delta--dollars     .fs__delta-actor { color: #A4C639; }
+@media (max-width: 1080px) {
+  .fs__delta--lane:nth-child(3n) { border-right: 0; }
+}
 @media (max-width: 1080px) {
   .fs__deltas { grid-template-columns: repeat(3, 1fr); gap: 18px 0; }
   .fs__deltas--single { grid-template-columns: repeat(3, 1fr); }
@@ -1022,6 +1244,63 @@ sub, sup { font-size: 0.7em; }
   border-left: 2px solid var(--accent);
   border-radius: 0;
   padding: 36px 40px;
+}
+
+/* Band variant — used when the finding sits ABOVE the panel as a
+   proof-bridge into the case study, rather than below as a closing
+   summary. Compressed padding + smaller headline number so it reads
+   as a framing strip subordinate to the section H2, not as the
+   section's hero card. */
+.fs__headline--band {
+  margin-top: 0;
+  margin-bottom: 18px;
+  padding: 22px 28px;
+  background: linear-gradient(180deg, var(--bg-3), var(--bg-2));
+}
+.fs__headline--band .fs__headline-eyebrow { margin-bottom: 10px; }
+.fs__headline--band .fs__headline-result {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px 24px;
+  align-items: baseline;
+}
+.fs__headline--band .fs__headline-num {
+  font-size: clamp(2.4rem, 5vw, 3.8rem);
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+.fs__headline--band .fs__headline-copy {
+  display: flex; flex-direction: column; gap: 4px;
+  min-width: 0;
+}
+.fs__headline--band .fs__headline-copy h3 {
+  font-size: clamp(0.95rem, 1.4vw, 1.15rem);
+  margin: 0;
+  max-width: 50ch;
+  line-height: 1.35;
+  font-weight: 600;
+  letter-spacing: 0.005em;
+  color: var(--ink-1);
+}
+.fs__headline--band .fs__headline-copy p {
+  color: var(--ink-3);
+  font-size: 0.86rem;
+  max-width: 60ch;
+  margin: 0;
+  line-height: 1.5;
+}
+.fs__headline--band .fs__headline-stats {
+  padding-top: 14px;
+  margin-top: 14px;
+  gap: 18px 24px;
+}
+.fs__headline--band .fs__headline-stats b { font-size: 1.05rem; }
+.fs__headline--band .fs__method { margin-top: 16px; padding-top: 14px; }
+@media (max-width: 720px) {
+  .fs__headline--band .fs__headline-result {
+    grid-template-columns: 1fr;
+  }
+  .fs__headline--band { padding: 18px 20px; }
 }
 .fs__headline-eyebrow { display: flex; justify-content: space-between; align-items: center; gap: 18px; flex-wrap: wrap; margin-bottom: 14px; }
 .fs__headline-method { color: var(--ink-3); }
@@ -1076,454 +1355,407 @@ sub, sup { font-size: 0.7em; }
 @media (max-width: 420px) { .fs__headline-stats { grid-template-columns: 1fr; } }
 @media (max-width: 900px) { .fs__headline { padding: 26px; } }
 
+/* Methodology disclosure under the $39.9M headline — uses native
+   <details>/<summary> so it's keyboard-accessible without JS. Closed
+   state shows a single text-link affordance; open state reveals a
+   compact key/value block naming the climate + health valuation
+   bases and the per-site variance dimensions. */
+.fs__method {
+  margin-top: 24px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line-2);
+}
+.fs__method-toggle {
+  display: inline-flex; align-items: baseline; gap: 8px;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent-2);
+  list-style: none;
+  border: 0;
+  background: transparent;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--line-1);
+  transition: color var(--t-fast), border-color var(--t-fast);
+}
+.fs__method-toggle::-webkit-details-marker { display: none; }
+.fs__method-toggle:hover {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+.fs__method-toggle:focus-visible {
+  outline: 2px solid var(--accent-2);
+  outline-offset: 2px;
+}
+.fs__method-toggle-cue {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--accent-2);
+  transition: transform var(--t-med) var(--ease);
+}
+.fs__method[open] .fs__method-toggle-cue {
+  transform: rotate(45deg);
+}
+.fs__method-body {
+  margin-top: 16px;
+  padding: 16px 18px;
+  background: rgba(178,204,238,0.03);
+  border: 1px solid var(--line-1);
+  border-left: 2px solid var(--accent);
+  border-radius: var(--r-md);
+}
+.fs__method-lede {
+  font-size: 0.92rem;
+  color: var(--ink-2);
+  margin-bottom: 14px;
+  line-height: 1.55;
+  max-width: 70ch;
+}
+.fs__method-lede em { color: var(--accent-2); font-style: normal; font-weight: 600; }
+.fs__method-rows {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0;
+  margin: 0;
+}
+.fs__method-rows > div {
+  display: grid;
+  grid-template-columns: minmax(0, 0.7fr) minmax(0, 2fr);
+  gap: 18px;
+  padding: 10px 0;
+  border-top: 1px solid var(--line-2);
+}
+.fs__method-rows > div:first-child { border-top: 0; padding-top: 4px; }
+.fs__method-rows dt {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  align-self: start;
+}
+.fs__method-rows dd {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+.fs__method-rows abbr {
+  text-decoration: none;
+  border-bottom: 1px dotted var(--line-strong);
+  cursor: help;
+}
+@media (max-width: 720px) {
+  .fs__method-rows > div { grid-template-columns: 1fr; gap: 4px; }
+}
+
 /* ============================================================ MATRIX
-   Compact product-slice translation of the real MATRIX dashboard at
-   /tmp/matrix_brief_ingest/MATRIX. Three parts visible in one section:
-     1. Portfolio screening (US map + building list at active filters)
-     2. Selected-building identity card
-     3. Configuration matrix (battery × duration) + financial-case panel
-   Strategy toggle (arbitrage / peakshaving) governs the whole section.
-   Section ships denser than its neighbors on purpose — the brief calls
-   this contrast desirable. Reference: 9f_matrix_execution_brief.md.
+   Slide-16 fidelity rebuild. Title slide of the chapter shown in the
+   presentation: "Reduction in Annual Energy Consumption" — a heatmap
+   of HVAC-shift × outdoor-temperature cells (green gradient % savings)
+   on the left, and a Healthy People IEQ-distribution panel (5 brand
+   threshold bins, building tilt animation) on the right.
    ================================================================ */
 
 .product--mx { background: linear-gradient(180deg, #08111e, var(--bg-0)); }
 
-/* ---------- Controls + stats ---------- */
-.mx3__controls {
+/* Chapter chrome — slide-16 tabbed header */
+.mx16__chrome {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.3fr);
-  gap: 18px 22px;
-  padding: 14px 18px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 14px 18px;
+  align-items: center;
+  padding: 10px 16px;
+  margin-bottom: 14px;
   background: linear-gradient(180deg, var(--bg-2), var(--bg-1));
   border: 1px solid var(--line-1);
-  border-radius: var(--r-md);
-  margin-bottom: 14px;
+  border-top: 2px solid var(--accent);
+  border-radius: var(--r-sm);
 }
-@media (max-width: 1080px) { .mx3__controls { grid-template-columns: 1fr 1fr; } .mx3__stats { grid-column: 1 / -1; } }
-@media (max-width: 640px)  { .mx3__controls { grid-template-columns: 1fr; } }
-.mx3__control { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-.mx3__lbl {
+.mx16__brand-mark {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-1);
+}
+.mx16__tabs {
+  display: inline-flex; gap: 0;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.mx16__tab {
+  padding: 6px 14px;
   font-family: var(--font-mono);
-  font-size: 0.66rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-4);
+  border-right: 1px solid var(--line-2);
+}
+.mx16__tab:last-child { border-right: 0; }
+.mx16__tab.is-active {
+  color: var(--ink-1);
+  background: rgba(10,116,214,0.12);
+  border-bottom: 2px solid var(--accent);
+}
+.mx16__sim-badge {
+  display: inline-flex; flex-direction: column; align-items: flex-end;
+  padding: 4px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-sm);
+  font-family: var(--font-mono);
+}
+.mx16__sim-k {
+  font-size: 0.62rem;
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--ink-3);
 }
-.mx3__stats {
-  display: flex; align-items: center; justify-content: flex-end;
-  gap: 22px; flex-wrap: wrap;
-}
-.mx3__stat { display: flex; flex-direction: column; gap: 2px; align-items: flex-end; }
-.mx3__stat-k {
-  font-family: var(--font-mono);
-  font-size: 0.66rem;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--ink-3);
-}
-.mx3__stat-v {
-  font-family: var(--font-display);
-  font-size: 1.05rem;
-  font-weight: 700;
+.mx16__sim-v {
+  font-size: 0.78rem;
   color: var(--ink-1);
-  letter-spacing: -0.005em;
-  font-variant-numeric: tabular-nums;
-}
-@media (max-width: 1080px) { .mx3__stats { justify-content: flex-start; } .mx3__stat { align-items: flex-start; } }
-
-/* ---------- Part 1 · Portfolio screening (map + list) ---------- */
-.mx3__portfolio {
-  display: grid;
-  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
-  gap: 16px;
-  margin-bottom: 16px;
-}
-@media (max-width: 980px) { .mx3__portfolio { grid-template-columns: 1fr; } }
-.mx3__map, .mx3__list {
-  background: linear-gradient(180deg, var(--bg-2), var(--bg-1));
-  border: 1px solid var(--line-1);
-  border-radius: var(--r-md);
-  padding: 16px 18px;
-  display: flex; flex-direction: column; gap: 10px;
-  min-height: 320px;
-}
-.mx3__map-head {
-  display: flex; align-items: baseline; justify-content: space-between;
-  gap: 12px; flex-wrap: wrap;
-}
-.mx3__sample-note {
-  font-family: var(--font-mono);
-  font-size: 0.66rem;
-  letter-spacing: 0.08em;
-  color: var(--ink-4);
-  font-style: italic;
-}
-#mx3-us-map { width: 100%; flex: 1; min-height: 230px; display: block; }
-.mx3__map-legend {
-  display: flex; align-items: center; gap: 12px;
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  color: var(--ink-3);
-  letter-spacing: 0.04em;
-}
-.mx3__map-legend-k { text-transform: uppercase; letter-spacing: 0.14em; color: var(--ink-4); }
-.mx3__map-legend-bar {
-  flex: 1; height: 6px;
-  background: linear-gradient(90deg, #4a5568 0%, #c5d96a 20%, #7cb342 60%, #3a6b2a 100%);
-  border-radius: 0;
-  max-width: 180px;
-}
-.mx3__map-legend-lbl {
-  display: inline-flex; gap: 8px;
-  font-variant-numeric: tabular-nums;
-}
-.mx3__map-legend-lbl span { color: var(--ink-3); }
-
-.mx3__list-head {
-  display: flex; align-items: baseline; justify-content: space-between;
-  gap: 14px; flex-wrap: wrap;
-}
-.mx3__list-hint {
-  font-family: var(--font-mono);
-  font-size: 0.7rem;
+  font-weight: 600;
   letter-spacing: 0.06em;
-  color: var(--ink-4);
+  font-variant-numeric: tabular-nums;
 }
-.mx3__table {
-  flex: 1;
-  display: flex; flex-direction: column;
+@media (max-width: 900px) { .mx16__chrome { grid-template-columns: 1fr; } .mx16__sim-badge { align-items: flex-start; } }
+
+/* Title + sub */
+.mx16__title { margin: 0 0 18px; }
+.mx16__h3 {
+  font-family: var(--font-display);
+  font-size: clamp(1.3rem, 2.2vw, 1.7rem);
+  font-weight: 700;
+  letter-spacing: 0.005em;
+  color: var(--ink-1);
+  text-transform: none;
+}
+.mx16__sub {
+  margin-top: 6px;
   font-family: var(--font-mono);
   font-size: 0.78rem;
-  border-top: 1px solid var(--line-2);
-}
-.mx3__row {
-  display: grid;
-  grid-template-columns: minmax(0, 1.5fr) minmax(0, 0.8fr) auto auto auto;
-  gap: 10px;
-  padding: 9px 4px;
-  border-bottom: 1px solid var(--line-2);
-  cursor: pointer;
-  align-items: baseline;
-  transition: background var(--t-fast);
-}
-/* At narrow widths the 5-col grid crams class text into the name column.
-   Drop the class column on mobile — name + state + savings + payback are
-   the load-bearing columns; class is recoverable from the map dots and
-   from the building drilldown immediately below. */
-@media (max-width: 520px) {
-  .mx3__row { grid-template-columns: minmax(0, 1.4fr) auto auto auto; gap: 8px; }
-  .mx3__row-class { display: none; }
-}
-.mx3__row:last-child { border-bottom: 0; }
-.mx3__row:hover { background: rgba(178,204,238,0.04); }
-.mx3__row.is-selected {
-  background: rgba(10,116,214,0.12);
-  border-left: 2px solid var(--accent);
-  padding-left: 8px;
-}
-.mx3__row:focus-visible { outline: 2px solid var(--accent-2); outline-offset: -2px; }
-.mx3__row-name { color: var(--ink-1); font-weight: 600; font-family: var(--font-display); font-size: 0.86rem; letter-spacing: 0.005em; }
-.mx3__row-class { color: var(--ink-3); font-size: 0.72rem; letter-spacing: 0.04em; }
-.mx3__row-state { color: var(--ink-2); font-variant-numeric: tabular-nums; min-width: 24px; text-align: right; }
-.mx3__row-sav  { color: #7cb342; font-weight: 600; font-variant-numeric: tabular-nums; min-width: 56px; text-align: right; }
-.mx3__row-sav.is-neg { color: var(--ink-3); }
-.mx3__row-pb   { color: var(--ink-2); font-variant-numeric: tabular-nums; min-width: 48px; text-align: right; }
-
-/* US map dots — sized by savings, green gradient, ringed when selected */
-.mx3__map circle.bldg {
-  cursor: pointer;
-  transition: r var(--t-fast), stroke-width var(--t-fast);
-}
-.mx3__map circle.bldg.is-selected {
-  stroke: var(--brand-white);
-  stroke-width: 2;
-}
-
-/* ---------- Part 2 · Selected building bar ---------- */
-.mx3__selected {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  gap: 18px;
-  align-items: center;
-  padding: 14px 18px;
-  background: linear-gradient(180deg, rgba(10,116,214,0.10), rgba(10,116,214,0.04));
-  border: 1px solid rgba(10,116,214,0.32);
-  border-radius: var(--r-md);
-  margin-bottom: 16px;
-}
-.mx3__sel-back {
-  font-family: var(--font-mono);
-  font-size: 0.7rem;
-  color: var(--ink-3);
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-}
-.mx3__sel-id {
-  display: flex; flex-direction: column; gap: 4px;
-  min-width: 0;
-}
-.mx3__sel-name {
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 1.1rem;
-  color: var(--ink-1);
-  letter-spacing: 0.005em;
-}
-.mx3__sel-meta {
-  font-family: var(--font-mono);
-  font-size: 0.76rem;
-  color: var(--ink-2);
   letter-spacing: 0.04em;
-  font-variant-numeric: tabular-nums;
-  display: inline-flex; flex-wrap: wrap; gap: 14px;
-}
-.mx3__sel-meta b { color: var(--accent-2); font-weight: 600; }
-.mx3__sel-sim {
-  font-family: var(--font-mono);
-  font-size: 0.7rem;
   color: var(--ink-3);
-  letter-spacing: 0.06em;
-  text-align: right;
-  display: flex; flex-direction: column; gap: 2px;
-}
-.mx3__sel-sim b { color: var(--accent); font-weight: 600; font-size: 0.95rem; }
-@media (max-width: 720px) {
-  .mx3__selected { grid-template-columns: 1fr; }
-  .mx3__sel-sim { text-align: left; }
 }
 
-/* ---------- Part 3 · Configuration matrix + Insight panel ---------- */
-.mx3__study {
+/* Two-up body */
+.mx16__body {
   display: grid;
-  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
-  gap: 16px;
+  grid-template-columns: minmax(0, 1.6fr) minmax(280px, 1fr);
+  gap: 22px;
+  align-items: start;
 }
-@media (max-width: 980px) { .mx3__study { grid-template-columns: 1fr; } }
+@media (max-width: 980px) { .mx16__body { grid-template-columns: 1fr; } }
 
-.mx3__grid {
+/* Matrix heatmap */
+.mx16__matrix {
   position: relative;
   background: linear-gradient(180deg, var(--bg-2), var(--bg-1));
   border: 1px solid var(--line-1);
   border-radius: var(--r-md);
-  padding: 16px 18px 18px;
+  padding: 16px 20px 18px;
   display: flex; flex-direction: column; gap: 10px;
 }
-.mx3__grid-head {
-  display: flex; align-items: baseline; justify-content: space-between;
-  gap: 14px; flex-wrap: wrap;
-}
-.mx3__grid-axis {
+.mx16__matrix-title {
+  display: inline-block;
   font-family: var(--font-mono);
-  font-size: 0.7rem;
-  letter-spacing: 0.14em;
+  font-size: 0.74rem;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: var(--ink-3);
-}
-.mx3__grid-side {
-  position: absolute;
-  left: 6px; top: 50%;
-  transform: rotate(-90deg) translateX(50%);
-  transform-origin: left top;
-  font-family: var(--font-mono);
-  font-size: 0.66rem;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--ink-4);
-}
-.mx3__grid-table {
-  display: grid;
-  gap: 8px;
-}
-.mx3__grid-row {
-  display: grid;
-  gap: 8px;
-  align-items: stretch;
-}
-.mx3__grid-row-lbl {
-  display: flex; flex-direction: column; align-items: flex-start; justify-content: center;
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--ink-3);
-  padding: 0 4px;
-}
-.mx3__grid-row-lbl b { color: var(--ink-2); font-size: 0.86rem; font-family: var(--font-display); letter-spacing: 0.005em; }
-.mx3__grid-col-lbl {
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--ink-3);
-  font-variant-numeric: tabular-nums;
-  text-align: center;
-  padding: 0 4px 6px;
-  border-bottom: 1px solid var(--line-2);
-}
-.mx3__cell {
-  position: relative;
-  padding: 12px 10px;
-  border: 1px solid var(--line-1);
-  border-radius: var(--r-sm);
-  background: rgba(178,204,238,0.025);
-  cursor: pointer;
-  transition: border-color var(--t-fast), background var(--t-fast);
-  display: flex; flex-direction: column; gap: 4px;
-  min-height: 96px;
-}
-.mx3__cell:hover { border-color: var(--accent-2); }
-.mx3__cell.is-active {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 1px var(--accent) inset;
-}
-.mx3__cell:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 2px; }
-.mx3__cell.is-best::before {
-  content: "★ BEST";
-  position: absolute; top: 6px; right: 8px;
-  font-family: var(--font-mono);
-  font-size: 0.6rem;
-  letter-spacing: 0.12em;
-  color: #7cb342;
+  color: #7CB342;
   font-weight: 600;
 }
-.mx3__cell-sav {
-  font-family: var(--font-display);
-  font-size: 1.05rem;
-  font-weight: 700;
-  color: var(--ink-1);
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.005em;
+.mx16__grid-wrap {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 8px 12px;
+  align-items: stretch;
 }
-.mx3__cell-sav.is-neg { color: var(--ink-3); }
-.mx3__cell-pct {
+.mx16__grid-ylabel {
+  grid-row: 1; grid-column: 1;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
   font-family: var(--font-mono);
   font-size: 0.7rem;
-  color: #7cb342;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  align-self: center;
+}
+.mx16__grid {
+  grid-row: 1; grid-column: 2;
+  display: grid;
+  gap: 4px;
+}
+.mx16__grid-xlabel {
+  grid-row: 2; grid-column: 2;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  text-align: center;
+  padding-top: 4px;
+}
+.mx16__grid-row {
+  display: grid;
+  gap: 4px;
+  align-items: stretch;
+}
+.mx16__grid-rowlbl {
+  display: flex; align-items: center; justify-content: flex-end;
+  padding-right: 6px;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
   letter-spacing: 0.04em;
+  color: var(--ink-3);
   font-variant-numeric: tabular-nums;
 }
-.mx3__cell-pct.is-neg { color: var(--bin-limit); }
-.mx3__cell-pb {
+.mx16__grid-collbl {
   font-family: var(--font-mono);
   font-size: 0.66rem;
-  color: var(--ink-3);
   letter-spacing: 0.04em;
-  text-transform: uppercase;
+  color: var(--ink-3);
+  text-align: center;
+  padding: 0 4px 4px;
   font-variant-numeric: tabular-nums;
-  margin-top: auto;
 }
-.mx3__cell.is-empty {
-  background: transparent;
-  border-style: dashed;
-  color: var(--ink-4);
+.mx16__cell {
+  position: relative;
+  padding: 8px 6px;
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  cursor: crosshair;
+  transition: transform var(--t-fast) var(--ease), filter var(--t-fast);
+  display: flex; align-items: center; justify-content: center;
   font-family: var(--font-mono);
-  font-size: 0.78rem;
-  align-items: center; justify-content: center;
-  cursor: default;
+  font-size: 0.72rem;
+  color: rgba(255,255,255,0.92);
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+  min-height: 36px;
 }
-.mx3__cell.is-empty:hover { border-color: var(--line-1); }
+.mx16__cell:hover {
+  border-color: rgba(255,255,255,0.45);
+  transform: scale(1.02);
+  filter: brightness(1.18);
+}
+.mx16__cell.is-active {
+  border-color: var(--ink-1);
+  box-shadow: 0 0 0 2px var(--ink-1) inset;
+}
+.mx16__cell.is-baseline {
+  background: rgba(178,204,238,0.12);
+  border-style: dashed;
+  border-color: var(--line-mid);
+  color: var(--ink-3);
+  font-size: 0.66rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.mx16__legend {
+  display: flex; align-items: center; gap: 12px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line-2);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--ink-3);
+}
+.mx16__legend-k {
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--ink-4);
+}
+.mx16__legend-bar {
+  flex: 1; height: 8px;
+  background: linear-gradient(90deg, rgba(178,204,238,0.1) 0%, #c5d96a 25%, #7cb342 60%, #3a6b2a 100%);
+  max-width: 280px;
+}
+.mx16__legend-lbl {
+  display: inline-flex; gap: 12px;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
 
-/* Insight panel — strategy framing → savings → financial case */
-.mx3__panel {
+/* Healthy People panel — building + bin breakdown */
+.mx16__healthy {
   background: linear-gradient(180deg, var(--bg-2), var(--bg-1));
   border: 1px solid var(--line-1);
   border-radius: var(--r-md);
   padding: 18px 20px;
   display: flex; flex-direction: column; gap: 14px;
-  min-width: 0;
 }
-.mx3__p-config {
-  border-left: 2px solid var(--accent);
-  padding-left: 12px;
+.mx16__healthy-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 12px; flex-wrap: wrap;
 }
-.mx3__p-config-title {
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 1.05rem;
-  color: var(--ink-1);
-  letter-spacing: 0.005em;
-}
-.mx3__p-config-sub {
+.mx16__healthy-cell {
   font-family: var(--font-mono);
   font-size: 0.74rem;
-  color: var(--ink-3);
   letter-spacing: 0.04em;
-  font-variant-numeric: tabular-nums;
-  margin-top: 2px;
-}
-.mx3__p-section {
-  padding: 12px 0;
-  border-top: 1px solid var(--line-2);
-}
-.mx3__p-section:first-of-type { border-top: 0; padding-top: 0; }
-.mx3__p-section-k {
-  font-family: var(--font-mono);
-  font-size: 0.66rem;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--ink-3);
-}
-.mx3__p-hero {
-  display: flex; align-items: baseline; gap: 8px;
-  margin: 6px 0 8px;
-}
-.mx3__p-hero-v {
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 1.9rem;
-  letter-spacing: -0.018em;
-  color: #7cb342;
-  font-variant-numeric: tabular-nums;
-}
-.mx3__p-hero-v.is-neg { color: var(--bin-limit); }
-.mx3__p-hero-sub {
-  font-family: var(--font-mono);
-  font-size: 0.74rem;
-  color: var(--ink-3);
-  letter-spacing: 0.04em;
-  font-variant-numeric: tabular-nums;
-}
-.mx3__p-rows { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
-.mx3__p-row {
-  display: flex; justify-content: space-between; align-items: baseline;
-  font-family: var(--font-mono);
-  font-size: 0.78rem;
-  color: var(--ink-2);
-  letter-spacing: 0.04em;
-  font-variant-numeric: tabular-nums;
-  padding: 4px 0;
-  border-bottom: 1px dashed var(--line-2);
-}
-.mx3__p-row:last-child { border-bottom: 0; }
-.mx3__p-row-k { color: var(--ink-3); }
-.mx3__p-row-v { color: var(--ink-1); font-weight: 600; }
-.mx3__p-row-v.is-accent { color: var(--accent-2); }
-.mx3__p-row-v.is-neg { color: var(--bin-limit); }
-.mx3__p-pb-hero {
-  display: flex; align-items: baseline; gap: 6px;
-  margin: 6px 0 6px;
-}
-.mx3__p-pb-v {
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 1.7rem;
   color: var(--accent-2);
   font-variant-numeric: tabular-nums;
-  letter-spacing: -0.018em;
 }
-.mx3__p-pb-unit {
-  font-family: var(--font-mono);
-  font-size: 0.78rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--ink-3);
+.mx16__healthy-body {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
 }
-.mx3__p-foot {
+.mx16__healthy-bldg {
+  width: 90px; height: 220px;
+}
+.mx16__bins {
+  display: flex; flex-direction: column; gap: 6px;
+  min-width: 0;
+}
+.mx16__bin {
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  border-bottom: 1px dashed var(--line-2);
+}
+.mx16__bin:last-child { border-bottom: 0; }
+.mx16__bin-dot { width: 10px; height: 10px; border-radius: 2px; }
+.mx16__bin-k {
   font-family: var(--font-mono);
-  font-size: 0.68rem;
+  font-size: 0.74rem;
+  letter-spacing: 0.04em;
+  color: var(--ink-2);
+}
+.mx16__bin-v {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.98rem;
+  color: var(--ink-1);
+  font-variant-numeric: tabular-nums;
+  transition: color var(--t-fast);
+}
+.mx16__bin-d {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
   letter-spacing: 0.04em;
   color: var(--ink-4);
+  font-variant-numeric: tabular-nums;
+  min-width: 52px;
+  text-align: right;
+}
+.mx16__bin-d.is-pos { color: #c5d96a; }
+.mx16__bin-d.is-neg { color: var(--bin-limit); }
+.mx16__healthy-foot {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.02em;
+  color: var(--ink-4);
+  line-height: 1.5;
   padding-top: 8px;
   border-top: 1px solid var(--line-2);
 }
@@ -1542,16 +1774,100 @@ sub, sup { font-size: 0.7em; }
   padding: 22px;
 }
 
+/* Operator-console header — Live data indicator + tab strip + BLDGID.
+   Echoes the deck's H.E.A.A.L. dashboard chrome (slide 18). Lives above
+   the floor/score row so the page reads like an operator workspace
+   header, not a generic chip row. */
+.hl2__console {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 14px 18px;
+  align-items: center;
+  padding: 10px 14px;
+  margin-bottom: 14px;
+  background: linear-gradient(180deg, #0e1a2c, #08121f);
+  border: 1px solid var(--line-1);
+  border-top: 2px solid var(--accent);
+  border-radius: var(--r-sm);
+}
+@media (max-width: 900px) { .hl2__console { grid-template-columns: 1fr; } }
+
+.hl2__live {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--bin-optimized);
+  font-weight: 600;
+}
+.hl2__live-pip {
+  display: inline-block;
+  width: 8px; height: 8px;
+  border-radius: 999px;
+  background: var(--bin-optimized);
+  box-shadow: 0 0 0 0 rgba(10,116,214,0.5);
+  animation: hl-pulse 1.8s ease-out infinite;
+}
+@keyframes hl-pulse {
+  0%   { box-shadow: 0 0 0 0   rgba(10,116,214,0.55); }
+  60%  { box-shadow: 0 0 0 10px rgba(10,116,214,0); }
+  100% { box-shadow: 0 0 0 0   rgba(10,116,214,0); }
+}
+@media (prefers-reduced-motion: reduce) { .hl2__live-pip { animation: none; } }
+
+.hl2__console-tabs {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 14px;
+  justify-content: center;
+}
+.hl2__param-tabs { display: inline-flex; gap: 6px; }
+
+/* Build-honesty disclosure under the reference console. Sits between
+   the console strip and the floor/score row. Low visual weight; the
+   point is to be visible enough that a skeptical reader can find it
+   without it dominating the surface. */
+.hl2__disclosure {
+  margin: -4px 0 14px;
+  padding: 10px 14px;
+  border-left: 2px solid var(--line-strong);
+  background: rgba(178,204,238,0.025);
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  letter-spacing: 0.02em;
+  color: var(--ink-3);
+  line-height: 1.5;
+}
+
+.hl2__bldgid {
+  display: inline-flex; align-items: baseline; gap: 8px;
+  padding: 4px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-sm);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+}
+.hl2__bldgid-k {
+  color: var(--ink-3);
+  font-size: 0.62rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+.hl2__bldgid-v {
+  color: var(--ink-1);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  font-variant-numeric: tabular-nums;
+}
+
 .hl2__controls {
   display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.1fr) minmax(0, 1.2fr);
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.2fr);
   gap: 22px;
   padding-bottom: 16px;
   border-bottom: 1px solid var(--line-1);
   margin-bottom: 16px;
 }
-@media (max-width: 1080px) { .hl2__controls { grid-template-columns: 1fr 1fr; } .hl2__score { grid-column: 1 / -1; } }
-@media (max-width: 640px)  { .hl2__controls { grid-template-columns: 1fr; } }
+@media (max-width: 720px) { .hl2__controls { grid-template-columns: 1fr; } }
 .hl2__control { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .hl2__lbl {
   font-family: var(--font-mono);
@@ -1652,6 +1968,139 @@ sub, sup { font-size: 0.7em; }
 }
 #hl-time { width: 100%; height: 140px; display: block; }
 #hl-heat { width: 100%; height: 130px; display: block; }
+
+/* Slide-18 layout — building plot + bin breakdown + live values on the
+   LEFT; SpaceTime Map → Floor/Sensor toggle → Timeseries Plot on the
+   RIGHT. Echoes the deck's H.E.A.A.L. dashboard composition. */
+.hl2__layout--slide18 {
+  grid-template-columns: minmax(280px, 1fr) minmax(0, 1.5fr);
+  margin-top: 14px;
+}
+@media (max-width: 980px) { .hl2__layout--slide18 { grid-template-columns: 1fr; } }
+.hl2__left { display: flex; flex-direction: column; gap: 14px; }
+
+/* Range-marks — non-interactive reference labels (30 days / 7 days)
+   that visually echo the deck's tab strip without claiming a window
+   switch. Sit next to the parameter tabs in the console header. */
+.hl2__range-marks {
+  display: inline-flex; gap: 6px; align-items: center;
+  padding-left: 14px;
+  border-left: 1px solid var(--line-2);
+  margin-left: 4px;
+}
+@media (max-width: 900px) { .hl2__range-marks { padding-left: 0; border-left: 0; margin-left: 0; } }
+.hl2__range-mark {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  color: var(--ink-4);
+  padding: 4px 10px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-sm);
+  cursor: default;
+}
+.hl2__range-mark.is-active {
+  color: var(--ink-2);
+  border-color: var(--line-strong);
+  background: rgba(178,204,238,0.04);
+}
+
+/* Threshold bin breakdown — five colored rows matching the deck's
+   Health Optimized / Excellent / Action / Alert / Limit stack. Bins
+   recompute per active floor + parameter. */
+.hl2__bins {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 4px;
+  background: rgba(178,204,238,0.025);
+  border: 1px solid var(--line-1);
+  border-radius: var(--r-md);
+  padding: 12px 14px;
+}
+.hl2__bin {
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 0;
+}
+.hl2__bin-dot {
+  width: 10px; height: 10px;
+  border-radius: 2px;
+}
+.hl2__bin-k {
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  letter-spacing: 0.04em;
+  color: var(--ink-2);
+}
+.hl2__bin-v {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--ink-1);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.005em;
+}
+
+/* Live values mini-grid — five readings (CO₂ / PM₂.₅ / TVOC / Temp /
+   RH) below the bin breakdown. Echoes slide-18's lower-left callouts. */
+.hl2__live-vals {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0;
+  background: rgba(178,204,238,0.025);
+  border: 1px solid var(--line-1);
+  border-radius: var(--r-md);
+  padding: 10px 4px;
+}
+@media (max-width: 520px) { .hl2__live-vals { grid-template-columns: repeat(3, 1fr); gap: 8px 0; } }
+.hl2__live-val {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 4px 6px;
+  border-right: 1px solid var(--line-2);
+  text-align: center;
+}
+.hl2__live-val:last-child { border-right: 0; }
+.hl2__live-val-k {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.hl2__live-val-v {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--ink-1);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.005em;
+}
+.hl2__live-val-u {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  color: var(--ink-4);
+  letter-spacing: 0.04em;
+}
+
+/* View toggle row sitting between heat map and time series on the
+   right column — Floor selector + Sensor view (aggregate / by-sensor). */
+.hl2__view-toggle {
+  display: flex; gap: 18px; flex-wrap: wrap;
+  padding: 10px 12px;
+  background: rgba(178,204,238,0.025);
+  border: 1px solid var(--line-1);
+  border-radius: var(--r-md);
+}
+.hl2__view-group { display: inline-flex; align-items: center; gap: 8px; }
+.hl2__view-lbl {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
 
 /* ============================================================ CLOSING CTA
    Two-layer arrival module: a compact portfolio-outcome bridge above
