@@ -58,46 +58,50 @@
   window.addEventListener("scroll", onScroll, { passive: true });
   onScroll();
 
-  /* ----------------------------------------------------------- scroll-spy: active topnav link */
+  /* ----------------------------------------------------------- scroll-spy: active topnav link
+
+     Position-based, not visibility-based. On every scroll we pick the
+     section whose top has just passed the topnav line — meaning the
+     active link is symmetric scrolling up vs down, and there is no
+     dead zone between sections where nothing is highlighted. */
 
   (function scrollSpy() {
     const links = $$('.topnav__links a');
     if (!links.length) return;
     const linkByHash = new Map(links.map((a) => [a.getAttribute("href"), a]));
-    // Observe sections whose ID matches a nav link
-    const visible = new Set();
     const targets = links
-      .map((a) => document.querySelector(a.getAttribute("href")))
+      .map((a) => {
+        const el = document.querySelector(a.getAttribute("href"));
+        return el ? { el, link: a } : null;
+      })
       .filter(Boolean);
     if (!targets.length) return;
-    const io = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((e) => {
-          if (e.isIntersecting) visible.add(e.target);
-          else visible.delete(e.target);
-        });
-        // Pick the visible section with the smallest top above the viewport.
-        // Sort by document position to be deterministic.
-        const arr = Array.from(visible).sort(
-          (a, b) => a.getBoundingClientRect().top - b.getBoundingClientRect().top
-        );
-        // Prefer the first section whose top is above ~140px (cleared the topnav)
-        const active = arr.find((el) => el.getBoundingClientRect().top < 140) || arr[0];
-        links.forEach((a) => a.classList.toggle("is-active", false));
-        if (active) {
-          const link = linkByHash.get("#" + active.id);
-          if (link) link.classList.add("is-active");
-        }
-      },
-      { rootMargin: "-80px 0px -50% 0px", threshold: [0, 0.15, 0.5, 1] }
-    );
-    targets.forEach((t) => io.observe(t));
+
+    let currentActive = null;
+    function updateActive() {
+      // Anchor line just below the topnav — section is "active" once its
+      // top has scrolled above this line. ~120px keeps the active link in
+      // sync with what the user is actually reading.
+      const anchorY = 120;
+      let active = targets[0];
+      for (const t of targets) {
+        const top = t.el.getBoundingClientRect().top;
+        if (top - anchorY <= 0) active = t;
+        else break;
+      }
+      if (active === currentActive) return;
+      currentActive = active;
+      links.forEach((a) => a.classList.toggle("is-active", a === active.link));
+    }
+    updateActive();
+    window.addEventListener("scroll", updateActive, { passive: true });
+    window.addEventListener("resize", updateActive, { passive: true });
   })();
 
   /* ----------------------------------------------------------- scroll reveals + count-ups */
 
   // Decorate sections + cards with reveal hook.
-  $$(".section__head, .card, .pillar, .chart, .fs__callout, .imp__cobe, .team__featured, .hl__sensors, .hl__tiles, .hl__score, .mx__flow, .mx__panel, .map-shell, .arch__row, .hero__proof").forEach(el => el.setAttribute("data-reveal", ""));
+  $$(".section__head, .card, .pillar, .chart, .hl__sensors, .hl__tiles, .hl__score, .mx__flow, .mx__panel, .map-shell, .hero__proof").forEach(el => el.setAttribute("data-reveal", ""));
 
   const revealIO = new IntersectionObserver(
     (entries) => {
@@ -414,7 +418,11 @@
         const key = btn.dataset.filter;
         const val = btn.dataset.value;
         // toggle active siblings within same data-filter group
-        $$(`.filters .chip[data-filter="${key}"]`).forEach((b) => b.classList.toggle("is-active", b === btn));
+        $$(`.filters .chip[data-filter="${key}"]`).forEach((b) => {
+          const on = b === btn;
+          b.classList.toggle("is-active", on);
+          b.setAttribute("aria-pressed", on ? "true" : "false");
+        });
         filterState[key] = val;
         applyFilters();
       });
@@ -456,18 +464,6 @@
       pointSel.classed("is-active", function () { return d3.select(this).classed("is-committed"); });
     }
 
-    // Delegated handler for the archetype-handoff CTA inside the side
-    // panel. The CTA is regenerated on every hover/commit (innerHTML),
-    // so we cannot bind a one-time listener — delegate from document.
-    document.addEventListener("click", (e) => {
-      const a = e.target.closest && e.target.closest("[data-arch-handoff]");
-      if (!a || !currentPanelSite) return;
-      // The href already points to #archetype — let the smooth-scroll
-      // handler at the bottom of this file pick it up. We just commit
-      // the currently-previewed site as part of the same gesture.
-      commitSite(currentPanelSite);
-    });
-
     function updatePanel(d, committed) {
       const title = $("#site-title");
       const sub   = $("#site-sub");
@@ -480,7 +476,7 @@
 
       title.textContent = `${d.id} · ${d.county}`;
       const stateNote = committed
-        ? "Selected · drives the archetype below"
+        ? "Selected"
         : "Previewing on hover · click to select";
       sub.textContent = d.status === "existing"
         ? `Existing data center in ${d.county} County · eGRID ${d.egrid} — ${stateNote}`
@@ -503,1063 +499,1567 @@
         ["eGRID region", d.egrid],
         ["Coordinates", `${d.lat.toFixed(3)}, ${d.lng.toFixed(3)}`],
       ];
-      kv.innerHTML =
-        rows.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join("") +
-        `<div class="kv__cta"><a class="arch-handoff" href="#archetype" data-arch-handoff="1">View this site as an archetype <span aria-hidden="true">→</span></a></div>`;
-    }
-  })();
+      kv.innerHTML = rows.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join("");
 
-  /* ============================================================ ARCHETYPE BUILDING */
-
-  (function archetype() {
-    const svg = $("#arch-svg");
-    if (!svg) return;
-    const SVG_NS = "http://www.w3.org/2000/svg";
-    const W = 520, H = 360;
-    const rand = rng(31);
-
-    // Isometric building (data center) — drawn in painter-ordered polygons
-    // Defs
-    svg.innerHTML = `
-      <defs>
-        <linearGradient id="bld-front" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stop-color="#1a2740"/>
-          <stop offset="1" stop-color="#0a1322"/>
-        </linearGradient>
-        <linearGradient id="bld-side" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stop-color="#10182a"/>
-          <stop offset="1" stop-color="#070d18"/>
-        </linearGradient>
-        <linearGradient id="bld-top" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stop-color="#1b2a44"/>
-          <stop offset="1" stop-color="#0e1626"/>
-        </linearGradient>
-      </defs>
-      <!-- ambient under-building glow removed in R4 — see brief note in app.js -->
-
-
-      <!-- building body — isometric block -->
-      <!-- right face -->
-      <polygon points="380,140 460,180 460,260 380,220" fill="url(#bld-side)" stroke="rgba(94,234,212,0.32)" stroke-width="0.8"/>
-      <!-- front face -->
-      <polygon points="140,140 380,140 380,220 140,220" fill="url(#bld-front)" stroke="rgba(94,234,212,0.42)" stroke-width="0.9"/>
-      <!-- top face -->
-      <polygon points="140,140 220,100 460,100 380,140" fill="url(#bld-top)" stroke="rgba(94,234,212,0.32)" stroke-width="0.8"/>
-
-      <!-- front face detailing: server hall louvers -->
-      <g stroke="rgba(94,234,212,0.22)" stroke-width="0.6">
-        <line x1="160" y1="158" x2="370" y2="158"/>
-        <line x1="160" y1="172" x2="370" y2="172"/>
-        <line x1="160" y1="186" x2="370" y2="186"/>
-        <line x1="160" y1="200" x2="370" y2="200"/>
-      </g>
-      <!-- intake bay (cyan rect) -->
-      <rect x="158" y="146" width="50" height="60" fill="rgba(94,234,212,0.10)" stroke="rgba(94,234,212,0.55)" stroke-width="0.8"/>
-      <text x="183" y="180" text-anchor="middle" fill="rgba(94,234,212,0.7)" font-family="JetBrains Mono" font-size="7" letter-spacing="0.5">INTAKE</text>
-      <!-- filter membrane — visible boundary where filtration happens -->
-      <g id="arch-filter">
-        <line x1="205" y1="146" x2="205" y2="206" stroke="rgba(94,234,212,0.9)" stroke-width="1.4"/>
-        <line x1="207" y1="146" x2="207" y2="206" stroke="rgba(94,234,212,0.45)" stroke-width="0.6"/>
-        <g stroke="rgba(94,234,212,0.32)" stroke-width="0.4">
-          <line x1="204" y1="148" x2="208" y2="152"/>
-          <line x1="204" y1="156" x2="208" y2="160"/>
-          <line x1="204" y1="164" x2="208" y2="168"/>
-          <line x1="204" y1="172" x2="208" y2="176"/>
-          <line x1="204" y1="180" x2="208" y2="184"/>
-          <line x1="204" y1="188" x2="208" y2="192"/>
-          <line x1="204" y1="196" x2="208" y2="200"/>
-        </g>
-        <text x="206" y="138" text-anchor="middle" fill="rgba(94,234,212,0.78)" font-family="JetBrains Mono" font-size="6.5" letter-spacing="0.5">FILTER</text>
-      </g>
-      <!-- exhaust bay -->
-      <rect x="318" y="146" width="50" height="60" fill="rgba(192,132,252,0.10)" stroke="rgba(192,132,252,0.55)" stroke-width="0.8"/>
-      <text x="343" y="180" text-anchor="middle" fill="rgba(192,132,252,0.7)" font-family="JetBrains Mono" font-size="7" letter-spacing="0.5">EXHAUST</text>
-
-      <!-- rooftop chillers -->
-      <g stroke="rgba(94,234,212,0.5)" stroke-width="0.8" fill="rgba(255,255,255,0.04)">
-        <rect x="240" y="110" width="40" height="14"/>
-        <rect x="300" y="110" width="40" height="14"/>
-        <rect x="360" y="110" width="40" height="14"/>
-      </g>
-
-      <!-- ground baseline -->
-      <line x1="60" y1="220" x2="480" y2="220" stroke="rgba(255,255,255,0.06)" stroke-width="0.6"/>
-
-      <!-- annotation labels -->
-      <g font-family="JetBrains Mono" font-size="8.5" fill="rgba(140,151,168,0.75)" letter-spacing="0.4">
-        <text x="60" y="100">OUTDOOR PM<tspan font-size="6.5">10/2.5</tspan></text>
-        <text x="60" y="114">→ HVAC intake</text>
-        <text id="arch-svg-title" x="280" y="92" text-anchor="middle" fill="rgba(94,234,212,0.85)">REPRESENTATIVE NV ARCHETYPE</text>
-        <text x="460" y="100" text-anchor="end">FILTRATION</text>
-        <text x="460" y="114" text-anchor="end">→ INDOOR IAQ</text>
-      </g>
-
-      <!-- per-site flux counters (P2 — wired to particle population) -->
-      <g id="arch-flux" font-family="JetBrains Mono" font-size="8.5" letter-spacing="0.06em">
-        <text x="60" y="245" fill="rgba(251,191,36,0.78)">OUTDOOR FLUX</text>
-        <text id="arch-flux-out" x="60" y="258" fill="rgba(251,191,36,0.92)" font-size="11" font-weight="600">— / s</text>
-        <text x="460" y="245" text-anchor="end" fill="rgba(94,234,212,0.78)">INDOOR FLUX</text>
-        <text id="arch-flux-in" x="460" y="258" text-anchor="end" fill="rgba(94,234,212,0.92)" font-size="11" font-weight="600">— / s</text>
-      </g>
-
-      <!-- particles will render in #arch-particles -->
-      <g id="arch-particles"></g>
-    `;
-
-    const group = $("#arch-particles", svg);
-
-    // Geometry constants — must match the SVG above.
-    const INTAKE   = { x1: 158, x2: 208, y1: 146, y2: 206 };
-    const EXHAUST  = { x1: 318, x2: 368, y1: 146, y2: 206 };
-    const INTERIOR = { x1: 208, x2: 318, y1: 146, y2: 206 };
-    const intakeMidY  = (INTAKE.y1  + INTAKE.y2)  / 2;
-    const exhaustMidY = (EXHAUST.y1 + EXHAUST.y2) / 2;
-
-    // Single particle pool. Each particle moves through a small state machine
-    // (outside → inside → exhaust) so the visualization shows the filtration
-    // logic: many particles arrive at INTAKE, most are filtered, few emerge.
-    const N = REDUCED ? 50 : 110;
-    const particles = [];
-
-    function spawnOutside(p) {
-      p.x = -8 - rand() * 30;
-      p.y = 80 + rand() * 220;
-      p.vx = 0.5 + rand() * 0.55;
-      p.vy = (rand() - 0.5) * 0.18;
-      p.r  = 0.55 + rand() * 1.2;
-      p.state = "outside";
-      p.opacity = 0.78 + rand() * 0.18;
-      p.fillAmber();
-    }
-
-    function newParticle() {
-      const p = {
-        fillAmber() {
-          if (!this.el) return;
-          this.el.setAttribute("fill", "rgba(251,191,36,0.85)");
-          this.el.setAttribute("filter", "none");
-        },
-        fillCyan() {
-          if (!this.el) return;
-          this.el.setAttribute("fill", "rgba(94,234,212,0.85)");
-          this.el.setAttribute("filter", "none");
-        },
-      };
-      const c = document.createElementNS(SVG_NS, "circle");
-      group.appendChild(c);
-      p.el = c;
-      spawnOutside(p);
-      // Stagger initial x so the field looks populated immediately
-      p.x = -30 + rand() * (W + 30);
-      // Initial cx/cy so reduced-motion shows the static field
-      c.setAttribute("cx", p.x.toFixed(1));
-      c.setAttribute("cy", p.y.toFixed(1));
-      c.setAttribute("r", p.r);
-      c.setAttribute("opacity", p.opacity);
-      return p;
-    }
-
-    for (let i = 0; i < N; i++) particles.push(newParticle());
-
-    function step() {
-      for (const p of particles) {
-        switch (p.state) {
-          case "outside": {
-            p.x += p.vx; p.y += p.vy;
-            // Subtle pull toward intake height when approaching the building
-            if (p.x > 70 && p.x < 158 && Math.abs(p.y - intakeMidY) < 90) {
-              p.vy += (intakeMidY - p.y) * 0.0035;
-            }
-            // Particles arriving at the front face but outside the intake band
-            // deflect over the top (visual: airflow finds the intake or bypasses)
-            if (p.x > 138 && p.x < 158 && (p.y < INTAKE.y1 || p.y > INTAKE.y2)) {
-              p.vy = -Math.abs(p.vy) - 0.2;
-            }
-            // Entering intake bay → filter event
-            if (p.x >= INTAKE.x1 && p.x <= INTAKE.x2 && p.y >= INTAKE.y1 && p.y <= INTAKE.y2) {
-              // Every particle that hits the intake counts as outdoor flux.
-              if (window.__archFlux) window.__archFlux.incOutFlux();
-              // ~85% filtered (compress against the filter face, then fade);
-              // ~15% pass through to the interior.
-              if (rand() < 0.85) {
-                p.state = "stopping";
-                p.targetX = 204;                // the filter line
-                p.targetY = p.y;
-                p.stopT = 0;
-              } else {
-                // Passed the filter — indoor flux event.
-                if (window.__archFlux) window.__archFlux.incInFlux();
-                p.state = "inside";
-                p.fillCyan();
-                p.vx = 0.35 + rand() * 0.25;
-                p.vy = (rand() - 0.5) * 0.12;
-                p.r  = 0.6 + rand() * 0.7;
-              }
-            }
-            // Wrap above/below — keep particles in scene
-            if (p.y < 40)  p.y = H - 60;
-            if (p.y > H - 20) p.y = 60;
-            // Off right (passed by building without entering intake)
-            if (p.x > W + 10) spawnOutside(p);
-            break;
-          }
-          case "inside": {
-            p.x += p.vx;
-            p.y += p.vy;
-            // Bounce off interior box ceilings/floor
-            if (p.y < INTERIOR.y1 + 2) { p.y = INTERIOR.y1 + 2; p.vy *= -1; }
-            if (p.y > INTERIOR.y2 - 2) { p.y = INTERIOR.y2 - 2; p.vy *= -1; }
-            // Slight downstream drift; when reaching exhaust, decide fate
-            if (p.x >= EXHAUST.x1) {
-              if (rand() < 0.6) {
-                p.state = "fading";
-                p.fadeFrom = +p.el.getAttribute("opacity");
-                p.fadeT = 0;
-              } else {
-                p.state = "exhaust";
-                p.vx = 0.5 + rand() * 0.35;
-                p.vy = (rand() - 0.5) * 0.15;
-              }
-            }
-            break;
-          }
-          case "exhaust": {
-            p.x += p.vx; p.y += p.vy;
-            if (p.x > W + 10) spawnOutside(p);
-            break;
-          }
-          case "stopping": {
-            // Glide to the filter face position, then begin fading. Makes
-            // "this is where filtration happens" spatially explicit.
-            p.stopT += 0.08;
-            const t = Math.min(1, p.stopT);
-            p.x = p.x + (p.targetX - p.x) * t;
-            p.y = p.y + (p.targetY - p.y) * t;
-            if (t >= 1) {
-              p.state = "fading";
-              p.fadeFrom = +p.el.getAttribute("opacity");
-              p.fadeT = 0;
-            }
-            break;
-          }
-          case "fading": {
-            p.fadeT += 0.06;
-            const op = Math.max(0, p.fadeFrom * (1 - p.fadeT));
-            p.el.setAttribute("opacity", op.toFixed(2));
-            if (p.fadeT >= 1) {
-              spawnOutside(p);
-              p.el.setAttribute("opacity", p.opacity.toFixed(2));
-            }
-            break;
-          }
-        }
-        p.el.setAttribute("cx", p.x.toFixed(1));
-        p.el.setAttribute("cy", p.y.toFixed(1));
-        p.el.setAttribute("r",  p.r.toFixed(2));
+      // Mirror the selected site identity into the inventory intent block.
+      if (committed) {
+        const statusLabel = d.status === "existing" ? "Existing" : "Planned";
+        const summary = `<b>${d.id}</b> · ${d.county} · ${statusLabel} · ${d.system} · ${fmt.flt(d.it_mw, 1)} MW`;
+        const intentMap = document.getElementById("intent-map");
+        if (intentMap) intentMap.innerHTML = summary;
       }
-      requestAnimationFrame(step);
     }
-    if (!REDUCED) requestAnimationFrame(step);
-
-    // ---------------------------------------------------------------
-    // Selected-site → archetype binding. Listens for site:select events
-    // from the inventory map and rewrites the archetype panel + SVG to
-    // reflect that specific site. Every derived metric uses the same
-    // record fields the inventory side panel uses — single calc path.
-    // ---------------------------------------------------------------
-
-    // Documented eGRID regional PM2.5 anchors (annual averages, µg/m³)
-    // derived from CoBE/EIA conventions; used when a site is selected.
-    const REGION_PM = {
-      RFCE: { mean: 6.49, min: 0.20, max: 35.54 },
-      SRVC: { mean: 7.85, min: 0.30, max: 41.20 },
-    };
-
-    function deriveSpec(d) {
-      const ceiling = d.ceiling_m || 9;
-      const volume = Math.round((d.floor_m2 || 0) * ceiling);
-      const airPct = Math.round((d.air_frac || 0) * 100);
-      const otherPct = 100 - airPct;
-      const capAir = Math.round(d.capacity_m3s * (d.air_frac || 0));
-      const capOther = Math.round(d.capacity_m3s - capAir);
-      // Filter split: vent ~ air_frac, recirc ~ rest. Honest derivation
-      // from the dataset's two-channel count.
-      const filtersVent = Math.round((d.filters || 0) * (d.air_frac || 0));
-      const filtersRecirc = (d.filters || 0) - filtersVent;
-      const systemLabel =
-        d.system === "DLC" ? "Direct liquid cooling (DLC)"
-      : d.system === "DEC" ? "Direct evaporative cooling (DEC)"
-      : d.system;
-      const otherLabel = d.system === "DLC" ? "liquid" : "other";
-      const pm = REGION_PM[d.egrid] || REGION_PM.RFCE;
-      return {
-        title: `${d.id} · ${d.county}`,
-        sub: `${d.status === "existing" ? "Existing" : "Planned"} data center modeled from the proprietary 9F inventory.`,
-        volume: `${fmt.num(volume)} m³`,
-        it: `${fmt.flt(d.it_mw, 2)} MW`,
-        floor: `${fmt.num(d.floor_m2)} m² · ${fmt.flt(d.ceiling_m, 1)} m`,
-        system: systemLabel,
-        air: `${airPct}% air · ${otherPct}% ${otherLabel}`,
-        capacity: `${capAir} m³/s air · ${capOther} m³/s ${otherLabel}`,
-        filters: `${fmt.num(filtersVent)} vent · ${fmt.num(filtersRecirc)} recirc`,
-        pue: fmt.flt(d.pue, 2),
-        pm25: `${pm.mean.toFixed(2)} µg/m³ <span class="muted">[${pm.min} – ${pm.max}]</span>`,
-        egrid: d.egrid,
-      };
-    }
-
-    function setText(id, value) {
-      const el = document.getElementById(id);
-      if (el) el.innerHTML = value;
-    }
-
-    function applyArchetype(d) {
-      const s = deriveSpec(d);
-      setText("arch-title", s.title);
-      setText("arch-sub", "Archetype derived from this site's parameterised inventory record. Click any other Virginia point to re-render.");
-      setText("arch-volume", s.volume);
-      setText("arch-it", s.it);
-      setText("arch-floor", s.floor);
-      setText("arch-system", s.system);
-      setText("arch-air", s.air);
-      setText("arch-capacity", s.capacity);
-      setText("arch-filters", s.filters);
-      setText("arch-pue", s.pue);
-      setText("arch-pm25", s.pm25);
-      setText("arch-egrid", s.egrid);
-      const svgTitle = document.getElementById("arch-svg-title");
-      if (svgTitle) svgTitle.textContent = `${d.id.toUpperCase()} · ${d.county.toUpperCase()}`;
-
-      // Intent block live state — both the inventory and archetype blocks
-      // mirror the same selected-site identity through the single calc path.
-      const statusLabel = d.status === "existing" ? "Existing" : "Planned";
-      const summary = `<b>${d.id}</b> · ${d.county} · ${statusLabel} · ${d.system} · ${fmt.flt(d.it_mw, 1)} MW`;
-      setText("intent-map", summary);
-      setText("intent-arch", summary);
-    }
-
-    document.addEventListener("site:select", (e) => {
-      if (e.detail) applyArchetype(e.detail);
-    });
-
-    // Live flux counters — count particle state transitions per second.
-    let outFluxCount = 0;
-    let inFluxCount = 0;
-    function incOutFlux() { outFluxCount++; }
-    function incInFlux()  { inFluxCount++;  }
-    setInterval(() => {
-      const fOut = document.getElementById("arch-flux-out");
-      const fIn  = document.getElementById("arch-flux-in");
-      if (fOut) fOut.textContent = `${outFluxCount} / s`;
-      if (fIn)  fIn.textContent  = `${inFluxCount} / s`;
-      outFluxCount = 0;
-      inFluxCount = 0;
-    }, 1000);
-    // Expose counters to the particle step loop.
-    window.__archFlux = { incOutFlux, incInFlux };
   })();
 
-  /* ============================================================ FILTERSTUDIO CHARTS */
+  /* ============================================================ FILTERSTUDIO
+     Case study × filter × operating-year scrubber. The three stacked
+     charts and the building archetype all derive from one state object:
+     { case: "A"|"B", filter: "1"|"2"|"compare", month: 0..12 }.
+     The compare/delta zone is the active surface when filter === compare —
+     six tiles read out pressure delta, PM delta, energy, climate damages
+     avoided, public-health damages avoided, total co-benefits.
+     Statewide rollups (the $39.9M block) live in the headline below; the
+     per-case-study deltas here scale those to one building.
+     ================================================================ */
 
   (function filterStudio() {
     const ps = $("#fs-pressure");
     const pm = $("#fs-pm");
-    if (!ps || !pm) return;
+    const en = $("#fs-energy");
+    const arch = $("#fs-arch");
+    if (!ps || !pm || !en || !arch) return;
 
-    const ns = "http://www.w3.org/2000/svg";
+    const SVG_NS = "http://www.w3.org/2000/svg";
     function el(tag, attrs = {}) {
-      const e = document.createElementNS(ns, tag);
+      const e = document.createElementNS(SVG_NS, tag);
       Object.entries(attrs).forEach(([k, v]) => e.setAttribute(k, v));
       return e;
     }
+    function clear(node) { while (node.firstChild) node.removeChild(node.firstChild); }
 
-    // Helper: clear all children from an SVG, leaving the element itself.
-    function clearSvg(node) {
-      while (node.firstChild) node.removeChild(node.firstChild);
-    }
-
-    // Helper: rAF-debounced ResizeObserver. Fires `fn` at most once per frame.
-    function observeResize(node, fn) {
-      if (typeof ResizeObserver === "undefined") return;
-      let raf = 0;
-      const ro = new ResizeObserver(() => {
-        if (raf) cancelAnimationFrame(raf);
-        raf = requestAnimationFrame(() => { raf = 0; fn(); });
-      });
-      ro.observe(node);
-    }
-
-    // -------- FilterStudio state model
-    // Active comparison mode shapes both chart opacity and pillar values.
-    // The two filters share the representative archetype; only the
-    // filtration product differs (vendor-neutral; same MERV rating).
-    let fsMode = "AB"; // "A" | "B" | "AB"
-    const FS_VALUES = {
-      A: { label: "Filter A", energy: 204096, pm25: 0.17, pressure: 135.3 },
-      B: { label: "Filter B", energy: 318411, pm25: 0.12, pressure: 217.8 },
+    // -------- Case + filter spec
+    // Pressure drop in Pa at 12 months end-of-year; mean indoor PM in
+    // µg/m³; cumulative fan energy in MWh/y. Values reflect the
+    // FilterStudio reference materials (Iron Mountain · Microsoft).
+    const CASES = {
+      A: {
+        label: "Data Center A · Iron Mountain",
+        short: "Iron Mountain",
+        IT: 180, // MW reference scale for this building
+        filters: {
+          "1": { name: "Filter 1 · Camfil",  short: "Camfil",  pressureEnd: 135.3, pmMean: 0.17, energyEnd: 204 },
+          "2": { name: "Filter 2 · H&V",     short: "H&V",     pressureEnd: 217.8, pmMean: 0.12, energyEnd: 318 },
+        },
+      },
+      B: {
+        label: "Data Center B · Microsoft",
+        short: "Microsoft",
+        IT: 246,
+        filters: {
+          "1": { name: "Filter 1 · Camfil",  short: "Camfil",  pressureEnd: 142.0, pmMean: 0.20, energyEnd: 247 },
+          "2": { name: "Filter 2 · H&V",     short: "H&V",     pressureEnd: 224.5, pmMean: 0.13, energyEnd: 372 },
+        },
+      },
     };
-    function opacityFor(filter) {
-      if (fsMode === "AB") return filter === "A" ? 1 : 0.92;
-      return filter === fsMode ? 1 : 0.22;
-    }
-    function strokeWidthFor(filter, base) {
-      return fsMode !== "AB" && filter === fsMode ? base + 0.6 : base;
-    }
 
-    // -------- Pressure drop vs dust loading
-    let pressureFirstDraw = true;
-    function drawPressure() {
-      clearSvg(ps);
-      const rect = ps.getBoundingClientRect();
-      const W = Math.max(380, Math.round(rect.width));
-      const H = 240;
-      ps.setAttribute("viewBox", `0 0 ${W} ${H}`);
-      const pad = { l: 38, r: 16, t: 16, b: 28 };
-      const iw = W - pad.l - pad.r, ih = H - pad.t - pad.b;
+    // Co-benefit dollar scaling per filter-year for a single building, derived
+    // from statewide totals (412 sites · $2.83M climate · $369k health) by
+    // proportional share of fan energy delta. Per-building, this lands at
+    // realistic ~$25–60k climate and ~$3–8k health damages avoided / yr.
+    const COBENEFIT_PER_MWH = {
+      climateDollars: (2.83e6 / 206419),  // ≈ $13.70 / MWh saved
+      healthDollars:  (3.69e5 / 206419),  // ≈ $1.79 / MWh saved
+    };
 
-      const xScale = (g) => pad.l + (g / 200) * iw;
-      const yScale = (p) => pad.t + (1 - p / 250) * ih;
+    // -------- State
+    const state = {
+      case: "A",
+      filter: "compare",
+      month: 12,        // 0..12
+      playing: false,
+    };
 
-      const ax = el("g", {});
-      ps.appendChild(ax);
-      for (let p = 0; p <= 250; p += 50) {
-        const y = yScale(p);
-        ax.appendChild(el("line", { x1: pad.l, x2: W - pad.r, y1: y, y2: y, stroke: "rgba(255,255,255,0.06)", "stroke-width": 0.6 }));
-        ax.appendChild(el("text", { x: pad.l - 6, y: y + 3, "text-anchor": "end", fill: "#5d6778", "font-size": 9, "font-family": "JetBrains Mono" })).textContent = p;
+    // -------- Time series builders
+    // Pressure drop vs dust loading — gentle convex curve from baseline.
+    // Models ~12 months of dust accumulation. End value at month=12 is
+    // the filter's reported pressureEnd.
+    function pressureSeries(filter) {
+      const startPa = 65;
+      const out = [];
+      for (let m = 0; m <= 12; m++) {
+        const t = m / 12;
+        const pa = startPa + (filter.pressureEnd - startPa) * Math.pow(t, 1.5);
+        out.push({ m, v: pa });
       }
-      for (let g = 0; g <= 200; g += 50) {
-        const x = xScale(g);
-        ax.appendChild(el("line", { x1: x, x2: x, y1: H - pad.b, y2: H - pad.b + 4, stroke: "rgba(255,255,255,0.18)" }));
-        ax.appendChild(el("text", { x: x, y: H - pad.b + 16, "text-anchor": "middle", fill: "#5d6778", "font-size": 9, "font-family": "JetBrains Mono" })).textContent = g + "g";
+      return out;
+    }
+    // Indoor PM2.5 — oscillates around the filter's mean across the year.
+    // Stable seed so the noise pattern is the same on every redraw.
+    function pmSeries(filter, seed) {
+      const r = rng(seed);
+      const out = [];
+      for (let m = 0; m <= 12; m++) {
+        const seasonal = Math.sin((m / 12) * Math.PI * 2 - Math.PI / 3) * 0.025;
+        const noise = (r() - 0.5) * 0.03;
+        out.push({ m, v: Math.max(0, filter.pmMean + seasonal + noise) });
       }
-      ax.appendChild(el("text", { x: pad.l + iw / 2, y: H - 4, "text-anchor": "middle", fill: "#8c97a8", "font-size": 10, "font-family": "Inter" })).textContent = "Dust loading (g)";
-      ax.appendChild(el("text", { x: 10, y: pad.t + ih / 2, "text-anchor": "middle", transform: `rotate(-90 10 ${pad.t + ih / 2})`, fill: "#8c97a8", "font-size": 10, "font-family": "Inter" })).textContent = "Pressure drop (Pa)";
+      return out;
+    }
+    // Fan energy — cumulative MWh. Slightly concave (pressure drop rises
+    // through the year so monthly draw rises too).
+    function energySeries(filter) {
+      const total = filter.energyEnd;
+      const out = [];
+      for (let m = 0; m <= 12; m++) {
+        const t = m / 12;
+        // Slightly more energy drawn later in the year due to dust loading
+        const share = Math.pow(t, 0.88);
+        out.push({ m, v: total * share });
+      }
+      return out;
+    }
 
-      function curve(start, end, steps, shape) {
-        const pts = [];
-        for (let i = 0; i <= steps; i++) {
-          const t = i / steps;
-          const tt = Math.pow(t, shape);
-          pts.push([t * 200, start + (end - start) * tt]);
+    function activeFilters() {
+      if (state.filter === "compare") return ["1", "2"];
+      return [state.filter];
+    }
+
+    // -------- Chart drawing
+    const PAD = { l: 36, r: 12, t: 12, b: 22 };
+    function drawLineChart(svg, opts) {
+      clear(svg);
+      const rect = svg.getBoundingClientRect();
+      const W = Math.max(360, Math.round(rect.width));
+      const H = 124;
+      svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+      svg.setAttribute("preserveAspectRatio", "none");
+      const iw = W - PAD.l - PAD.r;
+      const ih = H - PAD.t - PAD.b;
+      const xMax = 12;
+      const yMin = opts.yMin, yMax = opts.yMax;
+      const xS = (m) => PAD.l + (m / xMax) * iw;
+      const yS = (v) => PAD.t + (1 - (v - yMin) / (yMax - yMin)) * ih;
+
+      // grid + axes
+      const yTicks = opts.yTicks || 4;
+      for (let i = 0; i <= yTicks; i++) {
+        const v = yMin + (yMax - yMin) * (i / yTicks);
+        const y = yS(v);
+        svg.appendChild(el("line", { x1: PAD.l, x2: W - PAD.r, y1: y, y2: y, stroke: "rgba(178,204,238,0.06)", "stroke-width": 0.6 }));
+        const t = el("text", { x: PAD.l - 6, y: y + 3, "text-anchor": "end", fill: "#5f6c80", "font-size": 8.5, "font-family": "JetBrains Mono" });
+        t.textContent = opts.fmtY ? opts.fmtY(v) : Math.round(v);
+        svg.appendChild(t);
+      }
+      [0, 3, 6, 9, 12].forEach((m) => {
+        const x = xS(m);
+        svg.appendChild(el("line", { x1: x, x2: x, y1: H - PAD.b, y2: H - PAD.b + 3, stroke: "rgba(178,204,238,0.16)" }));
+        const t = el("text", { x, y: H - 6, "text-anchor": "middle", fill: "#5f6c80", "font-size": 8.5, "font-family": "JetBrains Mono" });
+        t.textContent = `M${m}`;
+        svg.appendChild(t);
+      });
+
+      // Active-time marker
+      const mx = xS(state.month);
+      svg.appendChild(el("line", {
+        x1: mx, x2: mx, y1: PAD.t - 4, y2: H - PAD.b,
+        stroke: "rgba(178,204,238,0.25)", "stroke-width": 1, "stroke-dasharray": "3 3",
+      }));
+
+      // Plot each filter's series
+      opts.series.forEach((s) => {
+        // Full-year series (faint)
+        const fullPath = s.pts
+          .map((p, i) => (i ? "L" : "M") + xS(p.m).toFixed(1) + "," + yS(p.v).toFixed(1))
+          .join(" ");
+        svg.appendChild(el("path", {
+          d: fullPath, fill: "none",
+          stroke: s.color, "stroke-width": 1, "stroke-dasharray": "2 3", opacity: 0.32,
+        }));
+        // Up-to-now series (solid)
+        const upTo = s.pts.filter((p) => p.m <= state.month);
+        if (upTo.length > 1) {
+          const livePath = upTo
+            .map((p, i) => (i ? "L" : "M") + xS(p.m).toFixed(1) + "," + yS(p.v).toFixed(1))
+            .join(" ");
+          svg.appendChild(el("path", {
+            d: livePath, fill: "none",
+            stroke: s.color, "stroke-width": 2, "stroke-linecap": "round", "stroke-linejoin": "round",
+          }));
         }
-        return pts;
-      }
-      function pathFor(points) {
-        return points.map(([g, p], i) => (i ? "L" : "M") + xScale(g).toFixed(1) + "," + yScale(p).toFixed(1)).join(" ");
-      }
-      function areaPath(points) {
-        const top = pathFor(points);
-        return `${top} L${xScale(200)},${yScale(0)} L${xScale(0)},${yScale(0)} Z`;
-      }
-
-      const aPts = curve(60, 135.3, 60, 1.4);
-      const bPts = curve(75, 217.8, 60, 1.7);
-
-      const defs = el("defs", {});
-      defs.innerHTML = `
-        <linearGradient id="grad-a" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stop-color="rgba(94,234,212,0.35)"/>
-          <stop offset="1" stop-color="rgba(94,234,212,0)"/>
-        </linearGradient>
-        <linearGradient id="grad-b" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stop-color="rgba(192,132,252,0.28)"/>
-          <stop offset="1" stop-color="rgba(192,132,252,0)"/>
-        </linearGradient>`;
-      ps.appendChild(defs);
-
-      // B area + line only render when B is visible
-      const bOpacity = opacityFor("B");
-      if (bOpacity > 0.3) ps.appendChild(el("path", { d: areaPath(bPts), fill: "url(#grad-b)", opacity: bOpacity }));
-      const animate = pressureFirstDraw && !REDUCED;
-      const bLine = el("path", { d: pathFor(bPts), fill: "none", stroke: "#c084fc", "stroke-width": strokeWidthFor("B", 1.8), "stroke-linecap": "round", "stroke-dasharray": 600, "stroke-dashoffset": animate ? 600 : 0, opacity: bOpacity, filter: "none" });
-      ps.appendChild(bLine);
-
-      const aOpacity = opacityFor("A");
-      if (aOpacity > 0.3) ps.appendChild(el("path", { d: areaPath(aPts), fill: "url(#grad-a)", opacity: aOpacity }));
-      const aLine = el("path", { d: pathFor(aPts), fill: "none", stroke: "#5eead4", "stroke-width": strokeWidthFor("A", 2.2), "stroke-linecap": "round", "stroke-dasharray": 600, "stroke-dashoffset": animate ? 600 : 0, opacity: aOpacity, filter: "none" });
-      ps.appendChild(aLine);
-
-      function marker(pt, color, label, dy, filter) {
-        const x = xScale(pt[0]), y = yScale(pt[1]);
-        const op = opacityFor(filter);
-        if (op < 0.3) return;
-        ps.appendChild(el("circle", { cx: x, cy: y, r: 3.5, fill: color, "stroke": "#04070c", "stroke-width": 1.2, opacity: op }));
-        const t = el("text", { x: x - 6, y: y + dy, "text-anchor": "end", fill: "#f4f7fb", "font-size": 10, "font-family": "JetBrains Mono", opacity: op });
-        t.textContent = label;
-        ps.appendChild(t);
-      }
-      marker(aPts[aPts.length - 1], "#5eead4", "A · 135 Pa", -8, "A");
-      marker(bPts[bPts.length - 1], "#c084fc", "B · 218 Pa", 14, "B");
-
-      if (animate) {
-        const io = new IntersectionObserver((entries) => {
-          if (entries[0].isIntersecting) {
-            aLine.style.transition = "stroke-dashoffset 1500ms cubic-bezier(.2,.8,.2,1)";
-            bLine.style.transition = "stroke-dashoffset 1500ms cubic-bezier(.2,.8,.2,1) 150ms";
-            requestAnimationFrame(() => {
-              aLine.setAttribute("stroke-dashoffset", 0);
-              bLine.setAttribute("stroke-dashoffset", 0);
-            });
-            io.disconnect();
-          }
-        }, { threshold: 0.3 });
-        io.observe(ps);
-      }
-      pressureFirstDraw = false;
-    }
-    drawPressure();
-    observeResize(ps, drawPressure);
-
-    // -------- Indoor PM2.5 over time
-    let pmFirstDraw = true;
-    function drawPM() {
-      clearSvg(pm);
-      const rect = pm.getBoundingClientRect();
-      const W = Math.max(380, Math.round(rect.width));
-      const H = 240;
-      pm.setAttribute("viewBox", `0 0 ${W} ${H}`);
-      const pad = { l: 38, r: 16, t: 16, b: 28 };
-      const iw = W - pad.l - pad.r, ih = H - pad.t - pad.b;
-      const xScale = (t) => pad.l + (t / 30) * iw;
-      const yScale = (v) => pad.t + (1 - v / 0.30) * ih;
-
-      const ax = el("g", {});
-      pm.appendChild(ax);
-      for (let v = 0; v <= 0.3; v += 0.05) {
-        const y = yScale(v);
-        ax.appendChild(el("line", { x1: pad.l, x2: W - pad.r, y1: y, y2: y, stroke: "rgba(255,255,255,0.06)", "stroke-width": 0.6 }));
-        ax.appendChild(el("text", { x: pad.l - 6, y: y + 3, "text-anchor": "end", fill: "#5d6778", "font-size": 9, "font-family": "JetBrains Mono" })).textContent = v.toFixed(2);
-      }
-      for (let d = 0; d <= 30; d += 5) {
-        const x = xScale(d);
-        ax.appendChild(el("line", { x1: x, x2: x, y1: H - pad.b, y2: H - pad.b + 4, stroke: "rgba(255,255,255,0.18)" }));
-        ax.appendChild(el("text", { x: x, y: H - pad.b + 16, "text-anchor": "middle", fill: "#5d6778", "font-size": 9, "font-family": "JetBrains Mono" })).textContent = d + "d";
-      }
-      ax.appendChild(el("text", { x: pad.l + iw / 2, y: H - 4, "text-anchor": "middle", fill: "#8c97a8", "font-size": 10 })).textContent = "Days of operation";
-      ax.appendChild(el("text", { x: 10, y: pad.t + ih / 2, "text-anchor": "middle", transform: `rotate(-90 10 ${pad.t + ih / 2})`, fill: "#8c97a8", "font-size": 10 })).textContent = "Indoor PM₂.₅ (µg/m³)";
-
-      // Re-seed each draw with the same seed so the noise series is stable
-      // across resizes — otherwise the curves jitter on every redraw.
-      const rand = rng(91);
-      function series(mean, jitter) {
-        const pts = [];
-        for (let d = 0; d <= 30; d += 0.5) {
-          const noise = (rand() - 0.5) * jitter;
-          const trend = (d - 15) * 0.0008;
-          pts.push([d, Math.max(0, mean + noise + trend)]);
-        }
-        return pts;
-      }
-      function pathFor(points) {
-        return points.map(([d, v], i) => (i ? "L" : "M") + xScale(d).toFixed(1) + "," + yScale(v).toFixed(1)).join(" ");
-      }
-      const aPts = series(0.17, 0.05);
-      const bPts = series(0.12, 0.04);
-
-      const animate = pmFirstDraw && !REDUCED;
-      const aOp = opacityFor("A");
-      const bOp = opacityFor("B");
-      const bLine = el("path", { d: pathFor(bPts), fill: "none", stroke: "#c084fc", "stroke-width": strokeWidthFor("B", 1.4), opacity: bOp, filter: "none", "stroke-dasharray": 700, "stroke-dashoffset": animate ? 700 : 0 });
-      const aLine = el("path", { d: pathFor(aPts), fill: "none", stroke: "#5eead4", "stroke-width": strokeWidthFor("A", 1.8), opacity: aOp, filter: "none", "stroke-dasharray": 700, "stroke-dashoffset": animate ? 700 : 0 });
-      pm.appendChild(bLine);
-      pm.appendChild(aLine);
-
-      pm.appendChild(el("line", { x1: xScale(0), x2: xScale(30), y1: yScale(0.17), y2: yScale(0.17), stroke: "rgba(94,234,212,0.4)", "stroke-dasharray": "3 4", "stroke-width": 1, opacity: aOp }));
-      pm.appendChild(el("line", { x1: xScale(0), x2: xScale(30), y1: yScale(0.12), y2: yScale(0.12), stroke: "rgba(192,132,252,0.4)", "stroke-dasharray": "3 4", "stroke-width": 1, opacity: bOp }));
-
-      if (aOp > 0.3) {
-        const tA = el("text", { x: xScale(30) - 6, y: yScale(0.17) - 4, "text-anchor": "end", fill: "#5eead4", "font-size": 10, "font-family": "JetBrains Mono", opacity: aOp });
-        tA.textContent = "A · 0.17 avg";
-        pm.appendChild(tA);
-      }
-      if (bOp > 0.3) {
-        const tB = el("text", { x: xScale(30) - 6, y: yScale(0.12) - 4, "text-anchor": "end", fill: "#c084fc", "font-size": 10, "font-family": "JetBrains Mono", opacity: bOp });
-        tB.textContent = "B · 0.12 avg";
-        pm.appendChild(tB);
-      }
-
-      if (animate) {
-        const io = new IntersectionObserver((entries) => {
-          if (entries[0].isIntersecting) {
-            aLine.style.transition = "stroke-dashoffset 1600ms cubic-bezier(.2,.8,.2,1)";
-            bLine.style.transition = "stroke-dashoffset 1600ms cubic-bezier(.2,.8,.2,1) 200ms";
-            requestAnimationFrame(() => {
-              aLine.setAttribute("stroke-dashoffset", 0);
-              bLine.setAttribute("stroke-dashoffset", 0);
-            });
-            io.disconnect();
-          }
-        }, { threshold: 0.3 });
-        io.observe(pm);
-      }
-      pmFirstDraw = false;
-    }
-    drawPM();
-    observeResize(pm, drawPM);
-
-    // -------- Toggle wired to redraw charts AND swap pillar values
-    const $viewing = $("#fs-viewing");
-    function viewingCopy(mode) {
-      if (mode === "A") return "Filter A isolated · lower fan energy, higher PM₂.₅ residual";
-      if (mode === "B") return "Filter B isolated · higher fan energy, lower PM₂.₅ residual";
-      return "Both filters · compare mode (default)";
-    }
-    function updatePillars() {
-      // In A or AB the primary number is A's; in B mode it swaps.
-      const primary = fsMode === "B" ? "B" : "A";
-      const secondary = primary === "A" ? "B" : "A";
-      const p = FS_VALUES[primary];
-      const s = FS_VALUES[secondary];
-
-      const energyA = $("#fs-energy-a");
-      const energyB = $("#fs-energy-b");
-      if (energyA) energyA.textContent = fmt.int(p.energy);
-      if (energyB) energyB.textContent = `vs ${fmt.int(s.energy)} (${secondary})`;
-
-      const healthA = $("#fs-health-a");
-      const healthB = $("#fs-health-b");
-      if (healthA) healthA.textContent = p.pm25.toFixed(2);
-      if (healthB) healthB.textContent = `vs ${s.pm25.toFixed(2)} (${secondary})`;
-
-      const perfA = $("#fs-perf-a");
-      const perfB = $("#fs-perf-b");
-      if (perfA) perfA.textContent = p.pressure.toFixed(1);
-      if (perfB) perfB.textContent = `vs ${s.pressure.toFixed(1)} (${secondary})`;
-
-      // Mark pillars as primary/secondary for subtle border accent.
-      $$('.pillar').forEach((pill) => {
-        pill.classList.remove("pillar--A-active", "pillar--B-active");
-        if (fsMode !== "AB") pill.classList.add(`pillar--${fsMode}-active`);
+        // Marker at current point
+        const last = upTo[upTo.length - 1] || s.pts[0];
+        svg.appendChild(el("circle", {
+          cx: xS(last.m), cy: yS(last.v), r: 3.2,
+          fill: s.color, stroke: "#0a1422", "stroke-width": 1.2,
+        }));
       });
     }
-    function setFsMode(mode) {
-      fsMode = mode;
-      $viewing && ($viewing.textContent = viewingCopy(mode));
-      updatePillars();
-      drawPressure();
-      drawPM();
+
+    // Energy chart uses bar columns per month, stacked side-by-side for compare.
+    function drawEnergyBars(svg) {
+      clear(svg);
+      const rect = svg.getBoundingClientRect();
+      const W = Math.max(360, Math.round(rect.width));
+      const H = 124;
+      svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+      svg.setAttribute("preserveAspectRatio", "none");
+      const iw = W - PAD.l - PAD.r, ih = H - PAD.t - PAD.b;
+      const filters = activeFilters();
+      const caseData = CASES[state.case];
+      // Compute max for y-scale: use the largest filter's monthly increment
+      const allMonthly = [];
+      Object.values(caseData.filters).forEach((f) => {
+        const s = energySeries(f);
+        for (let i = 1; i <= 12; i++) allMonthly.push(s[i].v - s[i - 1].v);
+      });
+      const yMax = Math.max(...allMonthly) * 1.15;
+      const yMin = 0;
+      const yS = (v) => PAD.t + (1 - (v - yMin) / (yMax - yMin)) * ih;
+      const xS = (m) => PAD.l + ((m - 0.5) / 12) * iw;
+
+      // axes
+      [0, yMax / 2, yMax].forEach((v) => {
+        const y = yS(v);
+        svg.appendChild(el("line", { x1: PAD.l, x2: W - PAD.r, y1: y, y2: y, stroke: "rgba(178,204,238,0.06)", "stroke-width": 0.6 }));
+        const t = el("text", { x: PAD.l - 6, y: y + 3, "text-anchor": "end", fill: "#5f6c80", "font-size": 8.5, "font-family": "JetBrains Mono" });
+        t.textContent = v.toFixed(1);
+        svg.appendChild(t);
+      });
+      [0, 3, 6, 9, 12].forEach((m) => {
+        const x = PAD.l + (m / 12) * iw;
+        svg.appendChild(el("line", { x1: x, x2: x, y1: H - PAD.b, y2: H - PAD.b + 3, stroke: "rgba(178,204,238,0.16)" }));
+        const t = el("text", { x, y: H - 6, "text-anchor": "middle", fill: "#5f6c80", "font-size": 8.5, "font-family": "JetBrains Mono" });
+        t.textContent = `M${m}`;
+        svg.appendChild(t);
+      });
+      const monthW = (iw / 12);
+      const colors = { "1": "var(--accent)", "2": "var(--accent-2)" };
+      const hexes  = { "1": "#0A74D6",        "2": "#6BA6F1" };
+      filters.forEach((fKey, idx) => {
+        const f = caseData.filters[fKey];
+        const s = energySeries(f);
+        const groupW = monthW * 0.72;
+        const barW = filters.length === 1 ? groupW * 0.62 : groupW / 2 - 1;
+        const offset = filters.length === 1 ? -barW / 2 : (idx === 0 ? -barW - 1 : 1);
+        for (let m = 1; m <= 12; m++) {
+          const monthly = s[m].v - s[m - 1].v;
+          const xC = PAD.l + ((m - 0.5) / 12) * iw;
+          const x = xC + offset;
+          const y = yS(monthly);
+          const past = m <= state.month;
+          const r = el("rect", {
+            x: x.toFixed(1), y: y.toFixed(1),
+            width: Math.max(1, barW).toFixed(1),
+            height: Math.max(0, (H - PAD.b) - y).toFixed(1),
+            fill: hexes[fKey],
+            opacity: past ? 0.95 : 0.25,
+          });
+          svg.appendChild(r);
+        }
+      });
+      // Active-time marker
+      const markX = PAD.l + (state.month / 12) * iw;
+      svg.appendChild(el("line", {
+        x1: markX, x2: markX, y1: PAD.t - 4, y2: H - PAD.b,
+        stroke: "rgba(178,204,238,0.25)", "stroke-width": 1, "stroke-dasharray": "3 3",
+      }));
     }
-    $$('.fs__toggle .chip').forEach((btn) => {
+
+    // -------- Building archetype
+    // Simple front-elevation figure: outdoor pollution column on the left,
+    // building front with a labeled FILTER membrane, indoor air on the
+    // right. Particle stream is amber outside / blue indoors so the
+    // filtration step reads as the visual event.
+    let archParticles = [];
+    function buildArchetype() {
+      clear(arch);
+      arch.innerHTML = `
+        <defs>
+          <linearGradient id="fs-front" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#1e3553"/>
+            <stop offset="1" stop-color="#0f1c30"/>
+          </linearGradient>
+          <linearGradient id="fs-roof" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#23426b"/>
+            <stop offset="1" stop-color="#152946"/>
+          </linearGradient>
+        </defs>
+        <!-- Outdoor PM column (left) -->
+        <rect x="0" y="0" width="74" height="280" fill="rgba(252,188,126,0.04)"/>
+        <text x="10" y="20" fill="rgba(252,188,126,0.9)" font-family="JetBrains Mono" font-size="9" letter-spacing="0.12em">OUTDOOR</text>
+        <text x="10" y="32" fill="rgba(252,188,126,0.55)" font-family="JetBrains Mono" font-size="8" letter-spacing="0.08em">PM₂.₅ INTAKE</text>
+        <!-- Inflow arrow -->
+        <g stroke="rgba(252,188,126,0.55)" stroke-width="1" fill="none">
+          <line x1="10" y1="160" x2="60" y2="160"/>
+          <polyline points="50,155 60,160 50,165"/>
+        </g>
+
+        <!-- Building front -->
+        <rect x="74" y="68" width="216" height="172" fill="url(#fs-front)" stroke="rgba(178,204,238,0.3)" stroke-width="0.8"/>
+        <!-- Roof slab -->
+        <polygon points="74,68 290,68 280,52 84,52" fill="url(#fs-roof)" stroke="rgba(178,204,238,0.2)" stroke-width="0.6"/>
+        <!-- Rooftop units -->
+        <g stroke="rgba(178,204,238,0.4)" stroke-width="0.7" fill="rgba(178,204,238,0.08)">
+          <rect x="110" y="42" width="32" height="10"/>
+          <rect x="160" y="42" width="32" height="10"/>
+          <rect x="210" y="42" width="32" height="10"/>
+        </g>
+        <!-- Server louvers -->
+        <g stroke="rgba(178,204,238,0.16)" stroke-width="0.5">
+          <line x1="160" y1="92" x2="284" y2="92"/>
+          <line x1="160" y1="108" x2="284" y2="108"/>
+          <line x1="160" y1="124" x2="284" y2="124"/>
+          <line x1="160" y1="140" x2="284" y2="140"/>
+          <line x1="160" y1="156" x2="284" y2="156"/>
+          <line x1="160" y1="172" x2="284" y2="172"/>
+          <line x1="160" y1="188" x2="284" y2="188"/>
+          <line x1="160" y1="204" x2="284" y2="204"/>
+          <line x1="160" y1="220" x2="284" y2="220"/>
+        </g>
+        <!-- Intake aperture -->
+        <rect x="80" y="92" width="60" height="116" fill="rgba(252,188,126,0.08)" stroke="rgba(252,188,126,0.4)" stroke-width="0.8"/>
+        <text x="110" y="86" text-anchor="middle" fill="rgba(252,188,126,0.7)" font-family="JetBrains Mono" font-size="8" letter-spacing="0.12em">INTAKE</text>
+
+        <!-- Filter membrane -->
+        <g id="fs-filter-grp">
+          <line x1="148" y1="92" x2="148" y2="208" stroke="rgba(10,116,214,0.9)" stroke-width="1.6"/>
+          <line x1="151" y1="92" x2="151" y2="208" stroke="rgba(10,116,214,0.5)" stroke-width="0.7"/>
+          <g stroke="rgba(10,116,214,0.5)" stroke-width="0.5">
+            <line x1="147" y1="96" x2="152" y2="100"/>
+            <line x1="147" y1="106" x2="152" y2="110"/>
+            <line x1="147" y1="116" x2="152" y2="120"/>
+            <line x1="147" y1="126" x2="152" y2="130"/>
+            <line x1="147" y1="136" x2="152" y2="140"/>
+            <line x1="147" y1="146" x2="152" y2="150"/>
+            <line x1="147" y1="156" x2="152" y2="160"/>
+            <line x1="147" y1="166" x2="152" y2="170"/>
+            <line x1="147" y1="176" x2="152" y2="180"/>
+            <line x1="147" y1="186" x2="152" y2="190"/>
+            <line x1="147" y1="196" x2="152" y2="200"/>
+          </g>
+          <text id="fs-filter-label" x="149" y="84" text-anchor="middle" fill="rgba(10,116,214,0.95)" font-family="JetBrains Mono" font-size="8.5" letter-spacing="0.12em" font-weight="600">FILTER</text>
+        </g>
+
+        <!-- Indoor area label -->
+        <text x="220" y="86" text-anchor="middle" fill="rgba(107,166,241,0.85)" font-family="JetBrains Mono" font-size="8" letter-spacing="0.12em">INDOOR HALL</text>
+
+        <!-- Ground line -->
+        <line x1="0" y1="240" x2="360" y2="240" stroke="rgba(178,204,238,0.12)" stroke-width="0.6"/>
+
+        <!-- Particles render here -->
+        <g id="fs-arch-particles"></g>
+      `;
+
+      // Update filter label
+      const label = arch.querySelector("#fs-filter-label");
+      if (label) {
+        const filters = activeFilters();
+        label.textContent = filters.length === 1
+          ? CASES[state.case].filters[filters[0]].short.toUpperCase()
+          : "FILTER";
+      }
+
+      // Particle pool
+      const group = arch.querySelector("#fs-arch-particles");
+      archParticles = [];
+      const N = REDUCED ? 14 : 28;
+      for (let i = 0; i < N; i++) {
+        const c = document.createElementNS(SVG_NS, "circle");
+        c.setAttribute("r", "1.2");
+        c.setAttribute("fill", "#FCBC7E");
+        c.setAttribute("opacity", "0.85");
+        group.appendChild(c);
+        archParticles.push({
+          el: c,
+          x: Math.random() * 70,
+          y: 92 + Math.random() * 116,
+          vx: 0.4 + Math.random() * 0.45,
+          state: "outside",
+        });
+      }
+    }
+
+    function archStep() {
+      // PM removal efficiency = (1 - PM_indoor / PM_outdoor). Approximate:
+      // Camfil holds indoor mean lower → higher pass-through; H&V higher
+      // efficiency → lower indoor PM but more particles caught.
+      const filters = activeFilters();
+      const passRates = filters.map((fKey) => {
+        const f = CASES[state.case].filters[fKey];
+        // Higher pmMean = lower efficiency
+        return Math.max(0.04, Math.min(0.4, f.pmMean / 0.5));
+      });
+      const passRate = passRates.reduce((a, b) => a + b, 0) / passRates.length;
+
+      archParticles.forEach((p) => {
+        if (p.state === "outside") {
+          p.x += p.vx;
+          if (p.x >= 148) {
+            if (Math.random() < passRate) {
+              p.state = "indoor";
+              p.el.setAttribute("fill", "#6BA6F1");
+            } else {
+              p.state = "stopped";
+              p.el.setAttribute("opacity", "0.2");
+            }
+          }
+        } else if (p.state === "indoor") {
+          p.x += p.vx * 0.7;
+          if (p.x > 286) {
+            // recycle
+            p.x = -2 - Math.random() * 30;
+            p.y = 92 + Math.random() * 116;
+            p.state = "outside";
+            p.el.setAttribute("fill", "#FCBC7E");
+            p.el.setAttribute("opacity", "0.85");
+          }
+        } else if (p.state === "stopped") {
+          // fade and respawn outside
+          p.x += 0.1;
+          let op = parseFloat(p.el.getAttribute("opacity")) - 0.012;
+          if (op <= 0) {
+            p.x = -2 - Math.random() * 30;
+            p.y = 92 + Math.random() * 116;
+            p.state = "outside";
+            p.el.setAttribute("fill", "#FCBC7E");
+            p.el.setAttribute("opacity", "0.85");
+            return;
+          }
+          p.el.setAttribute("opacity", op.toFixed(2));
+        }
+        p.el.setAttribute("cx", p.x.toFixed(1));
+        p.el.setAttribute("cy", p.y.toFixed(1));
+      });
+      if (!REDUCED) requestAnimationFrame(archStep);
+    }
+
+    // -------- Readout zone (deltas / single-filter view)
+    // The visualization grammar switches with state.filter: Compare mode
+    // shows 6 directional tiles ("Camfil saves 83 Pa · vs H&V 218") so
+    // the user never has to read a signed delta; single-filter mode shows
+    // 3 absolute tiles (pressure / PM / energy) for the active filter
+    // and quietly references the other filter in the sub-row. Mode is
+    // labeled explicitly in the readout header so the swap is obvious.
+    const compactUSD = (v) => {
+      const abs = Math.abs(v);
+      const sign = v < 0 ? "−" : "";
+      if (abs >= 1e6) return sign + "$" + (abs / 1e6).toFixed(2) + "M";
+      if (abs >= 1e3) return sign + "$" + Math.round(abs / 1e3) + "k";
+      return sign + "$" + Math.round(abs);
+    };
+
+    function readingsAtMonth(caseData, m) {
+      const F1 = caseData.filters["1"], F2 = caseData.filters["2"];
+      return {
+        F1, F2,
+        p1: pressureSeries(F1)[m].v, p2: pressureSeries(F2)[m].v,
+        e1: energySeries(F1)[m].v,   e2: energySeries(F2)[m].v,
+        pm1: pmSeries(F1, 91)[m].v,  pm2: pmSeries(F2, 113)[m].v,
+      };
+    }
+
+    function renderDeltas() {
+      const $deltas = $("#fs-deltas");
+      const $mode = document.getElementById("fs-readout-mode");
+      const $sub = document.getElementById("fs-readout-sub");
+      if (!$deltas) return;
+      const caseData = CASES[state.case];
+      const m = Math.max(0, Math.min(12, Math.round(state.month)));
+      const r = readingsAtMonth(caseData, m);
+
+      if (state.filter === "compare") {
+        // ----- Compare mode: 6 directional tiles
+        $deltas.classList.add("fs__deltas--compare");
+        $deltas.classList.remove("fs__deltas--single");
+        if ($mode) $mode.textContent = "Comparison · Camfil vs H&V";
+        if ($sub)  $sub.textContent = `${caseData.short} · Month ${m} / 12 · who wins each metric`;
+
+        const pressureDelta = r.p2 - r.p1; // > 0 → Camfil saves Pa
+        const pmDelta = r.pm1 - r.pm2;     // > 0 → H&V cleaner
+        const energyDelta = r.e2 - r.e1;   // > 0 → Camfil saves MWh
+        const climateAvoided = energyDelta * COBENEFIT_PER_MWH.climateDollars;
+        const healthAvoided  = energyDelta * COBENEFIT_PER_MWH.healthDollars;
+        const energyCost     = energyDelta * 180; // $0.18/kWh × 1000
+        const total          = climateAvoided + healthAvoided + energyCost;
+
+        const pressureWinner = pressureDelta >= 0 ? "Camfil" : "H&V";
+        const pmWinner       = pmDelta >= 0 ? "H&V" : "Camfil";
+        const energyWinner   = energyDelta >= 0 ? "Camfil" : "H&V";
+        const totalActor     = total >= 0 ? "Camfil annual upside" : "H&V annual upside";
+
+        const tiles = [
+          {
+            k: "Pressure drop",
+            actor: `${pressureWinner} saves`,
+            v: Math.abs(pressureDelta).toFixed(0),
+            unit: "Pa",
+            sub: `Camfil ${r.p1.toFixed(0)} · H&V ${r.p2.toFixed(0)}`,
+            win: true,
+          },
+          {
+            k: "Indoor PM₂.₅",
+            actor: `${pmWinner} cleaner by`,
+            v: Math.abs(pmDelta).toFixed(2),
+            unit: "µg/m³",
+            sub: `Camfil ${r.pm1.toFixed(2)} · H&V ${r.pm2.toFixed(2)}`,
+            win: true,
+          },
+          {
+            k: "Fan energy",
+            actor: `${energyWinner} saves`,
+            v: Math.abs(energyDelta).toFixed(0),
+            unit: "MWh/y",
+            sub: `Camfil ${r.e1.toFixed(0)} · H&V ${r.e2.toFixed(0)}`,
+            win: true,
+          },
+          {
+            k: "Climate damages",
+            actor: "Choosing Camfil avoids",
+            v: compactUSD(climateAvoided),
+            unit: "/y",
+            sub: `CoBE · $13.70/MWh saved`,
+            win: false,
+          },
+          {
+            k: "Public health",
+            actor: "Choosing Camfil avoids",
+            v: compactUSD(healthAvoided),
+            unit: "/y",
+            sub: "CoBE · PM-attributable damages",
+            win: false,
+          },
+          {
+            k: "Building co-benefits",
+            actor: totalActor,
+            v: compactUSD(total),
+            unit: "/y",
+            sub: "Sum of three avoided cost lines",
+            total: true,
+          },
+        ];
+        $deltas.innerHTML = tiles.map((t) => {
+          const cls = `fs__delta${t.win ? " fs__delta--win" : ""}${t.total ? " fs__delta--total" : ""}`;
+          return `<div class="${cls}">
+            <span class="fs__delta-k">${t.k}</span>
+            <span class="fs__delta-actor">${t.actor}</span>
+            <span class="fs__delta-v">${t.v}<span class="u">${t.unit}</span></span>
+            <span class="fs__delta-sub">${t.sub}</span>
+          </div>`;
+        }).join("");
+      } else {
+        // ----- Single-filter mode: 3 absolute-value tiles for the active filter
+        $deltas.classList.add("fs__deltas--single");
+        $deltas.classList.remove("fs__deltas--compare");
+        const isF1 = state.filter === "1";
+        const filterName = isF1 ? "Camfil" : "H&V";
+        const otherName  = isF1 ? "H&V" : "Camfil";
+        if ($mode) $mode.textContent = `Single filter · ${filterName}`;
+        if ($sub)  $sub.innerHTML = `${caseData.short} · Month ${m} / 12 · <em>click Compare to see deltas vs ${otherName}</em>`;
+
+        const pAct  = isF1 ? r.p1  : r.p2;
+        const pOth  = isF1 ? r.p2  : r.p1;
+        const pmAct = isF1 ? r.pm1 : r.pm2;
+        const pmOth = isF1 ? r.pm2 : r.pm1;
+        const eAct  = isF1 ? r.e1  : r.e2;
+        const eOth  = isF1 ? r.e2  : r.e1;
+
+        const dir = (a, b, d) => {
+          const diff = a - b;
+          const arrow = diff < 0 ? "−" : "+";
+          return arrow + Math.abs(diff).toFixed(d);
+        };
+        const tiles = [
+          {
+            k: "Pressure drop",
+            v: pAct.toFixed(0),
+            unit: "Pa",
+            sub: `vs ${otherName} ${pOth.toFixed(0)} (${dir(pAct, pOth, 0)} Pa)`,
+          },
+          {
+            k: "Indoor PM₂.₅",
+            v: pmAct.toFixed(2),
+            unit: "µg/m³",
+            sub: `vs ${otherName} ${pmOth.toFixed(2)} (${dir(pmAct, pmOth, 2)} µg)`,
+          },
+          {
+            k: "Fan energy",
+            v: eAct.toFixed(0),
+            unit: "MWh/y cumul.",
+            sub: `vs ${otherName} ${eOth.toFixed(0)} (${dir(eAct, eOth, 0)} MWh)`,
+          },
+        ];
+        $deltas.innerHTML = tiles.map((t) => {
+          return `<div class="fs__delta fs__delta--solo">
+            <span class="fs__delta-k">${t.k}</span>
+            <span class="fs__delta-v">${t.v}<span class="u">${t.unit}</span></span>
+            <span class="fs__delta-sub">${t.sub}</span>
+          </div>`;
+        }).join("");
+      }
+    }
+
+    // Intent block live state — updated only on user-initiated control
+    // changes (case / filter clicks), not on every autoplay tick. Keeps
+    // screen readers from getting a flood of month-by-month announcements
+    // during the 12-second year scrubber. The timer label still shows
+    // month progress separately.
+    function updateIntent() {
+      const filterLbl = state.filter === "compare"
+        ? "Compare"
+        : (state.filter === "1" ? "Filter 1 · Camfil" : "Filter 2 · H&V");
+      const viewing = document.getElementById("fs-viewing");
+      if (viewing) viewing.textContent = `${CASES[state.case].short} · ${filterLbl}`;
+    }
+
+    // -------- Chart redraw
+    function redraw() {
+      const caseData = CASES[state.case];
+      const filters = activeFilters();
+      const COLORS = { "1": "#0A74D6", "2": "#6BA6F1" };
+
+      // Pressure
+      const pressureSets = filters.map((fKey) => ({
+        pts: pressureSeries(caseData.filters[fKey]),
+        color: COLORS[fKey],
+      }));
+      const allP = pressureSets.flatMap((s) => s.pts.map((p) => p.v));
+      const pMax = Math.max(...allP) * 1.08;
+      drawLineChart(ps, {
+        series: pressureSets,
+        yMin: 0, yMax: pMax,
+        yTicks: 4,
+        fmtY: (v) => Math.round(v),
+      });
+
+      // PM
+      const pmSets = filters.map((fKey) => ({
+        pts: pmSeries(caseData.filters[fKey], fKey === "1" ? 91 : 113),
+        color: COLORS[fKey],
+      }));
+      const allM = pmSets.flatMap((s) => s.pts.map((p) => p.v));
+      const mMax = Math.max(...allM) * 1.2;
+      drawLineChart(pm, {
+        series: pmSets,
+        yMin: 0, yMax: mMax,
+        yTicks: 4,
+        fmtY: (v) => v.toFixed(2),
+      });
+
+      // Energy bars
+      drawEnergyBars(en);
+
+      // Chart-caption readouts at the current month
+      const setReadout = (id, val) => { const e = document.getElementById(id); if (e) e.textContent = val; };
+      const month = state.month;
+      const F1 = caseData.filters["1"], F2 = caseData.filters["2"];
+      if (filters.length === 1) {
+        const f = caseData.filters[filters[0]];
+        setReadout("fs-pressure-readout", `${pressureSeries(f)[month].v.toFixed(0)} Pa`);
+        setReadout("fs-pm-readout", `${pmSeries(f, filters[0] === "1" ? 91 : 113)[month].v.toFixed(2)}`);
+        setReadout("fs-energy-readout", `${energySeries(f)[month].v.toFixed(0)} MWh`);
+      } else {
+        setReadout("fs-pressure-readout", `${pressureSeries(F1)[month].v.toFixed(0)} / ${pressureSeries(F2)[month].v.toFixed(0)}`);
+        setReadout("fs-pm-readout", `${pmSeries(F1, 91)[month].v.toFixed(2)} / ${pmSeries(F2, 113)[month].v.toFixed(2)}`);
+        setReadout("fs-energy-readout", `${energySeries(F1)[month].v.toFixed(0)} / ${energySeries(F2)[month].v.toFixed(0)}`);
+      }
+
+      // Intent block lives outside redraw() — see updateIntent() above.
+      // The autoplay year scrubber redraws ~24 times in 12 s and rebinding
+      // the intent block on every tick would flood AT users.
+      renderDeltas();
+    }
+
+    // -------- Timer
+    let timerRaf = 0;
+    function setToggleState(label, pressed) {
+      const $t = $("#fs-timer-toggle");
+      if (!$t) return;
+      $t.textContent = label;
+      $t.setAttribute("aria-pressed", pressed ? "true" : "false");
+    }
+    function startTimer() {
+      state.playing = true;
+      setToggleState("Pause", true);
+      let lastT = 0;
+      function tick(now) {
+        if (!state.playing) return;
+        if (!lastT) lastT = now;
+        const dt = now - lastT;
+        // Advance one full year over ~12 seconds (smooth interpolation in float).
+        const inc = (dt / 12000) * 12;
+        let next = state.month + inc;
+        if (next >= 12) { next = 12; state.playing = false; }
+        if (Math.abs(next - state.month) >= 0.05 || next === 12) {
+          state.month = next;
+          updateTimerUI();
+          redraw();
+        }
+        lastT = now;
+        if (state.playing) timerRaf = requestAnimationFrame(tick);
+        else setToggleState("Restart", false);
+      }
+      timerRaf = requestAnimationFrame(tick);
+    }
+    function restartTimer() {
+      state.playing = false;
+      cancelAnimationFrame(timerRaf);
+      state.month = 0;
+      updateTimerUI();
+      redraw();
+      startTimer();
+    }
+    function pauseTimer() {
+      state.playing = false;
+      cancelAnimationFrame(timerRaf);
+      setToggleState(state.month >= 12 ? "Restart" : "Resume", false);
+    }
+    function updateTimerUI() {
+      const fill = $("#fs-timer-fill");
+      if (fill) fill.style.width = ((state.month / 12) * 100) + "%";
+      const lbl = $("#fs-timer-label");
+      if (lbl) lbl.textContent = `Month ${Math.round(state.month)} / 12`;
+    }
+
+    // -------- Wire controls
+    $$('[data-fs-case]').forEach((btn) => {
       btn.addEventListener("click", () => {
-        $$('.fs__toggle .chip').forEach((b) => b.classList.toggle("is-active", b === btn));
-        setFsMode(btn.dataset.fs);
+        $$('[data-fs-case]').forEach((b) => {
+          const on = b === btn;
+          b.classList.toggle("is-active", on);
+          b.setAttribute("aria-pressed", on ? "true" : "false");
+        });
+        state.case = btn.dataset.fsCase;
+        updateIntent();
+        redraw();
       });
     });
-    // Initial sync (HTML defaults to Compare)
-    updatePillars();
-  })();
-
-  /* ============================================================ MATRIX HEATMAP */
-
-  (function matrix() {
-    const svg = $("#mx-heat");
-    if (!svg) return;
-    const ns = "http://www.w3.org/2000/svg";
-    function el(tag, attrs = {}) {
-      const e = document.createElementNS(ns, tag);
-      Object.entries(attrs).forEach(([k, v]) => e.setAttribute(k, v));
-      return e;
-    }
-
-    const COLS = 12, ROWS = 8;
-    let cells = [];
-    let currentScenario = "baseline";
-    // Geometry kept module-scope so apply() can re-annotate best cell after redraws.
-    let geom = { pad: { l: 48, r: 16, t: 16, b: 60 }, W: 0, H: 0, iw: 0, ih: 0, cellW: 0, cellH: 0 };
-    let bestCellGroup = null;
-
-    function clearSvg(node) { while (node.firstChild) node.removeChild(node.firstChild); }
-
-    // Each scenario reshapes the surface — not just a uniform multiplier.
-    // The U-value/HVAC weights shift to reflect which design choice
-    // becomes the dominant lever under that intervention, and the
-    // ceiling/floor shift so the best-cell intensity actually moves.
-    const SCENARIOS = {
-      baseline:  { uWeight: 0.55, hWeight: 0.45, offset:   0, pctSavings: 0.0, usd: 0,     co2: 0,   note: "Reference operating envelope" },
-      envelope:  { uWeight: 0.38, hWeight: 0.68, offset:  -3, pctSavings: 1.2, usd: 22000, co2: 110, note: "Envelope retrofit shifts the lever toward HVAC" },
-      setpoints: { uWeight: 0.62, hWeight: 0.38, offset:  -1, pctSavings: 0.6, usd: 11000, co2: 55,  note: "Setpoint tune amplifies envelope sensitivity" },
-      all:       { uWeight: 0.48, hWeight: 0.58, offset:  -6, pctSavings: 2.0, usd: 40000, co2: 200, note: "Combined envelope + setpoint optimum" },
-    };
-
-    function intensityFor(scenario, c, r) {
-      const s = SCENARIOS[scenario];
-      const u = 1 - c / (COLS - 1); // 0 = poor envelope, 1 = great envelope
-      const h = 1 - r / (ROWS - 1); // 0 = poor HVAC, 1 = great HVAC
-      return 220 + s.offset - 100 * (s.uWeight * u + s.hWeight * h);
-    }
-
-    function draw() {
-      clearSvg(svg);
-      cells = [];
-      bestCellGroup = null;
-
-      const rect = svg.getBoundingClientRect();
-      const W = Math.max(520, Math.round(rect.width));
-      const H = 380;
-      svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
-      const pad = { l: 56, r: 16, t: 16, b: 72 };
-      const iw = W - pad.l - pad.r, ih = H - pad.t - pad.b;
-      const cellW = iw / COLS, cellH = ih / ROWS;
-      geom = { pad, W, H, iw, ih, cellW, cellH };
-
-      // build cell grid
-      for (let r = 0; r < ROWS; r++) {
-        for (let c = 0; c < COLS; c++) {
-          const x = pad.l + c * cellW;
-          const y = pad.t + r * cellH;
-          const rectEl = el("rect", { x: x + 1, y: y + 1, width: cellW - 2, height: cellH - 2, rx: 2, ry: 2, fill: "#0a0f1a" });
-          svg.appendChild(rectEl);
-          cells.push({ rect: rectEl, c, r, x, y });
+    $$('[data-fs-filter]').forEach((btn) => {
+      btn.addEventListener("click", () => {
+        $$('[data-fs-filter]').forEach((b) => {
+          const on = b === btn;
+          b.classList.toggle("is-active", on);
+          b.setAttribute("aria-pressed", on ? "true" : "false");
+        });
+        state.filter = btn.dataset.fsFilter;
+        // Filter swap also re-labels the archetype filter membrane
+        const label = arch.querySelector("#fs-filter-label");
+        if (label) {
+          const filters = activeFilters();
+          label.textContent = filters.length === 1
+            ? CASES[state.case].filters[filters[0]].short.toUpperCase()
+            : "FILTER";
         }
-      }
-
-      // axis titles — convention: best operating regime in the top-left
-      // (low U-value × high HVAC efficiency = low energy intensity).
-      svg.appendChild(el("text", { x: pad.l - 12, y: pad.t + ih / 2, "text-anchor": "middle", transform: `rotate(-90 ${pad.l - 12} ${pad.t + ih / 2})`, fill: "#8c97a8", "font-size": 10, "font-family": "Inter" })).textContent = "HVAC efficiency (η)";
-      svg.appendChild(el("text", { x: pad.l + iw / 2, y: pad.t + ih + 22, "text-anchor": "middle", fill: "#8c97a8", "font-size": 10, "font-family": "Inter" })).textContent = "Envelope U-value (W/m²K)";
-      // axis ticks — flipped so left = best envelope (low U) and top = best HVAC eff.
-      const uTicks = [
-        { c: 0,  v: "0.80" },
-        { c: 4,  v: "1.40" },
-        { c: 8,  v: "2.10" },
-        { c: 11, v: "2.70" },
-      ];
-      uTicks.forEach(({ c, v }) => {
-        svg.appendChild(el("text", { x: pad.l + c * cellW + cellW / 2, y: pad.t + ih + 11, "text-anchor": "middle", fill: "#5d6778", "font-size": 9, "font-family": "JetBrains Mono" })).textContent = v;
+        updateIntent();
+        redraw();
       });
-      const hTicks = [
-        { r: 0, v: "High" },
-        { r: 3, v: "Mid" },
-        { r: 7, v: "Low" },
-      ];
-      hTicks.forEach(({ r, v }) => {
-        svg.appendChild(el("text", { x: pad.l - 10, y: pad.t + r * cellH + cellH / 2 + 3, "text-anchor": "end", fill: "#5d6778", "font-size": 9, "font-family": "JetBrains Mono" })).textContent = v;
+    });
+    const $timerToggle = $("#fs-timer-toggle");
+    if ($timerToggle) {
+      $timerToggle.addEventListener("click", () => {
+        if (state.month >= 12) { restartTimer(); return; }
+        if (state.playing) pauseTimer();
+        else startTimer();
       });
-      // Direction markers — make the gradient direction unambiguous on first read.
-      svg.appendChild(el("text", { x: pad.l, y: pad.t + ih + 36, "text-anchor": "start", fill: "rgba(94,234,212,0.75)", "font-size": 9, "font-family": "JetBrains Mono", "letter-spacing": "0.16em" })).textContent = "← BETTER";
-      svg.appendChild(el("text", { x: pad.l + iw, y: pad.t + ih + 36, "text-anchor": "end", fill: "rgba(140,151,168,0.55)", "font-size": 9, "font-family": "JetBrains Mono", "letter-spacing": "0.16em" })).textContent = "WORSE →";
-      svg.appendChild(el("text", { x: 16, y: pad.t + 8, "text-anchor": "start", fill: "rgba(94,234,212,0.75)", "font-size": 9, "font-family": "JetBrains Mono", "letter-spacing": "0.16em", transform: `rotate(-90 16 ${pad.t + 8})` })).textContent = "BETTER ↑";
-
-      // color-scale legend strip below the grid
-      const legendY = pad.t + ih + 36;
-      const legendW = Math.min(220, iw * 0.45);
-      const legendX = pad.l + iw - legendW;
-      const defs = el("defs", {});
-      defs.innerHTML = `
-        <linearGradient id="mx-grad" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0" stop-color="rgb(94,234,212)"/>
-          <stop offset="0.45" stop-color="rgb(56,189,248)"/>
-          <stop offset="0.75" stop-color="rgb(129,140,248)"/>
-          <stop offset="1" stop-color="rgb(192,132,252)"/>
-        </linearGradient>`;
-      svg.appendChild(defs);
-      svg.appendChild(el("rect", { x: legendX, y: legendY, width: legendW, height: 6, rx: 3, fill: "url(#mx-grad)" }));
-      svg.appendChild(el("text", { x: legendX, y: legendY - 4, fill: "#5d6778", "font-size": 9, "font-family": "JetBrains Mono" })).textContent = "lower energy use";
-      svg.appendChild(el("text", { x: legendX + legendW, y: legendY - 4, "text-anchor": "end", fill: "#5d6778", "font-size": 9, "font-family": "JetBrains Mono" })).textContent = "higher";
-
-      apply(currentScenario);
     }
 
-    function color(v, min, max) {
-      const t = (v - min) / Math.max(0.01, max - min); // 0 best, 1 worst
-      const palette = [
-        { p: 0.00, c: [94, 234, 212] }, // teal-cyan
-        { p: 0.45, c: [56, 189, 248] }, // sky
-        { p: 0.75, c: [129, 140, 248] }, // indigo
-        { p: 1.00, c: [192, 132, 252] }, // violet
-      ];
-      let a = palette[0], b = palette[palette.length - 1];
-      for (let i = 0; i < palette.length - 1; i++) {
-        if (t >= palette[i].p && t <= palette[i + 1].p) { a = palette[i]; b = palette[i + 1]; break; }
-      }
-      const k = (t - a.p) / (b.p - a.p || 1);
-      const rgb = a.c.map((cc, i) => Math.round(cc + (b.c[i] - cc) * k));
-      return `rgb(${rgb.join(",")})`;
-    }
-
-    function apply(scenario) {
-      currentScenario = scenario;
-      const vals = cells.map(({ c, r }) => intensityFor(scenario, c, r));
-      const min = Math.min(...vals), max = Math.max(...vals);
-      let minIndex = 0;
-      vals.forEach((v, i) => { if (v <= vals[minIndex]) minIndex = i; });
-      cells.forEach(({ rect, c, r }, i) => {
-        const v = vals[i];
-        const t = (v - min) / Math.max(0.01, max - min);
-        rect.setAttribute("fill", color(v, min, max));
-        rect.setAttribute("opacity", (0.22 + (1 - t) * 0.78).toFixed(2));
-      });
-
-      // Best-cell annotation. Find baseline minimum too so we can express
-      // the active scenario's delta against it.
-      const baselineMin = Math.min(...cells.map(({ c, r }) => intensityFor("baseline", c, r)));
-      const best = cells[minIndex];
-      if (bestCellGroup) bestCellGroup.remove();
-      bestCellGroup = el("g", { class: "mx-bestcell" });
-      const bx = best.x + geom.cellW / 2;
-      const by = best.y + geom.cellH / 2;
-      bestCellGroup.appendChild(el("rect", {
-        x: best.x + 1, y: best.y + 1, width: geom.cellW - 2, height: geom.cellH - 2,
-        rx: 2, ry: 2, fill: "none", stroke: "#f4f7fb", "stroke-width": 1.6, opacity: 0.95,
-      }));
-      bestCellGroup.appendChild(el("circle", {
-        cx: bx, cy: by, r: Math.min(geom.cellW, geom.cellH) * 0.18,
-        fill: "none", stroke: "#5eead4", "stroke-width": 1.4, opacity: 0.85,
-      }));
-      // Annotation callout — leader line + text near top-right or top-left of grid
-      const labelLeft = best.c > COLS / 2;
-      const lx = labelLeft ? geom.pad.l + 10 : geom.pad.l + geom.iw - 10;
-      const ly = geom.pad.t + 18;
-      const tAnchor = labelLeft ? "start" : "end";
-      const intensity = vals[minIndex].toFixed(0);
-      const deltaPct = ((baselineMin - vals[minIndex]) / baselineMin * 100);
-      const t1 = el("text", { x: lx, y: ly, "text-anchor": tAnchor, fill: "#f4f7fb", "font-size": 11, "font-family": "JetBrains Mono", "font-weight": 600 });
-      t1.textContent = scenario === "baseline"
-        ? `Best operating regime · ${intensity} kWh/m²`
-        : `Best regime · ${intensity} kWh/m² · ${deltaPct > 0 ? "−" : "+"}${Math.abs(deltaPct).toFixed(1)}% vs baseline`;
-      bestCellGroup.appendChild(t1);
-      const t2 = el("text", { x: lx, y: ly + 14, "text-anchor": tAnchor, fill: "#8c97a8", "font-size": 9.5, "font-family": "Inter" });
-      t2.textContent = SCENARIOS[scenario].note;
-      bestCellGroup.appendChild(t2);
-      // Leader line from text to best cell
-      const t1Box = labelLeft
-        ? { x: lx, y: ly + 4 }
-        : { x: lx, y: ly + 4 };
-      bestCellGroup.appendChild(el("line", {
-        x1: t1Box.x + (labelLeft ? -6 : 6), y1: ly + 4,
-        x2: bx, y2: by - Math.min(geom.cellW, geom.cellH) * 0.18 - 2,
-        stroke: "rgba(255,255,255,0.35)", "stroke-width": 0.8, "stroke-dasharray": "3 3",
-      }));
-      svg.appendChild(bestCellGroup);
-
-      // Readouts
-      const s = SCENARIOS[scenario];
-      const $pct = $("#mx-savings-pct"), $usd = $("#mx-savings-usd"), $co2 = $("#mx-co2");
-      if ($pct) $pct.textContent = s.pctSavings.toFixed(1);
-      if ($usd) $usd.textContent = fmt.num(s.usd);
-      if ($co2) $co2.textContent = fmt.num(s.co2);
-
-      // Intent block live state for MATRIX
-      const labels = {
-        baseline:  "Baseline · reference operating envelope",
-        envelope:  "+ Envelope retrofit · lever shifts toward HVAC",
-        setpoints: "+ Setpoint tune · envelope sensitivity amplified",
-        all:       "All combined · envelope + setpoint optimum",
-      };
-      const intentMx = document.getElementById("intent-mx");
-      if (intentMx) {
-        const delta = s.pctSavings > 0 ? ` · <b>−${s.pctSavings.toFixed(1)}%</b> vs baseline` : "";
-        intentMx.innerHTML = (labels[scenario] || scenario) + delta;
-      }
-    }
-
-    draw();
-
-    // Re-measure and rebuild the heatmap when the panel's width changes
-    // (window resize, breakpoint flip, device rotation). rAF-debounced.
+    // -------- ResizeObserver
     if (typeof ResizeObserver !== "undefined") {
       let raf = 0;
       const ro = new ResizeObserver(() => {
         if (raf) cancelAnimationFrame(raf);
-        raf = requestAnimationFrame(() => { raf = 0; draw(); });
+        raf = requestAnimationFrame(() => { raf = 0; redraw(); });
       });
-      ro.observe(svg);
+      ro.observe(ps);
     }
 
-    $$('.mx__scenario .chip').forEach(btn => {
-      btn.addEventListener("click", () => {
-        $$('.mx__scenario .chip').forEach(b => b.classList.toggle("is-active", b === btn));
-        apply(btn.dataset.scenario);
-      });
-    });
+    // -------- Initial render
+    buildArchetype();
+    updateTimerUI();
+    updateIntent();
+    redraw();
+    if (!REDUCED) requestAnimationFrame(archStep);
+    // Auto-start the year scrubber when the section first enters viewport.
+    const fsSection = document.getElementById("filterstudio");
+    if (fsSection && !REDUCED) {
+      const io = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting && state.month >= 12 && !state.playing) {
+          // Begin at month 0 the first time it enters view
+          state.month = 0;
+          updateTimerUI();
+          redraw();
+          startTimer();
+          io.disconnect();
+        }
+      }, { threshold: 0.35 });
+      io.observe(fsSection);
+    }
   })();
 
-  /* ============================================================ H.E.A.A.L. DASHBOARD */
+  /* ============================================================ MATRIX
+     Two surfaces synced on a 500 ms tick: a building front-elevation
+     figure that re-colors per scenario, and a decision-matrix grid whose
+     highlighted cell anchors to the same scenario's best operating
+     regime. Same cadence on both — figure changes, matrix snaps, the
+     pair reads as one product demonstrating a real simulation step.
+     ================================================================ */
 
-  (function heaal() {
-    const grid = $("#hl-grid");
-    if (!grid) return;
+  (function matrix() {
+    const figure = $("#mx2-figure");
+    const grid = $("#mx2-grid");
+    if (!figure || !grid) return;
 
-    // -------- Deterministic per-floor profiles
-    // Each profile is 4 rows × 18 cols of severity codes:
-    //   0 = stable (deep cyan), 1 = stable-lighter, 2 = warn (yellow), 3 = exceed (red).
-    // Patterns are hand-tuned so each floor reads as a recognizable building
-    // state, not as random data. Toggling floors must reproduce the same
-    // pattern every time.
-    const FLOORS = {
-      "1": {
-        score: 82,
-        alerts: 5,
-        exceeds: 1,
-        statusNote: "5 alerts (PM₂.₅ R-side · RH)",
-        tiles: { tvoc: 168, pm25: 14.2, t: 22.6, rh: 38, co2: 740, tvocPip: "warn", pm25Pip: "warn", trhPip: "ok", co2Pip: "ok" },
-        pattern: [
-          "110000000011000122",
-          "110000011112000233",
-          "000000000111000122",
-          "000010000000000011",
-        ],
-      },
-      "2": {
-        score: 86,
-        alerts: 2,
-        exceeds: 0,
-        statusNote: "2 alerts (PM₂.₅ · RH)",
-        tiles: { tvoc: 142, pm25: 11.4, t: 21.4, rh: 42, co2: 612, tvocPip: "ok", pm25Pip: "warn", trhPip: "ok", co2Pip: "ok" },
-        pattern: [
-          "000000000000000000",
-          "000011110000000000",
-          "000112210000000000",
-          "000001100000000000",
-        ],
-      },
-      "3": {
-        score: 91,
-        alerts: 0,
-        exceeds: 0,
-        statusNote: "Actions clear",
-        tiles: { tvoc: 96, pm25: 7.8, t: 21.1, rh: 45, co2: 488, tvocPip: "ok", pm25Pip: "ok", trhPip: "ok", co2Pip: "ok" },
-        pattern: [
-          "000000000000000000",
-          "000000000000000000",
-          "000000000000010000",
-          "000000000000000000",
-        ],
-      },
-    };
-
-    const SEVERITY_BG = ["rgba(94,234,212,0.18)", "rgba(94,234,212,0.34)", "rgba(251,191,36,0.40)", "rgba(248,113,113,0.45)"];
-    const SEVERITY_BORDER = ["rgba(94,234,212,0.16)", "rgba(94,234,212,0.30)", "rgba(251,191,36,0.55)", "rgba(248,113,113,0.70)"];
-
-    // Sensor grid: 18 cols × 4 rows
-    const COLS = 18, ROWS = 4;
-    const cells = [];
-    for (let r = 0; r < ROWS; r++) {
-      for (let c = 0; c < COLS; c++) {
-        const cell = document.createElement("div");
-        cell.className = "hl__cell";
-        cell.title = `Sensor ${r + 1}-${c + 1}`;
-        grid.appendChild(cell);
-        cells.push(cell);
-      }
+    const SVG_NS = "http://www.w3.org/2000/svg";
+    function el(tag, attrs = {}) {
+      const e = document.createElementNS(SVG_NS, tag);
+      Object.entries(attrs).forEach(([k, v]) => e.setAttribute(k, v));
+      return e;
     }
+    function clear(node) { while (node.firstChild) node.removeChild(node.firstChild); }
 
-    function paintFloor(f) {
-      const profile = FLOORS[f] || FLOORS["2"];
+    // Scenarios cycle in this order on every 500 ms tick. Each scenario
+    // names its config, its dominant brand-blue color, and the cell on
+    // the matrix grid where its best operating regime lives. The grid
+    // is 12 cols (envelope U-value) × 8 rows (HVAC efficiency).
+    // Best regime convention: low U (left side) × high η (top side).
+    const SCENARIOS = [
+      { id: "baseline",     name: "Baseline · reference envelope",      colorA: "#1f3556", colorB: "#3a5a85", bestC: 7, bestR: 4, intensity: 198 },
+      { id: "envelope",     name: "+ Envelope retrofit",                colorA: "#0e3870", colorB: "#0A74D6", bestC: 3, bestR: 3, intensity: 174 },
+      { id: "setpoints",    name: "+ Setpoint tune",                    colorA: "#0c2e58", colorB: "#1a5396", bestC: 6, bestR: 2, intensity: 188 },
+      { id: "hvac",         name: "+ HVAC efficiency upgrade",          colorA: "#0A74D6", colorB: "#6BA6F1", bestC: 5, bestR: 1, intensity: 168 },
+      { id: "all",          name: "All combined · optimal regime",      colorA: "#6BA6F1", colorB: "#B2CCEE", bestC: 2, bestR: 1, intensity: 152 },
+    ];
+    let scenarioIdx = 0;
+
+    // ------- Building figure (front elevation, animated colorway)
+    function buildFigure() {
+      clear(figure);
+      figure.setAttribute("viewBox", "0 0 420 320");
+      figure.innerHTML = `
+        <defs>
+          <linearGradient id="mx-roof" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#23426b"/>
+            <stop offset="1" stop-color="#152946"/>
+          </linearGradient>
+        </defs>
+
+        <!-- Live energy-intensity readout, top-right. Sits in clear
+             space well above the building so it reads as a chart
+             annotation, not a label sitting on the roof. -->
+        <text x="412" y="20" text-anchor="end" fill="rgba(149,163,184,0.7)" font-family="JetBrains Mono" font-size="8.5" letter-spacing="0.18em">ENERGY INTENSITY</text>
+        <text id="mx-bldg-intensity" x="412" y="40" text-anchor="end" fill="rgba(10,116,214,0.95)" font-family="JetBrains Mono" font-size="14" letter-spacing="0.04em" font-weight="600">198 kWh/m²</text>
+
+        <!-- Ground -->
+        <line x1="0" y1="270" x2="420" y2="270" stroke="rgba(178,204,238,0.15)" stroke-width="0.8"/>
+
+        <!-- Building front -->
+        <rect id="mx-bldg-front" x="40" y="80" width="340" height="190" fill="#1f3556" stroke="rgba(178,204,238,0.3)" stroke-width="0.8"/>
+        <!-- Roof slab -->
+        <polygon id="mx-bldg-roof" points="40,80 380,80 366,60 54,60" fill="url(#mx-roof)" stroke="rgba(178,204,238,0.22)" stroke-width="0.6"/>
+
+        <!-- Server hall louvres -->
+        <g id="mx-bldg-louvres" stroke="rgba(178,204,238,0.22)" stroke-width="0.6">
+          <line x1="60"  y1="110" x2="360" y2="110"/>
+          <line x1="60"  y1="130" x2="360" y2="130"/>
+          <line x1="60"  y1="150" x2="360" y2="150"/>
+          <line x1="60"  y1="170" x2="360" y2="170"/>
+          <line x1="60"  y1="190" x2="360" y2="190"/>
+          <line x1="60"  y1="210" x2="360" y2="210"/>
+          <line x1="60"  y1="230" x2="360" y2="230"/>
+          <line x1="60"  y1="250" x2="360" y2="250"/>
+        </g>
+
+        <!-- Window pattern — fills with active highlight, the "demo
+             of an intervention scanning the building" gesture. -->
+        <g id="mx-bldg-cells"></g>
+
+        <!-- Door / entrance for human scale -->
+        <rect x="190" y="232" width="40" height="38" fill="rgba(178,204,238,0.1)" stroke="rgba(178,204,238,0.35)" stroke-width="0.8"/>
+        <line x1="210" y1="232" x2="210" y2="270" stroke="rgba(178,204,238,0.35)" stroke-width="0.6"/>
+      `;
+      // Cell grid inside the building — 8 rows × 12 cols of small squares
+      // that re-color in waves as scenarios cycle.
+      const cellsG = figure.querySelector("#mx-bldg-cells");
+      const ROWS = 7, COLS = 14;
+      const x0 = 56, y0 = 96, cw = 22, ch = 18, gap = 2;
       for (let r = 0; r < ROWS; r++) {
-        const row = profile.pattern[r] || "";
         for (let c = 0; c < COLS; c++) {
-          const sev = parseInt(row[c] || "0", 10);
-          const cell = cells[r * COLS + c];
-          if (!cell) continue;
-          cell.style.background = SEVERITY_BG[sev];
-          cell.style.boxShadow = `inset 0 0 0 1px ${SEVERITY_BORDER[sev]}`;
-          cell.dataset.sev = String(sev);
+          const x = x0 + c * (cw + gap);
+          const y = y0 + r * (ch + gap);
+          const sq = document.createElementNS(SVG_NS, "rect");
+          sq.setAttribute("class", "mx-cell");
+          sq.setAttribute("x", x);
+          sq.setAttribute("y", y);
+          sq.setAttribute("width", cw);
+          sq.setAttribute("height", ch);
+          sq.setAttribute("fill", "#1f3556");
+          sq.setAttribute("opacity", "0.55");
+          sq.dataset.r = r;
+          sq.dataset.c = c;
+          cellsG.appendChild(sq);
         }
       }
     }
 
-    function updateScore(f) {
-      const p = FLOORS[f] || FLOORS["2"];
-      const $score = $("#hl-score");
-      const $bar = $("#hl-bar");
-      if ($score) $score.textContent = String(p.score);
-      if ($bar) $bar.style.width = p.score + "%";
+    function applyFigureScenario(idx) {
+      const s = SCENARIOS[idx];
+      const front = figure.querySelector("#mx-bldg-front");
+      if (front) {
+        front.setAttribute("fill", s.colorA);
+        front.style.transition = "fill 320ms cubic-bezier(.2,.8,.2,1)";
+      }
+      const intensity = figure.querySelector("#mx-bldg-intensity");
+      if (intensity) intensity.textContent = s.intensity + " kWh/m²";
+      const cells = figure.querySelectorAll(".mx-cell");
+      // Cell color follows a gradient: rows closer to scenario's "best
+      // operating regime" within the building get the bright B color,
+      // farther rows fade to the darker A color. This visually
+      // expresses "the simulation is re-evaluating the whole building".
+      cells.forEach((cell) => {
+        const r = +cell.dataset.r;
+        const c = +cell.dataset.c;
+        // Pseudo-best region — mirror the matrix grid's best cell pos
+        // (mapped from 12×8 down to 14×7), so the figure highlight
+        // matches the matrix highlight conceptually.
+        const fbestR = Math.round(s.bestR / 8 * 7);
+        const fbestC = Math.round(s.bestC / 12 * 14);
+        const d = Math.sqrt((r - fbestR) ** 2 + (c - fbestC) ** 2);
+        const maxD = Math.sqrt(7 ** 2 + 14 ** 2);
+        const t = 1 - Math.min(1, d / (maxD * 0.5));
+        cell.style.transition = "fill 360ms cubic-bezier(.2,.8,.2,1), opacity 360ms cubic-bezier(.2,.8,.2,1)";
+        cell.setAttribute("fill", t > 0.5 ? s.colorB : s.colorA);
+        cell.setAttribute("opacity", (0.35 + t * 0.55).toFixed(2));
+      });
+      // Caption + intent
+      const figName = document.getElementById("mx2-fig-name");
+      if (figName) figName.textContent = "Configuration · " + s.name;
     }
 
-    function updateStatus(f) {
-      const p = FLOORS[f] || FLOORS["2"];
-      const $status = $(".hl__status");
-      if (!$status) return;
-      $status.innerHTML = `
-        <li><span class="pip pip--ok"></span> ${p.alerts === 0 ? "All sensors stable" : `${p.alerts} alerts open`}</li>
-        <li><span class="pip ${p.alerts > 0 ? "pip--warn" : "pip--ok"}"></span> ${p.statusNote}</li>
-        <li><span class="pip ${p.exceeds > 0 ? "pip--bad" : "pip--ok"}"></span> ${p.exceeds} thresholds exceeded</li>
-      `;
+    // ------- Matrix grid (right side)
+    const ROWS = 8, COLS = 12;
+    function buildGrid() {
+      clear(grid);
+      grid.setAttribute("viewBox", "0 0 360 320");
+      const pad = { l: 36, r: 18, t: 22, b: 38 };
+      const W = 360, H = 320;
+      const iw = W - pad.l - pad.r;
+      const ih = H - pad.t - pad.b;
+      const cellW = iw / COLS, cellH = ih / ROWS;
+      // Cells
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          const x = pad.l + c * cellW;
+          const y = pad.t + r * cellH;
+          const rectEl = el("rect", {
+            class: "mx-grid-cell",
+            x: x + 1, y: y + 1,
+            width: cellW - 2, height: cellH - 2,
+            rx: 2, ry: 2,
+            fill: "#0e1a2c",
+            opacity: 0.4,
+          });
+          rectEl.dataset.r = r;
+          rectEl.dataset.c = c;
+          grid.appendChild(rectEl);
+        }
+      }
+      // Highlighted cell — invisible until colored by applyGridScenario
+      const hi = el("rect", {
+        id: "mx-grid-highlight",
+        x: 0, y: 0, width: cellW - 2, height: cellH - 2,
+        rx: 2, ry: 2,
+        fill: "none",
+        stroke: "#0A74D6",
+        "stroke-width": 1.8,
+        opacity: 0.95,
+      });
+      grid.appendChild(hi);
+      // Best-cell ring
+      const ring = el("circle", {
+        id: "mx-grid-ring",
+        cx: 0, cy: 0, r: Math.min(cellW, cellH) * 0.32,
+        fill: "none",
+        stroke: "#6BA6F1",
+        "stroke-width": 1.1,
+        opacity: 0.9,
+      });
+      grid.appendChild(ring);
+      // Axis labels
+      grid.appendChild(el("text", { x: pad.l + iw / 2, y: H - 12, "text-anchor": "middle", fill: "#95a3b8", "font-size": 9, "font-family": "JetBrains Mono", "letter-spacing": "0.08em" })).textContent = "U → high U-value";
+      grid.appendChild(el("text", { x: pad.l - 28, y: pad.t + ih / 2, "text-anchor": "middle", transform: `rotate(-90 ${pad.l - 28} ${pad.t + ih / 2})`, fill: "#95a3b8", "font-size": 9, "font-family": "JetBrains Mono", "letter-spacing": "0.08em" })).textContent = "↑ η";
+      // Direction marker
+      grid.appendChild(el("text", { x: pad.l + 4, y: pad.t - 8, "text-anchor": "start", fill: "rgba(10,116,214,0.85)", "font-size": 9, "font-family": "JetBrains Mono", "letter-spacing": "0.16em" })).textContent = "BETTER";
+      grid.appendChild(el("text", { x: pad.l + iw - 4, y: H - 22, "text-anchor": "end", fill: "rgba(149,163,184,0.7)", "font-size": 9, "font-family": "JetBrains Mono", "letter-spacing": "0.16em" })).textContent = "WORSE";
+
+      grid._geom = { pad, W, H, iw, ih, cellW, cellH };
     }
 
-    function updateTiles(f) {
-      const p = FLOORS[f] || FLOORS["2"];
-      const t = p.tiles;
-      const set = (id, val) => { const el = $("#" + id); if (el) el.textContent = String(val); };
-      set("tile-tvoc", t.tvoc);
-      set("tile-pm25", t.pm25);
-      set("tile-t", t.t);
-      set("tile-rh", t.rh);
-      set("tile-co2", t.co2);
-      // Update tile pip color
-      const pipFor = (metric) => {
-        const tile = document.querySelector(`.tile[data-metric="${metric}"]`);
-        if (!tile) return;
-        const pip = tile.querySelector(".pip");
-        if (!pip) return;
-        pip.className = "pip pip--" + t[metric + "Pip"];
-      };
-      pipFor("tvoc"); pipFor("pm25"); pipFor("trh"); pipFor("co2");
-    }
-
-    function setFloor(f) {
-      paintFloor(f);
-      updateScore(f);
-      updateStatus(f);
-      updateTiles(f);
-      const $floor = $("#hl-floor"), $floor2 = $("#hl-floor-2");
-      if ($floor) $floor.textContent = f;
-      if ($floor2) $floor2.textContent = f;
-      // Intent block live state for H.E.A.A.L.
-      const p = FLOORS[f] || FLOORS["2"];
-      const intentHl = document.getElementById("intent-hl");
-      if (intentHl) {
-        intentHl.innerHTML = `Floor ${f} · IEQ <b>${p.score}</b> / 100 · ${p.alerts} alert${p.alerts === 1 ? "" : "s"} open`;
+    function applyGridScenario(idx) {
+      const s = SCENARIOS[idx];
+      const cells = grid.querySelectorAll(".mx-grid-cell");
+      const { pad, cellW, cellH } = grid._geom;
+      // Color each cell based on its distance to the active scenario's
+      // best operating regime. Closer cells get the brighter B color,
+      // farther cells get the darker A color. Same gradient family used
+      // on the figure so the user reads them as one product.
+      const maxD = Math.sqrt(ROWS ** 2 + COLS ** 2);
+      cells.forEach((cell) => {
+        const r = +cell.dataset.r;
+        const c = +cell.dataset.c;
+        const d = Math.sqrt((r - s.bestR) ** 2 + (c - s.bestC) ** 2);
+        const t = 1 - Math.min(1, d / (maxD * 0.7));
+        cell.style.transition = "fill 360ms cubic-bezier(.2,.8,.2,1), opacity 360ms cubic-bezier(.2,.8,.2,1)";
+        const fill = t > 0.6 ? s.colorB : (t > 0.3 ? s.colorA : "#0e1a2c");
+        cell.setAttribute("fill", fill);
+        cell.setAttribute("opacity", (0.4 + t * 0.5).toFixed(2));
+      });
+      // Move the highlight rect to the best cell
+      const hi = grid.querySelector("#mx-grid-highlight");
+      const ring = grid.querySelector("#mx-grid-ring");
+      const x = pad.l + s.bestC * cellW + 1;
+      const y = pad.t + s.bestR * cellH + 1;
+      if (hi) {
+        hi.style.transition = "x 320ms cubic-bezier(.2,.8,.2,1), y 320ms cubic-bezier(.2,.8,.2,1), stroke 320ms cubic-bezier(.2,.8,.2,1)";
+        hi.setAttribute("x", x);
+        hi.setAttribute("y", y);
+        hi.setAttribute("stroke", s.colorB);
+      }
+      if (ring) {
+        ring.style.transition = "cx 320ms cubic-bezier(.2,.8,.2,1), cy 320ms cubic-bezier(.2,.8,.2,1), stroke 320ms cubic-bezier(.2,.8,.2,1)";
+        ring.setAttribute("cx", x + (cellW - 2) / 2);
+        ring.setAttribute("cy", y + (cellH - 2) / 2);
+        ring.setAttribute("stroke", s.colorB);
       }
     }
 
-    // Initial paint — Floor 2 default
-    setFloor("2");
+    // Apply both surfaces + update the head readout (name, count, dots).
+    function applyScenario(idx) {
+      scenarioIdx = idx;
+      applyFigureScenario(idx);
+      applyGridScenario(idx);
+      const s = SCENARIOS[idx];
+      const $name = document.getElementById("mx2-name");
+      const $count = document.getElementById("mx2-count");
+      if ($name)  $name.textContent  = s.name;
+      if ($count) $count.textContent = `${idx + 1} / ${SCENARIOS.length}`;
+      // Dots reflect active scenario
+      $$('.mx2__dot').forEach((d, i) => {
+        const on = i === idx;
+        d.classList.toggle("is-active", on);
+        d.setAttribute("aria-pressed", on ? "true" : "false");
+      });
+    }
+    function step() { applyScenario((scenarioIdx + 1) % SCENARIOS.length); }
 
-    // Sparklines per tile (seeded by tile index — stable across renders)
-    $$('.tile').forEach((tile, idx) => {
-      const svg = tile.querySelector("svg.tile__spark");
-      if (!svg) return;
-      const ns = "http://www.w3.org/2000/svg";
-      const W = 140, H = 40;
-      const r = rng(100 + idx * 37);
-      const pts = [];
-      for (let i = 0; i <= 28; i++) {
-        const v = 0.3 + 0.5 * Math.sin((i + idx * 4) / 3) + (r() - 0.5) * 0.25;
-        pts.push([i, Math.max(0.05, Math.min(0.95, v))]);
+    buildFigure();
+    buildGrid();
+    applyScenario(0);
+
+    // 1500 ms cadence — slow enough for the user to read the figure
+    // caption and verify the matrix highlight in the same beat. The
+    // section is now explorable: scenario dots let the user pick any
+    // state; a pause toggle stops the auto-cycle; both surfaces
+    // continue to move in lockstep. Cycle only runs while the section
+    // is in view.
+    const CADENCE = 1500;
+    let timer = 0;
+    let inView = false;
+    let userPaused = false;
+    function setToggleLabel(playing) {
+      const $t = document.getElementById("mx2-toggle");
+      if (!$t) return;
+      $t.textContent = playing ? "⏸ Pause cycle" : "▶ Resume cycle";
+      $t.setAttribute("aria-pressed", playing ? "true" : "false");
+    }
+    function start() {
+      if (timer || REDUCED || userPaused) return;
+      timer = setInterval(step, CADENCE);
+      setToggleLabel(true);
+    }
+    function stop()  {
+      if (!timer) { setToggleLabel(false); return; }
+      clearInterval(timer); timer = 0;
+      setToggleLabel(false);
+    }
+    function userToggle() {
+      if (timer) {
+        userPaused = true;
+        stop();
+      } else {
+        userPaused = false;
+        if (inView) start();
       }
-      const d = pts.map(([x, y], i) => (i ? "L" : "M") + (x / 28 * W).toFixed(1) + "," + ((1 - y) * H).toFixed(1)).join(" ");
-      const path = document.createElementNS(ns, "path");
-      path.setAttribute("d", d);
-      path.setAttribute("fill", "none");
-      path.setAttribute("stroke", "#5eead4");
-      path.setAttribute("stroke-width", "1.6");
-      path.setAttribute("opacity", "0.9");
-      path.setAttribute("filter", "none");
-      svg.appendChild(path);
-      const area = document.createElementNS(ns, "path");
-      area.setAttribute("d", d + ` L${W},${H} L0,${H} Z`);
-      area.setAttribute("fill", "rgba(94,234,212,0.12)");
-      svg.insertBefore(area, path);
-    });
+    }
 
-    // Floor toggle — deterministic, no randomness.
-    $$('[data-hl-floor]').forEach((btn) => {
-      btn.addEventListener("click", () => {
-        $$('[data-hl-floor]').forEach((b) => b.classList.toggle("is-active", b === btn));
-        setFloor(btn.dataset.hlFloor);
+    // Dot clicks → jump to that scenario and pause auto-cycle so the
+    // user can dwell. They can resume by clicking the toggle.
+    $$('.mx2__dot').forEach((dot) => {
+      dot.addEventListener("click", () => {
+        const idx = parseInt(dot.dataset.mxScenario, 10);
+        if (!Number.isFinite(idx) || idx < 0 || idx >= SCENARIOS.length) return;
+        userPaused = true;
+        stop();
+        applyScenario(idx);
       });
     });
-    // Animate the bar fill on initial viewport entry (one-shot)
-    const bar = $("#hl-bar");
+    const $toggle = document.getElementById("mx2-toggle");
+    if ($toggle) $toggle.addEventListener("click", userToggle);
+
+    const mxSection = document.getElementById("matrix");
+    if (mxSection) {
+      const io = new IntersectionObserver((entries) => {
+        inView = entries[0].isIntersecting;
+        if (inView && !userPaused) start();
+        else if (!inView) {
+          // Pause when out of view, but don't mark as user-paused so
+          // the cycle resumes on re-entry.
+          clearInterval(timer); timer = 0;
+        }
+      }, { threshold: 0.25 });
+      io.observe(mxSection);
+    } else {
+      start();
+    }
+    window.addEventListener("beforeunload", stop);
+  })();
+
+  /* ============================================================ H.E.A.A.L.
+     Platform-fidelity surface — building plot · time series · space-time
+     map · floor and parameter toggles. The brief asks us not to redesign
+     the platform speculatively, so the composition is the
+     recognizable HEAAL "building plot on the left, scrolling parameter
+     on the right" layout, with restrained web-native interaction. */
+
+  (function heaal() {
+    const plot = document.getElementById("hl-plot");
+    const time = document.getElementById("hl-time");
+    const heat = document.getElementById("hl-heat");
+    if (!plot || !time || !heat) return;
+
+    const SVG_NS = "http://www.w3.org/2000/svg";
+    function el(tag, attrs = {}) {
+      const e = document.createElementNS(SVG_NS, tag);
+      Object.entries(attrs).forEach(([k, v]) => e.setAttribute(k, v));
+      return e;
+    }
+    function clear(node) { while (node.firstChild) node.removeChild(node.firstChild); }
+
+    // -------- Parameter spec
+    // Each parameter knows its unit, threshold bands (Optimized → Limit
+    // per brand standards §6), and an accent color (the brand's tested-
+    // element palette). Bands let the building plot and space-time map
+    // re-color the same sensor against the same science thresholds.
+    const PARAMS = {
+      pm25: {
+        label: "PM₂.₅",
+        unit:  "µg/m³",
+        accent: "#7AA12A",
+        thresholds: [4, 8, 12, 35], // Optimized < 4 ≤ Excellent < 8 ≤ Action < 12 ≤ Alert < 35 ≤ Limit
+        fmt: (v) => v.toFixed(1),
+      },
+      co2: {
+        label: "CO₂",
+        unit:  "ppm",
+        accent: "#3E8D5E",
+        thresholds: [550, 700, 900, 1100],
+        fmt: (v) => Math.round(v).toLocaleString(),
+      },
+      tvoc: {
+        label: "TVOC",
+        unit:  "µg/m³",
+        accent: "#00A383",
+        thresholds: [100, 200, 350, 500],
+        fmt: (v) => Math.round(v).toLocaleString(),
+      },
+      trh: {
+        label: "T · RH",
+        unit:  "°C / %",
+        accent: "#6BA6F1",
+        thresholds: [21, 22, 23, 24], // temperature setpoint band for display
+        fmt: (v) => v.toFixed(1),
+      },
+    };
+
+    const BIN_COLORS = ["#0A74D6", "#B2CCEE", "#FFEB95", "#FCBC7E", "#F5896D"];
+    const BIN_NAMES  = ["Optimized", "Excellent", "Action", "Alert", "Limit"];
+
+    function binFor(value, thresholds) {
+      // Returns 0..4 for the 5 brand bins.
+      for (let i = 0; i < thresholds.length; i++) {
+        if (value < thresholds[i]) return i;
+      }
+      return thresholds.length;
+    }
+
+    // -------- Floor layouts
+    // Each floor has a different sensor layout and slightly different
+    // parameter baselines. Floor 2 is the live demo state by default —
+    // it has alerts on PM₂.₅ and a slight CO₂ rise late afternoon.
+    function sensorGrid(rows, cols) {
+      const list = [];
+      for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) list.push({ r, c });
+      return list;
+    }
+    const FLOORS = {
+      "1": { name: "Floor 1 · West",  bldg: "BLDG-04A", sensors: sensorGrid(4, 6), score: 82, baseline: { pm25: 9.5, co2: 720, tvoc: 165, trh: 22.8 } },
+      "2": { name: "Floor 2 · Mech",  bldg: "BLDG-04A", sensors: sensorGrid(4, 6), score: 86, baseline: { pm25: 8.6, co2: 612, tvoc: 142, trh: 21.4 } },
+      "3": { name: "Floor 3 · East",  bldg: "BLDG-04A", sensors: sensorGrid(4, 6), score: 91, baseline: { pm25: 5.8, co2: 488, tvoc: 96,  trh: 21.1 } },
+    };
+
+    // -------- Synthetic but stable hourly readings per sensor
+    // Each sensor index produces a 24-hour series. Seeded RNG makes the
+    // readings repeatable across redraws and floor switches.
+    function readingsForFloor(floor, paramKey) {
+      const f = FLOORS[floor];
+      const base = f.baseline[paramKey];
+      const series = []; // [sensorIdx][hour]
+      const param = PARAMS[paramKey];
+      const seedBase = (floor.charCodeAt(0) + paramKey.charCodeAt(0)) * 17;
+      f.sensors.forEach((s, i) => {
+        const r = rng(seedBase + i * 37);
+        const hourly = [];
+        // Sensor offset: row variance shifts mean ±15%, col variance ±8%
+        const sensorOffset = ((s.r - 1.5) * 0.06 + (s.c - 2.5) * 0.03) * base;
+        for (let h = 0; h < 24; h++) {
+          const diurnal =
+            paramKey === "co2"  ? Math.sin((h - 8) / 24 * Math.PI * 2) * base * 0.18
+          : paramKey === "tvoc" ? Math.sin((h - 10) / 24 * Math.PI * 2) * base * 0.12
+          : paramKey === "trh"  ? Math.sin((h - 12) / 24 * Math.PI * 2) * 1.4
+          :                       Math.cos((h - 14) / 24 * Math.PI * 2) * base * 0.10;
+          const noise = (r() - 0.5) * base * 0.06;
+          let v = base + sensorOffset + diurnal + noise;
+          // Floor 2 — inject a small late-afternoon spike on one sensor for PM₂.₅
+          if (floor === "2" && paramKey === "pm25" && i === 9 && h >= 14 && h <= 18) v += 4.5;
+          v = Math.max(0, v);
+          hourly.push(v);
+        }
+        series.push(hourly);
+      });
+      return series;
+    }
+
+    // -------- State
+    const state = { floor: "2", param: "pm25" };
+
+    // -------- Building plot
+    function drawPlot() {
+      clear(plot);
+      const param = PARAMS[state.param];
+      const f = FLOORS[state.floor];
+      const W = 360, H = 240;
+      plot.setAttribute("viewBox", `0 0 ${W} ${H}`);
+      const pad = { l: 22, r: 22, t: 22, b: 28 };
+      // Floor outline — rectangle with a clipped corner so it reads as a plan
+      plot.appendChild(el("rect", {
+        x: pad.l, y: pad.t, width: W - pad.l - pad.r, height: H - pad.t - pad.b,
+        fill: "rgba(178,204,238,0.04)",
+        stroke: "rgba(178,204,238,0.32)",
+        "stroke-width": 1,
+      }));
+      // Internal walls (mech rooms)
+      plot.appendChild(el("rect", {
+        x: pad.l + 10, y: pad.t + 10, width: 70, height: 40,
+        fill: "none", stroke: "rgba(178,204,238,0.16)", "stroke-width": 0.7,
+      }));
+      plot.appendChild(el("rect", {
+        x: W - pad.r - 70 - 10, y: H - pad.b - 50, width: 70, height: 40,
+        fill: "none", stroke: "rgba(178,204,238,0.16)", "stroke-width": 0.7,
+      }));
+      // Floor label
+      plot.appendChild(el("text", {
+        x: pad.l, y: pad.t - 8,
+        fill: "rgba(178,204,238,0.55)",
+        "font-family": "JetBrains Mono",
+        "font-size": 9,
+        "letter-spacing": "0.14em",
+      })).textContent = (f.name + " · " + f.bldg).toUpperCase();
+      // North arrow
+      plot.appendChild(el("text", {
+        x: W - pad.r, y: pad.t - 8, "text-anchor": "end",
+        fill: "rgba(178,204,238,0.4)",
+        "font-family": "JetBrains Mono", "font-size": 9, "letter-spacing": "0.14em",
+      })).textContent = "↑ N";
+
+      // Sensors — placed on a regular grid inside the floor plan
+      const innerX = pad.l + 20;
+      const innerY = pad.t + 30;
+      const innerW = W - pad.l - pad.r - 40;
+      const innerH = H - pad.t - pad.b - 50;
+      const readings = readingsForFloor(state.floor, state.param);
+      f.sensors.forEach((s, i) => {
+        const x = innerX + (s.c + 0.5) / 6 * innerW;
+        const y = innerY + (s.r + 0.5) / 4 * innerH;
+        const lastValue = readings[i][readings[i].length - 1];
+        const bin = binFor(lastValue, param.thresholds);
+        const c = BIN_COLORS[Math.min(4, bin)];
+        // Sensor halo (soft)
+        plot.appendChild(el("circle", { cx: x, cy: y, r: 12, fill: c, opacity: 0.14 }));
+        // Sensor dot
+        plot.appendChild(el("circle", {
+          cx: x, cy: y, r: 5.5,
+          fill: c, stroke: "#0a1422", "stroke-width": 1.2,
+        }));
+        // Sensor ID
+        plot.appendChild(el("text", {
+          x: x, y: y + 18,
+          "text-anchor": "middle",
+          fill: "rgba(149,163,184,0.7)",
+          "font-family": "JetBrains Mono", "font-size": 7.5,
+          "letter-spacing": "0.06em",
+        })).textContent = "S" + String(i + 1).padStart(2, "0");
+      });
+
+      // Legend (bins active)
+      const legend = document.getElementById("hl-plot-legend");
+      if (legend) {
+        legend.innerHTML = BIN_NAMES.map((n, i) =>
+          `<span><i style="background:${BIN_COLORS[i]}"></i>${n}</span>`
+        ).join("");
+      }
+    }
+
+    // -------- Time series
+    function drawTime() {
+      clear(time);
+      const param = PARAMS[state.param];
+      const series = readingsForFloor(state.floor, state.param);
+      // Spatial average across sensors → primary line. Min/max envelope shaded.
+      const HOURS = 24;
+      const avg = [], lo = [], hi = [];
+      for (let h = 0; h < HOURS; h++) {
+        let s = 0, minV = Infinity, maxV = -Infinity;
+        for (let i = 0; i < series.length; i++) {
+          const v = series[i][h];
+          s += v;
+          if (v < minV) minV = v;
+          if (v > maxV) maxV = v;
+        }
+        avg.push(s / series.length);
+        lo.push(minV);
+        hi.push(maxV);
+      }
+
+      const W = 480, H = 140;
+      time.setAttribute("viewBox", `0 0 ${W} ${H}`);
+      time.setAttribute("preserveAspectRatio", "none");
+      const pad = { l: 38, r: 12, t: 12, b: 24 };
+      const iw = W - pad.l - pad.r, ih = H - pad.t - pad.b;
+      // Y range pinned to ~1.25× max sensor reading
+      const maxY = Math.max(...hi) * 1.15;
+      const minY = Math.min(0, Math.min(...lo) * 0.95);
+      const xS = (h) => pad.l + (h / (HOURS - 1)) * iw;
+      const yS = (v) => pad.t + (1 - (v - minY) / (maxY - minY)) * ih;
+
+      // Threshold bands — soft horizontal strips so users can see at a
+      // glance which bin the live trace is in.
+      const thresh = param.thresholds;
+      const bandBoundaries = [minY, ...thresh, maxY].filter((v, i, arr) => i === 0 || v > arr[i - 1]);
+      for (let i = 0; i < bandBoundaries.length - 1; i++) {
+        const yTop = yS(bandBoundaries[i + 1]);
+        const yBot = yS(bandBoundaries[i]);
+        time.appendChild(el("rect", {
+          x: pad.l, y: yTop,
+          width: iw, height: Math.max(0, yBot - yTop),
+          fill: BIN_COLORS[i] || BIN_COLORS[4], opacity: 0.06,
+        }));
+      }
+      // Axis gridlines
+      [0, 0.25, 0.5, 0.75, 1].forEach((t) => {
+        const v = minY + (maxY - minY) * (1 - t);
+        const y = pad.t + t * ih;
+        time.appendChild(el("line", {
+          x1: pad.l, x2: W - pad.r, y1: y, y2: y,
+          stroke: "rgba(178,204,238,0.06)", "stroke-width": 0.6,
+        }));
+        const tx = el("text", {
+          x: pad.l - 6, y: y + 3, "text-anchor": "end",
+          fill: "#5f6c80",
+          "font-family": "JetBrains Mono", "font-size": 8.5,
+        });
+        tx.textContent = param.fmt(v);
+        time.appendChild(tx);
+      });
+      // Hour ticks
+      [0, 6, 12, 18, 23].forEach((h) => {
+        const x = xS(h);
+        time.appendChild(el("line", {
+          x1: x, x2: x, y1: H - pad.b, y2: H - pad.b + 3,
+          stroke: "rgba(178,204,238,0.18)",
+        }));
+        const tx = el("text", {
+          x: x, y: H - 6, "text-anchor": "middle",
+          fill: "#5f6c80",
+          "font-family": "JetBrains Mono", "font-size": 8.5,
+        });
+        tx.textContent = String(h).padStart(2, "0") + ":00";
+        time.appendChild(tx);
+      });
+
+      // Envelope
+      const envPath = (
+        avg.map((_, i) => (i ? "L" : "M") + xS(i).toFixed(1) + "," + yS(hi[i]).toFixed(1)).join(" ") +
+        " " +
+        avg.slice().reverse().map((_, j) => {
+          const i = HOURS - 1 - j;
+          return "L" + xS(i).toFixed(1) + "," + yS(lo[i]).toFixed(1);
+        }).join(" ") +
+        " Z"
+      );
+      time.appendChild(el("path", {
+        d: envPath, fill: param.accent, opacity: 0.18,
+      }));
+      // Average trace
+      const avgPath = avg.map((v, i) => (i ? "L" : "M") + xS(i).toFixed(1) + "," + yS(v).toFixed(1)).join(" ");
+      time.appendChild(el("path", {
+        d: avgPath, fill: "none", stroke: param.accent,
+        "stroke-width": 2, "stroke-linecap": "round", "stroke-linejoin": "round",
+      }));
+      // Latest marker
+      const lastV = avg[avg.length - 1];
+      time.appendChild(el("circle", {
+        cx: xS(HOURS - 1), cy: yS(lastV), r: 3.4,
+        fill: param.accent, stroke: "#0a1422", "stroke-width": 1.2,
+      }));
+      // Update header readouts
+      const timeNow = document.getElementById("hl-time-now");
+      const timeUnit = document.getElementById("hl-time-unit");
+      const timeTitle = document.getElementById("hl-time-title");
+      if (timeNow) timeNow.textContent = param.fmt(lastV);
+      if (timeUnit) timeUnit.textContent = param.unit;
+      if (timeTitle) timeTitle.innerHTML = "Time series · " + param.label;
+    }
+
+    // -------- Space-time heatmap
+    function drawHeat() {
+      clear(heat);
+      const param = PARAMS[state.param];
+      const series = readingsForFloor(state.floor, state.param);
+      const N = series.length;
+      const HOURS = 24;
+      const W = 480, H = 130;
+      heat.setAttribute("viewBox", `0 0 ${W} ${H}`);
+      heat.setAttribute("preserveAspectRatio", "none");
+      const pad = { l: 38, r: 12, t: 10, b: 22 };
+      const iw = W - pad.l - pad.r, ih = H - pad.t - pad.b;
+      const cellW = iw / HOURS;
+      const cellH = ih / N;
+      // Cells colored by threshold bin per reading
+      for (let i = 0; i < N; i++) {
+        for (let h = 0; h < HOURS; h++) {
+          const v = series[i][h];
+          const bin = binFor(v, param.thresholds);
+          const x = pad.l + h * cellW;
+          const y = pad.t + i * cellH;
+          heat.appendChild(el("rect", {
+            x: x.toFixed(1), y: y.toFixed(1),
+            width: cellW.toFixed(1), height: cellH.toFixed(1),
+            fill: BIN_COLORS[Math.min(4, bin)],
+            opacity: 0.65,
+          }));
+        }
+      }
+      // Sensor labels (Y axis)
+      for (let i = 0; i < N; i += Math.max(1, Math.floor(N / 4))) {
+        const y = pad.t + (i + 0.5) * cellH + 3;
+        heat.appendChild(el("text", {
+          x: pad.l - 6, y, "text-anchor": "end",
+          fill: "#5f6c80",
+          "font-family": "JetBrains Mono", "font-size": 8.5,
+        })).textContent = "S" + String(i + 1).padStart(2, "0");
+      }
+      // Hour ticks (X axis)
+      [0, 6, 12, 18, 23].forEach((h) => {
+        const x = pad.l + h * cellW + cellW / 2;
+        heat.appendChild(el("text", {
+          x, y: H - 6, "text-anchor": "middle",
+          fill: "#5f6c80",
+          "font-family": "JetBrains Mono", "font-size": 8.5,
+        })).textContent = String(h).padStart(2, "0") + ":00";
+      });
+    }
+
+    // -------- Score + intent
+    function applyScore() {
+      const f = FLOORS[state.floor];
+      const $score = document.getElementById("hl-score");
+      const $bar = document.getElementById("hl-bar");
+      const $note = document.getElementById("hl-score-note");
+      if ($score) $score.textContent = String(f.score);
+      if ($bar) $bar.style.width = f.score + "%";
+      // Quick status note — count "Alert" or "Limit" readings on the current
+      // parameter to surface real signal without hand-tuned floors data.
+      const param = PARAMS[state.param];
+      const readings = readingsForFloor(state.floor, state.param);
+      let alerts = 0, exceeds = 0;
+      readings.forEach((s) => {
+        const lastV = s[s.length - 1];
+        const bin = binFor(lastV, param.thresholds);
+        if (bin === 3) alerts++;
+        else if (bin >= 4) exceeds++;
+      });
+      if ($note) $note.textContent = `${f.name} · ${alerts} alert${alerts === 1 ? "" : "s"} · ${exceeds} threshold${exceeds === 1 ? "" : "s"} exceeded · ${param.label}`;
+
+      const intent = document.getElementById("intent-hl");
+      if (intent) {
+        const series = readingsForFloor(state.floor, state.param);
+        let sum = 0;
+        series.forEach((s) => { sum += s[s.length - 1]; });
+        const avg = sum / series.length;
+        intent.innerHTML = `${f.name} · ${param.label} · <b>${param.fmt(avg)}</b> ${param.unit}`;
+      }
+    }
+
+    function redraw() {
+      drawPlot();
+      drawTime();
+      drawHeat();
+      applyScore();
+    }
+
+    // -------- Wire controls
+    $$('[data-hl-floor]').forEach((btn) => {
+      btn.addEventListener("click", () => {
+        $$('[data-hl-floor]').forEach((b) => {
+          const on = b === btn;
+          b.classList.toggle("is-active", on);
+          b.setAttribute("aria-pressed", on ? "true" : "false");
+        });
+        state.floor = btn.dataset.hlFloor;
+        redraw();
+      });
+    });
+    $$('[data-hl-param]').forEach((btn) => {
+      btn.addEventListener("click", () => {
+        $$('[data-hl-param]').forEach((b) => {
+          const on = b === btn;
+          b.classList.toggle("is-active", on);
+          b.setAttribute("aria-pressed", on ? "true" : "false");
+        });
+        state.param = btn.dataset.hlParam;
+        redraw();
+      });
+    });
+
+    // ResizeObserver — only redraw time/heat (the plot is xMidYMid meet so it scales fine)
+    if (typeof ResizeObserver !== "undefined") {
+      let raf = 0;
+      const ro = new ResizeObserver(() => {
+        if (raf) cancelAnimationFrame(raf);
+        raf = requestAnimationFrame(() => { raf = 0; drawTime(); drawHeat(); });
+      });
+      ro.observe(time);
+    }
+
+    // Initial paint
+    redraw();
+    // Animate the score bar fill on first viewport entry
+    const bar = document.getElementById("hl-bar");
     if (bar && !REDUCED) {
-      const initialWidth = bar.style.width;
+      const targetWidth = bar.style.width;
       bar.style.width = "0%";
       const scoreIO = new IntersectionObserver((entries) => {
         if (entries[0].isIntersecting) {
           bar.style.transition = "width 900ms cubic-bezier(.2,.8,.2,1)";
-          requestAnimationFrame(() => { bar.style.width = initialWidth; });
+          requestAnimationFrame(() => { bar.style.width = targetWidth; });
           scoreIO.disconnect();
         }
       }, { threshold: 0.4 });
