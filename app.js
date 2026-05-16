@@ -1429,18 +1429,35 @@
       const sign = d > 0 ? "+" : "−";
       return sign + Math.abs(d).toFixed(2) + "%";
     }
+    // Map an absolute delta magnitude to an opacity in [0.30, 1.0].
+    // Zero/near-zero deltas read as muted gray; large deltas read at
+    // full bin color. Makes the panel visibly change as you traverse
+    // the matrix (BASELINE → severe), matching how the source platform
+    // de-emphasizes near-zero offsets.
+    function deltaOpacity(abs) {
+      if (abs < 0.05) return 0.30;
+      if (abs < 0.5)  return 0.50;
+      if (abs < 2)    return 0.75;
+      if (abs < 8)    return 0.92;
+      return 1.0;
+    }
     function renderPpBins(scenario) {
       if (!ppBins) return;
-      ppBins.innerHTML = PP_BINS.map((b, i) => `
-        <li class="mxp__pp-bin" data-bin="${i}" data-zero="${Math.abs(scenario.d[i]) < 0.005}">
+      ppBins.innerHTML = PP_BINS.map((b, i) => {
+        const d = scenario.d[i];
+        const abs = Math.abs(d);
+        const op = deltaOpacity(abs);
+        const isZero = abs < 0.005;
+        return `
+        <li class="mxp__pp-bin" data-bin="${i}" data-zero="${isZero}">
           <span class="mxp__pp-bin-badge" style="background:${b.color}">${b.letter}</span>
           <span class="mxp__pp-bin-meta">
             <span class="mxp__pp-bin-v">${scenario.b[i].toFixed(1)}%</span>
             <span class="mxp__pp-bin-k">${b.label}</span>
           </span>
-          <span class="mxp__pp-bin-d">${fmtDelta(scenario.d[i])}</span>
-        </li>
-      `).join("");
+          <span class="mxp__pp-bin-d" style="opacity:${op.toFixed(2)}">${fmtDelta(d)}</span>
+        </li>`;
+      }).join("");
     }
 
     function renderPpScenario(idx) {
@@ -1533,6 +1550,7 @@
             `Summer setback ${ROW_LBLS[r]}, winter setback ${COL_LBLS[c]}`);
           cell.addEventListener("mouseenter", () => activate(r, c, cell));
           cell.addEventListener("focus",      () => activate(r, c, cell));
+          cell.addEventListener("click",      () => activate(r, c, cell, true));
           grid.appendChild(cell);
         }
       }
@@ -1555,10 +1573,13 @@
       return (6 - r) * 7 + c;
     }
 
+    // Pinned scenario — set by clicking a cell. Hover transient-updates
+    // the panel; on mouseleave we revert to the pinned cell (not always
+    // baseline) so the user can park a scenario and look at it.
     let activeCell = null;
-    function activate(r, c, cellEl) {
+    let pinnedCell = null;
+    function activate(r, c, cellEl, pin) {
       const idx = scenarioIndexFor(r, c);
-      // Hardcoded panel render (replaces previous <img> swap path)
       renderPpScenario(idx);
 
       const vals = CELLS[r][c];
@@ -1582,19 +1603,40 @@
         cellEl.setAttribute("aria-selected", "true");
         activeCell = cellEl;
       }
+      if (pin) pinnedCell = cellEl;
     }
 
     grid.addEventListener("mouseleave", () => {
-      const baselineCell = grid.querySelector(".mxp__cell.is-baseline");
-      activate(6, 0, baselineCell);
+      // Revert to pinned (or baseline) instead of dropping back every time
+      const target = pinnedCell || grid.querySelector(".mxp__cell.is-baseline");
+      const r = parseInt(target.dataset.row, 10);
+      const c = parseInt(target.dataset.col, 10);
+      activate(r, c, target);
     });
 
-    // Note: intervention tabs, setback timing chips, clock-format toggle,
-    // and °F/°C toggle are all display-only reference tokens (the 49
-    // scenario panels were captured at fixed defaults — no extra state
-    // they can drive). They render as static <span>s in the HTML; no
-    // click handlers are wired up here so they don't read as live
-    // controls to keyboard or AT users.
+    // Chrome chip click wiring. Each group (intervention / setback
+    // start / setback end / clock format / °F/°C / Monday-occupancy)
+    // is a mutually-exclusive aria-pressed toggle. The matrix grid
+    // itself remains the source of truth for scenario state; these
+    // chips toggle visual state to feel like real controls.
+    function wireGroup(selector) {
+      const btns = Array.from(root.querySelectorAll(selector));
+      btns.forEach((b) => {
+        b.addEventListener("click", () => {
+          btns.forEach((x) => {
+            const on = x === b;
+            x.classList.toggle("is-active", on);
+            x.setAttribute("aria-pressed", on ? "true" : "false");
+          });
+        });
+      });
+    }
+    wireGroup(".mxp__tabs [data-mxp-tab]");
+    wireGroup("[data-mxp-start]");
+    wireGroup("[data-mxp-end]");
+    wireGroup("[data-mxp-clock]");
+    wireGroup("[data-mxp-unit]");
+    wireGroup("[data-mxp-occ]");
 
     build();
     // Draw the tower SVG once (constant across scenarios)
@@ -2220,6 +2262,29 @@
 
     pills.forEach((pill) => {
       pill.addEventListener("click", () => apply(pill.dataset.hlxParam));
+    });
+
+    // Time + view pills: visual-state-only toggles (the panel has one
+    // captured time window and one view, so these don't drive data —
+    // but they should feel like real buttons, with aria-pressed flipping
+    // honestly. Mutually exclusive within each group.
+    const timePills = root.querySelectorAll('[data-hlx-time]');
+    timePills.forEach((p) => {
+      p.addEventListener("click", () => {
+        timePills.forEach((b) => {
+          const on = b === p;
+          b.classList.toggle("is-active", on);
+          b.setAttribute("aria-pressed", on ? "true" : "false");
+        });
+      });
+    });
+    const viewPills = root.querySelectorAll('[data-hlx-view]');
+    viewPills.forEach((p) => {
+      p.addEventListener("click", () => {
+        const on = p.getAttribute("aria-pressed") !== "true";
+        p.classList.toggle("is-active", on);
+        p.setAttribute("aria-pressed", on ? "true" : "false");
+      });
     });
 
     // Initial render: tower once + CO₂ state

@@ -1636,10 +1636,6 @@ sub, sup { font-size: 0.7em; }
   font-family: var(--font-mono); font-size: 0.66rem;
   letter-spacing: 0.18em; color: rgba(178,204,238,0.55);
 }
-/* Intervention tab tokens are non-interactive reference labels — the
-   49 panel screenshots were captured at Weekend Setback. Rendered as
-   <span> in the HTML; styled to look platform-faithful but with
-   default cursor so they don't read as live buttons. */
 .mxp__tab {
   padding: 6px 14px;
   background: transparent;
@@ -1649,15 +1645,20 @@ sub, sup { font-size: 0.7em; }
   font-family: var(--font-display);
   font-size: 0.82rem; font-weight: 500;
   color: rgba(178,204,238,0.55);
-  cursor: default;
+  cursor: pointer;
   user-select: none;
+  transition: background 120ms ease, color 120ms ease;
 }
-.mxp__tab.is-active {
+.mxp__tab:hover:not(.is-active) {
+  background: rgba(178,204,238,0.05);
+  color: rgba(178,204,238,0.85);
+}
+.mxp__tab.is-active,
+.mxp__tab[aria-pressed="true"] {
   background: linear-gradient(180deg, rgba(124,179,66,0.32), rgba(124,179,66,0.18));
   color: #DAEF9C;
   box-shadow: inset 0 0 0 1px rgba(124,179,66,0.6);
 }
-.mxp__tab[aria-disabled="true"] { color: rgba(178,204,238,0.32); }
 /* --- Section title --- */
 .mxp__h3 {
   font-size: 1.6rem; font-weight: 700; color: #f1f5fb;
@@ -1691,9 +1692,6 @@ sub, sup { font-size: 0.7em; }
   border: 1px solid rgba(40,72,116,0.45);
   border-radius: 999px;
 }
-/* Setback timing / clock-format / unit chips are reference tokens
-   (the panel screenshots are locked to one combination of defaults).
-   Rendered as <span>; default cursor; no hover transition. */
 .mxp__seg-btn, .mxp__unit-btn {
   display: inline-flex;
   align-items: center;
@@ -1704,12 +1702,19 @@ sub, sup { font-size: 0.7em; }
   font: inherit;
   font-family: var(--font-mono); font-size: 0.78rem;
   font-variant-numeric: tabular-nums;
-  color: rgba(178,204,238,0.45);
-  cursor: default;
+  color: rgba(178,204,238,0.55);
+  cursor: pointer;
   user-select: none;
   letter-spacing: 0.04em;
+  transition: background 120ms ease, color 120ms ease;
 }
-.mxp__seg-btn.is-active, .mxp__unit-btn.is-active {
+.mxp__seg-btn:hover:not(.is-active),
+.mxp__unit-btn:hover:not(.is-active) {
+  background: rgba(10,116,214,0.16);
+  color: rgba(255,255,255,0.85);
+}
+.mxp__seg-btn.is-active, .mxp__unit-btn.is-active,
+.mxp__seg-btn[aria-pressed="true"], .mxp__unit-btn[aria-pressed="true"] {
   background: rgba(10,116,214,0.5);
   color: #f1f5fb;
   box-shadow: inset 0 0 0 1px rgba(10,116,214,0.7);
@@ -1905,13 +1910,26 @@ sub, sup { font-size: 0.7em; }
 }
 .mxp__pp-occ-l, .mxp__pp-occ-r {
   padding: 5px 12px;
+  background: transparent;
+  border: 0;
+  font: inherit;
   font-family: var(--font-display);
   font-size: 0.74rem;
   color: rgba(178,204,238,0.6);
   border-radius: 999px;
+  cursor: pointer;
   user-select: none;
+  transition: background 120ms ease, color 120ms ease;
 }
-.mxp__pp-occ-r.is-active {
+.mxp__pp-occ-l:hover:not([aria-pressed="true"]),
+.mxp__pp-occ-r:hover:not([aria-pressed="true"]) {
+  background: rgba(10,116,214,0.16);
+  color: rgba(255,255,255,0.85);
+}
+.mxp__pp-occ-l.is-active,
+.mxp__pp-occ-r.is-active,
+.mxp__pp-occ-l[aria-pressed="true"],
+.mxp__pp-occ-r[aria-pressed="true"] {
   background: #1d4ea0;
   color: #f1f5fb;
   box-shadow: inset 0 0 0 1px rgba(10,116,214,0.6);
@@ -2014,7 +2032,8 @@ sub, sup { font-size: 0.7em; }
 .mxp__pp-bin[data-bin="2"] .mxp__pp-bin-d { color: #E2C75E; }
 .mxp__pp-bin[data-bin="3"] .mxp__pp-bin-d { color: #FCBC7E; }
 .mxp__pp-bin[data-bin="4"] .mxp__pp-bin-d { color: #E47A6A; }
-.mxp__pp-bin[data-zero="true"] .mxp__pp-bin-d { opacity: 0.42; }
+/* Delta opacity is now driven by magnitude inline (deltaOpacity in JS),
+   so the panel visibly responds when traversing scenarios. */
 /* --- Hover readout --- */
 .mxp__readout {
   display: inline-flex; gap: 12px; align-items: baseline;

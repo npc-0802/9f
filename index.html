@@ -402,19 +402,18 @@
           </span>
         </header>
 
-        <!-- Intervention tabs + setback timing controls + clock + unit
-             toggles are all display-only labels. The 49 scenario panels
-             were captured at one fixed default (Weekend Setback, FRI
-             18:00 → MON 06:00, 24h, °F), so honestly there's no extra
-             state these chips can drive. They render as inert reference
-             tokens — same visual weight as the platform — but they do
-             not behave like live controls. -->
-        <div class="mxp__tabs" role="group" aria-label="Intervention type (reference)">
+        <!-- Intervention tabs + setback timing + clock + unit toggles
+             are real buttons with aria-pressed state. They visually
+             toggle but don't drive scenario data (the 49 panel
+             screenshots were captured at one fixed combination). The
+             matrix cell itself remains the surface that actually
+             drives the Healthy People panel state. -->
+        <div class="mxp__tabs" role="group" aria-label="Intervention type">
           <span class="mxp__tabs-k">INTERVENTION</span>
-          <span class="mxp__tab is-active" aria-current="true">Weekend Setback</span>
-          <span class="mxp__tab" aria-disabled="true">Evening Setback</span>
-          <span class="mxp__tab" aria-disabled="true">Ventilation</span>
-          <span class="mxp__tab" aria-disabled="true">All Combined</span>
+          <button class="mxp__tab is-active" type="button" data-mxp-tab="weekend"  aria-pressed="true">Weekend Setback</button>
+          <button class="mxp__tab" type="button" data-mxp-tab="evening" aria-pressed="false">Evening Setback</button>
+          <button class="mxp__tab" type="button" data-mxp-tab="vent"    aria-pressed="false">Ventilation</button>
+          <button class="mxp__tab" type="button" data-mxp-tab="all"     aria-pressed="false">All Combined</button>
         </div>
 
         <div class="mxp__title-block">
@@ -422,30 +421,30 @@
           <p class="mxp__h3-sub">Range represents model sensitivity to baseline deadband</p>
         </div>
 
-        <div class="mxp__controls" aria-label="Setback timing (reference)">
+        <div class="mxp__controls" aria-label="Setback timing">
           <div class="mxp__control">
             <span class="mxp__control-k">Setback start — Friday Evening</span>
-            <div class="mxp__seg" role="group" aria-label="Setback start (fixed reference)">
-              <span class="mxp__seg-btn is-active" aria-current="true">18:00</span>
-              <span class="mxp__seg-btn" aria-disabled="true">20:00</span>
-              <span class="mxp__seg-btn" aria-disabled="true">22:00</span>
+            <div class="mxp__seg" role="group" aria-label="Setback start">
+              <button class="mxp__seg-btn is-active" type="button" data-mxp-start="18" aria-pressed="true">18:00</button>
+              <button class="mxp__seg-btn" type="button" data-mxp-start="20" aria-pressed="false">20:00</button>
+              <button class="mxp__seg-btn" type="button" data-mxp-start="22" aria-pressed="false">22:00</button>
             </div>
             <span class="mxp__control-foot">Begins <em>Friday 18:00</em></span>
           </div>
           <div class="mxp__control">
             <span class="mxp__control-k">Setback end — Monday Morning</span>
-            <div class="mxp__seg" role="group" aria-label="Setback end (fixed reference)">
-              <span class="mxp__seg-btn" aria-disabled="true">02:00</span>
-              <span class="mxp__seg-btn" aria-disabled="true">04:00</span>
-              <span class="mxp__seg-btn is-active" aria-current="true">06:00</span>
+            <div class="mxp__seg" role="group" aria-label="Setback end">
+              <button class="mxp__seg-btn" type="button" data-mxp-end="02" aria-pressed="false">02:00</button>
+              <button class="mxp__seg-btn" type="button" data-mxp-end="04" aria-pressed="false">04:00</button>
+              <button class="mxp__seg-btn is-active" type="button" data-mxp-end="06" aria-pressed="true">06:00</button>
             </div>
             <span class="mxp__control-foot">Ends <em>Monday 06:00</em></span>
           </div>
           <div class="mxp__control">
             <span class="mxp__control-k">Clock Format</span>
-            <div class="mxp__seg" role="group" aria-label="Clock format (fixed reference)">
-              <span class="mxp__seg-btn is-active" aria-current="true">24h</span>
-              <span class="mxp__seg-btn" aria-disabled="true">12h</span>
+            <div class="mxp__seg" role="group" aria-label="Clock format">
+              <button class="mxp__seg-btn is-active" type="button" data-mxp-clock="24" aria-pressed="true">24h</button>
+              <button class="mxp__seg-btn" type="button" data-mxp-clock="12" aria-pressed="false">12h</button>
             </div>
           </div>
         </div>
@@ -453,9 +452,9 @@
         <div class="mxp__body">
           <div class="mxp__matrix">
             <div class="mxp__matrix-head">
-              <div class="mxp__unit-toggle" role="group" aria-label="Unit (fixed reference)">
-                <span class="mxp__unit-btn is-active" aria-current="true">°F</span>
-                <span class="mxp__unit-btn" aria-disabled="true">°C</span>
+              <div class="mxp__unit-toggle" role="group" aria-label="Unit">
+                <button class="mxp__unit-btn is-active" type="button" data-mxp-unit="F" aria-pressed="true">°F</button>
+                <button class="mxp__unit-btn" type="button" data-mxp-unit="C" aria-pressed="false">°C</button>
               </div>
               <span class="mxp__matrix-title">HEALTHY ENERGY</span>
               <span class="mxp__sim-badge">
@@ -485,9 +484,9 @@
           <aside class="mxp__panel" id="mxp-panel" aria-label="Healthy People · scenario-specific IEQ distribution">
             <header class="mxp__pp-head">
               <span class="mxp__pp-title">HEALTHY PEOPLE</span>
-              <div class="mxp__pp-occ">
-                <span class="mxp__pp-occ-l">All Occupied Hours</span>
-                <span class="mxp__pp-occ-r is-active">Monday</span>
+              <div class="mxp__pp-occ" role="group" aria-label="Occupancy window">
+                <button class="mxp__pp-occ-l" type="button" data-mxp-occ="all"    aria-pressed="false">All Occupied Hours</button>
+                <button class="mxp__pp-occ-r is-active" type="button" data-mxp-occ="monday" aria-pressed="true">Monday</button>
               </div>
               <span class="mxp__pp-scenario" id="mxp-pp-scenario">Baseline</span>
             </header>
@@ -537,16 +536,19 @@
                     data-hlx-param="pm25" aria-pressed="false">PM<sub>2.5</sub></button>
             <button class="hlx__pill" type="button"
                     data-hlx-param="tvoc" aria-pressed="false">TVOC</button>
-            <button class="hlx__pill hlx__pill--menu" type="button"
-                    data-hlx-param="temp" aria-pressed="false">Temp <span class="hlx__chev" aria-hidden="true">▾</span></button>
+            <button class="hlx__pill" type="button"
+                    data-hlx-param="temp" aria-pressed="false">Temp</button>
           </div>
           <span class="hlx__divider" aria-hidden="true"></span>
-          <div class="hlx__pills" role="group" aria-label="Time window">
-            <span class="hlx__pill is-active" aria-current="true">30 Days</span>
-            <span class="hlx__pill" aria-disabled="true">7 Days</span>
+          <div class="hlx__pills hlx__pills--time" role="group" aria-label="Time window">
+            <button class="hlx__pill is-active" type="button"
+                    data-hlx-time="30" aria-pressed="true">30 Days</button>
+            <button class="hlx__pill" type="button"
+                    data-hlx-time="7"  aria-pressed="false">7 Days</button>
           </div>
           <span class="hlx__divider" aria-hidden="true"></span>
-          <span class="hlx__pill hlx__pill--menu" aria-current="true">Building <span class="hlx__chev" aria-hidden="true">▾</span></span>
+          <button class="hlx__pill is-active" type="button"
+                  data-hlx-view="building" aria-pressed="true">Building</button>
         </header>
 
         <div class="hlx__body">
