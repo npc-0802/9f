@@ -1717,10 +1717,15 @@ sub, sup { font-size: 0.7em; }
 /* --- Two-column body --- */
 .mxp__body {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 460px;
+  /* Right-column width chosen against measured source geometry:
+     source platform = 66:34 (1.91:1); target web ratio = ~60:40
+     (slightly matrix-dominant, 1.58:1). 22px gap, ~1180 container →
+     panel 440px / matrix ~696px = 1.58:1. Verified in Step 2 of the
+     composition correction brief. */
+  grid-template-columns: minmax(0, 1fr) 440px;
   gap: 22px;
-  /* Honest render path: the panel column is sized BY its image, not
-     by the matrix's height. align-self:start on the panel keeps it
+  /* Honest render path: panel column is sized BY its image, not by
+     the matrix's height. align-self:start on the panel keeps it
      anchored to the top of its column without forcing a second crop. */
   align-items: start;
 }
