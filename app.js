@@ -1615,7 +1615,7 @@
             cell.textContent = `${mid.toFixed(1)}%`;
           }
           cell.setAttribute("aria-label",
-            `Summer setback ${ROW_LBLS_F[r]}, winter setback ${COL_LBLS_F[c]}`);
+            `Summer setback ${formatOffset(ROW_LBLS_F[r])}, winter setback ${formatOffset(COL_LBLS_F[c])}`);
           cell.addEventListener("mouseenter", () => activate(r, c, cell));
           cell.addEventListener("focus",      () => activate(r, c, cell));
           cell.addEventListener("click",      () => activate(r, c, cell, true));
@@ -1779,6 +1779,16 @@
       });
       document.querySelectorAll(".mxp__col-lbl").forEach((el, i) => {
         el.textContent = formatOffset(COL_LBLS_F[i]);
+      });
+      // Per-cell aria-labels: keep AT in sync with the visible unit
+      // (cells were originally given °F labels in build()).
+      document.querySelectorAll(".mxp__cell").forEach((cell) => {
+        const r = parseInt(cell.dataset.row, 10);
+        const c = parseInt(cell.dataset.col, 10);
+        if (Number.isFinite(r) && Number.isFinite(c)) {
+          cell.setAttribute("aria-label",
+            `Summer setback ${formatOffset(ROW_LBLS_F[r])}, winter setback ${formatOffset(COL_LBLS_F[c])}`);
+        }
       });
       // Scenario label in Healthy People panel
       if (ppScenarioLbl) {
