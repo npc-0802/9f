@@ -1717,14 +1717,15 @@ sub, sup { font-size: 0.7em; }
 /* --- Two-column body --- */
 .mxp__body {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 320px;
+  grid-template-columns: minmax(0, 1fr) 460px;
   gap: 22px;
-  /* stretch so the panel column can match the matrix's height — image
-     scales up to fill rather than sitting under-scaled at the top */
-  align-items: stretch;
+  /* Honest render path: the panel column is sized BY its image, not
+     by the matrix's height. align-self:start on the panel keeps it
+     anchored to the top of its column without forcing a second crop. */
+  align-items: start;
 }
 @media (max-width: 920px) {
-  .mxp__body { grid-template-columns: minmax(0, 1fr); align-items: start; }
+  .mxp__body { grid-template-columns: minmax(0, 1fr); }
 }
 .mxp__matrix {
   padding: 16px 14px;
@@ -1861,28 +1862,28 @@ sub, sup { font-size: 0.7em; }
 }
 /* --- Image-backed Healthy People panel ---
    The cropped screenshot already carries the platform's inner frame
-   (rounded corner outline, header padding, Monday toggle). Wrapping it
-   in our own card created an "image-in-a-card" double-frame. Container
-   is now a transparent stage; the image's own border IS the panel edge.
-   align-self: stretch + object-fit: cover lets the image scale up to
-   match the matrix column's height so the two surfaces feel sized to
-   each other instead of the panel reading as under-scaled. */
+   (rounded corner outline, header, Monday toggle). The previous pass
+   used object-fit:cover + align-self:stretch to force the image to
+   match the matrix block's height — that was a *second* implicit crop
+   layered on top of the asset crop, which is why repeated crop passes
+   weren't converging. Render path now lets the image display at its
+   native aspect ratio; panel column is sized BY the image, not by the
+   neighboring matrix column's height. */
 .mxp__panel {
-  align-self: stretch;
+  align-self: start;
   display: block;
   background: transparent;
   border: 0;
   border-radius: 0;
   padding: 0;
-  overflow: hidden;
+  overflow: visible;
 }
 .mxp__panel-img {
   display: block;
   width: 100%;
-  height: 100%;
-  min-height: 100%;
-  object-fit: cover;
-  object-position: center top;
+  height: auto;
+  min-height: 0;
+  object-fit: unset;
   user-select: none;
   -webkit-user-drag: none;
 }

@@ -686,9 +686,10 @@
         const t = i / N;
         const seasonal = Math.sin(t * Math.PI * 2 - Math.PI / 3) * 0.025;
         const noise = (r() - 0.5) * 0.045;
-        // x = PM level (μg/m³), y = hours into the year (0..8760)
+        // Conventional time-series orientation:
+        // x = hours into the year (0..8760), y = PM level (μg/m³).
         const pm = Math.max(0, filter.pmMean + seasonal + noise);
-        out.push({ x: pm, y: t * 8760 });
+        out.push({ x: t * 8760, y: pm });
       }
       return out;
     }
@@ -1193,24 +1194,24 @@
         yLabel: "Pressure drop (Pa)",
       });
 
-      // PM2.5 chart — Feedback 3 §02.7 TRANSPOSED orientation:
-      // x = PM2.5 level (μg/m³), y = Time (hrs).
+      // PM2.5 chart — conventional time-series orientation:
+      // x = Time (hrs), y = PM2.5 level (μg/m³).
       const pmSets = filters.map((fKey) => ({
         pts: pmSeries(caseData.filters[fKey], fKey === "A" ? 91 : 113),
         color: FILTER_COLORS[fKey],
         width: 1.0, opacity: 0.78,
       }));
-      const pmVals = pmSets.flatMap((s) => s.pts.map((p) => p.x));
-      const pmXMax = Math.max(...pmVals) * 1.12;
+      const pmVals = pmSets.flatMap((s) => s.pts.map((p) => p.y));
+      const pmYMax = Math.max(...pmVals) * 1.12;
       lineChart(pm, {
         series: pmSets,
-        xMin: 0, xMax: pmXMax,
-        yMin: 0, yMax: 8760,
+        xMin: 0, xMax: 8760,
+        yMin: 0, yMax: pmYMax,
         xTicks: 4, yTicks: 4,
-        fmtX: (v) => v.toFixed(2),
-        fmtY: (v) => v >= 1000 ? (v / 1000).toFixed(1) + "K" : Math.round(v),
-        xLabel: "PM2.5 level (μg/m³)",
-        yLabel: "Time (hrs)",
+        fmtX: (v) => v >= 1000 ? (v / 1000).toFixed(1) + "K" : Math.round(v),
+        fmtY: (v) => v.toFixed(2),
+        xLabel: "Time (hrs)",
+        yLabel: "PM2.5 level (μg/m³)",
       });
 
       // Energy bars — Feedback 3 §02.8 (x=Filter, y=Annual fan energy)
@@ -1369,9 +1370,11 @@
             cell.textContent = "BASELINE";
             cell.style.background = "rgba(10,116,214,0.42)";
           } else {
+            // Single-value display per user direction — midpoint of the
+            // platform range, kept platform-faithful to one decimal.
             const mid = (vals[0] + vals[1]) / 2;
             cell.style.background = cellColor(mid);
-            cell.textContent = `${vals[0].toFixed(1)}% – ${vals[1].toFixed(1)}%`;
+            cell.textContent = `${mid.toFixed(1)}%`;
           }
           cell.setAttribute("aria-label",
             `Summer setback ${ROW_LBLS[r]}, winter setback ${COL_LBLS[c]}`);
