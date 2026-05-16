@@ -2276,14 +2276,15 @@ sub, sup { font-size: 0.7em; }
 }
 .hlx__pill sub { font-size: 0.7em; vertical-align: baseline; position: relative; top: 2px; }
 .hlx__pill.is-active,
-.hlx__pill[aria-selected="true"] {
+.hlx__pill[aria-pressed="true"],
+.hlx__pill[aria-current="true"] {
   background: #1d4ea0;
   border-color: #1d4ea0;
   color: #f1f5fb;
   box-shadow: 0 0 0 1px rgba(10,116,214,0.5);
 }
 .hlx__pills--param .hlx__pill { cursor: pointer; }
-.hlx__pills--param .hlx__pill:hover:not(.is-active):not([aria-selected="true"]) {
+.hlx__pills--param .hlx__pill:hover:not(.is-active):not([aria-pressed="true"]) {
   background: rgba(10,116,214,0.12);
 }
 .hlx__pill[aria-disabled="true"] {

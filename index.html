@@ -519,17 +519,17 @@
         <header class="hlx__topbar">
           <div class="hlx__brand">
             <span class="hlx__title">H.E.A.A.L. Analytics</span>
-            <span class="hlx__live"><span class="hlx__live-dot" aria-hidden="true"></span>Live data</span>
+            <span class="hlx__live"><span class="hlx__live-dot" aria-hidden="true"></span>Reference dashboard</span>
           </div>
-          <div class="hlx__pills hlx__pills--param" role="tablist" aria-label="Parameter">
-            <button class="hlx__pill is-active" type="button" role="tab"
-                    data-hlx-param="co2"  aria-selected="true">CO<sub>2</sub></button>
-            <button class="hlx__pill" type="button" role="tab"
-                    data-hlx-param="pm25" aria-selected="false">PM<sub>2.5</sub></button>
-            <button class="hlx__pill" type="button" role="tab"
-                    data-hlx-param="tvoc" aria-selected="false">TVOC</button>
-            <button class="hlx__pill hlx__pill--menu" type="button" role="tab"
-                    data-hlx-param="temp" aria-selected="false">Temp <span class="hlx__chev" aria-hidden="true">▾</span></button>
+          <div class="hlx__pills hlx__pills--param" role="group" aria-label="Parameter">
+            <button class="hlx__pill is-active" type="button"
+                    data-hlx-param="co2"  aria-pressed="true">CO<sub>2</sub></button>
+            <button class="hlx__pill" type="button"
+                    data-hlx-param="pm25" aria-pressed="false">PM<sub>2.5</sub></button>
+            <button class="hlx__pill" type="button"
+                    data-hlx-param="tvoc" aria-pressed="false">TVOC</button>
+            <button class="hlx__pill hlx__pill--menu" type="button"
+                    data-hlx-param="temp" aria-pressed="false">Temp <span class="hlx__chev" aria-hidden="true">▾</span></button>
           </div>
           <span class="hlx__divider" aria-hidden="true"></span>
           <div class="hlx__pills" role="group" aria-label="Time window">

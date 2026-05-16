@@ -1705,13 +1705,27 @@
       { k: "Limit",            letter: "L", color: "#E47A6A", text: "#0a1422" },
     ];
 
-    // ---------- Parameter specs (read off the source screenshots) ----------
+    // Timeseries point sets traced from the 4 source HEAAL screenshots
+    // by scanning each chart's white plot-line pixel-by-pixel and
+    // converting to the chart's data scale. 152 samples each, uniformly
+    // distributed across the ~30-day x-axis. These are measured values
+    // from the captured platform states, not procedural waveforms.
+    const TS_TRACED = {
+      co2:  [541.2,525.3,521.7,537.5,531.4,521.7,511.9,519.2,516.7,508.2,518.0,688.2,749.4,570.6,509.4,513.0,562.1,760.4,710.2,516.7,511.9,516.7,732.3,716.3,513.0,505.7,515.6,677.1,890.2,611.0,513.0,509.4,597.5,769.0,711.4,518.0,508.2,509.4,518.0,516.7,529.0,516.7,532.6,520.4,524.1,530.2,526.5,537.5,542.5,537.5,542.5,546.1,530.2,537.5,772.7,727.3,531.4,510.6,525.3,764.0,841.3,634.3,540.0,522.8,642.9,757.9,674.7,526.5,522.8,524.1,749.4,718.8,541.2,526.5,552.3,532.6,540.0,538.8,537.5,520.4,542.5,531.4,535.1,524.1,536.3,548.6,805.7,745.7,527.8,536.3,525.3,672.2,789.8,666.1,513.0,514.3,617.2,830.2,716.3,541.2,515.6,538.8,732.3,717.5,536.3,530.2,537.5,775.1,826.5,604.9,529.0,529.0,542.5,541.2,526.5,527.8,515.6,520.4,515.6,521.7,536.3,531.4,530.2,706.5,781.2,607.4,518.0,518.0,570.6,797.2,707.8,538.8,524.1,521.7,762.9,868.2,530.2,533.9,527.8,531.4,529.0,519.2,510.6,515.6,546.1,660.0,619.6,519.2,513.0,518.0,519.2,585.3],
+      pm25: [4.8,4.8,4.8,4.8,4.8,4.8,4.7,4.9,4.9,5.1,4.8,4.9,10.5,4.8,5.0,4.8,5.7,11.9,10.4,5.0,4.8,5.1,5.6,5.3,5.3,4.8,4.9,5.6,6.5,5.0,5.1,5.1,5.2,7.8,7.1,5.7,5.9,5.0,5.9,5.0,5.2,5.8,5.8,4.8,4.8,4.8,4.8,4.8,5.1,5.0,5.0,5.1,5.1,5.1,11.3,5.0,4.7,4.8,5.0,9.1,12.9,5.5,4.8,4.8,5.6,11.3,5.3,4.8,4.9,5.0,5.5,5.2,5.8,5.1,5.6,5.7,5.6,5.1,5.5,4.6,5.4,5.4,5.3,5.2,5.1,5.1,17.8,8.2,6.5,5.3,5.1,5.7,8.4,5.4,5.0,5.1,5.3,12.0,5.2,4.9,4.7,4.8,8.4,6.8,8.3,4.9,5.0,8.9,8.3,8.0,5.1,5.1,5.1,5.1,5.0,5.4,5.7,4.8,4.8,5.0,4.8,4.8,4.9,4.8,4.8,5.1,4.8,5.5,4.8,5.0,4.9,5.7,4.8,4.8,5.1,12.4,4.8,4.8,4.8,4.7,4.8,5.1,4.9,26.9,4.7,4.8,5.0,5.0,4.9,4.8,4.8,7.3],
+      tvoc: [373.4,365.7,396.2,386.7,352.4,354.3,380.9,405.7,388.6,354.3,350.4,468.6,643.9,441.8,344.8,348.6,384.7,613.3,885.8,365.7,380.9,359.9,466.6,483.8,350.4,382.9,390.5,438.1,601.9,455.3,367.6,384.7,417.2,569.5,504.7,348.6,352.4,346.6,356.2,356.2,350.4,350.4,346.6,348.6,358.1,361.9,350.4,350.4,350.4,361.9,377.2,377.2,438.1,434.3,706.7,676.2,400.0,386.7,382.9,645.7,693.3,470.5,358.1,352.4,392.4,552.4,495.2,352.4,356.2,354.3,453.3,622.9,361.9,386.7,426.7,409.5,400.0,409.5,388.6,390.5,422.8,438.1,432.3,438.1,443.8,476.1,756.1,569.5,409.5,350.4,352.4,455.3,443.8,403.8,350.4,346.6,430.5,674.2,432.3,396.2,354.3,359.9,481.9,539.0,379.0,356.2,359.9,470.5,556.2,440.0,361.9,384.7,367.6,400.0,400.0,394.2,365.7,367.6,369.5,396.2,403.8,356.2,348.6,441.8,567.6,453.3,352.4,359.9,363.9,500.9,472.4,365.7,369.5,363.9,436.2,617.1,382.9,352.4,352.4,346.6,358.1,359.9,371.4,388.6,354.3,468.6,489.6,407.7,426.7,430.5,422.8,495.2],
+      temp: [64.4,64.4,66.5,66.4,64.4,64.4,64.4,66.0,66.0,64.4,62.7,64.4,66.0,64.8,62.7,62.7,62.7,64.4,67.7,62.2,62.7,62.7,64.3,65.6,63.9,62.7,62.7,62.2,62.0,66.0,64.4,63.1,62.7,66.0,67.7,62.7,62.7,62.7,63.1,65.6,67.7,64.4,62.7,62.7,64.4,67.7,65.6,64.4,62.2,61.0,59.3,57.2,61.0,61.0,62.6,64.4,63.9,62.7,62.7,62.2,64.4,66.0,63.1,62.7,63.1,65.6,64.0,62.7,64.4,62.7,64.7,65.6,64.4,64.4,64.4,64.4,66.4,69.4,67.7,66.0,66.0,66.0,67.7,66.8,66.0,66.0,67.6,69.4,63.6,63.6,64.4,63.6,66.4,68.5,64.4,64.4,64.4,67.7,67.7,63.4,62.7,61.8,64.2,66.9,64.5,64.4,64.4,61.9,67.5,62.2,62.5,62.7,62.7,64.4,66.4,67.7,64.9,64.4,64.7,67.7,69.1,66.0,64.4,63.5,64.5,66.0,62.7,62.7,62.7,65.2,64.5,62.7,62.7,61.8,61.2,64.4,64.0,62.7,62.7,61.0,61.0,63.6,62.7,61.0,61.0,64.4,64.4,62.7,61.0,61.0,61.0,62.7],
+    };
+
+    // ---------- Parameter specs ----------
+    // Bin %s, card highlight, SpaceTime density read off the source
+    // screenshots. Timeseries `data` arrays are pixel-traced point sets
+    // (TS_TRACED above) — not procedural waveforms.
     const PARAMS = {
       co2: {
         label: "CO<sub>2</sub>",
         bins: [99.1, 0.9, 0.0, 0.0, 0.0],
         card: "co2",
-        // Timeseries y-scale and bands (low / mid / high) for CO₂ (ppm).
         ts: {
           yMin: 300, yMax: 1200,
           bands: [
@@ -1720,10 +1734,8 @@
             { from: 1000, to: 1200, color: "#F5E5A1", opacity: 0.85 },
           ],
           axis: [300, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200],
-          shape: "office-spikes",      // low baseline ~430 with periodic spikes to ~900
-          baseline: 430, peak: 920, seed: 11,
+          data: TS_TRACED.co2,
         },
-        // SpaceTime heatmap density — bigger = more clean blue
         st: { cleanRatio: 0.92, breakBand: true },
       },
       pm25: {
@@ -1737,8 +1749,7 @@
             { from: 12, to: 35, color: "#F5E5A1", opacity: 0.85 },
           ],
           axis: [0, 5, 10, 15, 20, 25, 30, 35],
-          shape: "very-spiky",          // noisy with many spikes
-          baseline: 3.5, peak: 28, seed: 17,
+          data: TS_TRACED.pm25,
         },
         st: { cleanRatio: 0.75, breakBand: true, density: 0.55 },
       },
@@ -1753,8 +1764,7 @@
             { from: 800,  to: 1400, color: "#7AA8E0", opacity: 0.78 },
           ],
           axis: [0, 200, 400, 600, 800, 1000, 1200, 1400],
-          shape: "office-spikes",
-          baseline: 180, peak: 720, seed: 23,
+          data: TS_TRACED.tvoc,
         },
         st: { cleanRatio: 0.86, breakBand: true },
       },
@@ -1770,8 +1780,7 @@
             { from: 76, to: 80, color: "#F5E5A1", opacity: 0.85 },
           ],
           axis: [50, 55, 60, 65, 70, 75, 80],
-          shape: "cyclic",              // smooth day/night oscillation
-          baseline: 71, peak: 73, seed: 31,
+          data: TS_TRACED.temp,
         },
         st: { cleanRatio: 0.65, breakBand: false, tinted: true },
       },
@@ -1966,36 +1975,6 @@
     }
 
     // ---------- Timeseries Plot ----------
-    function timeseriesData(spec) {
-      // Generate N samples shaped by 'shape' kind
-      const N = 300;
-      const r = rngS(spec.seed);
-      const out = [];
-      const span = spec.peak - spec.baseline;
-      for (let i = 0; i < N; i++) {
-        const t = i / (N - 1);
-        let v = spec.baseline;
-        if (spec.shape === "office-spikes") {
-          // Periodic spikes — every ~24 hours simulated as cycles
-          const cycle = Math.sin(t * Math.PI * 28); // 14 spike peaks
-          const spike = Math.max(0, cycle) * span;
-          v = spec.baseline + spike + (r() - 0.5) * span * 0.06;
-        } else if (spec.shape === "very-spiky") {
-          // Random-looking noise around baseline with occasional jumps
-          const jitter = (r() - 0.5) * span * 0.4;
-          const event = r() > 0.92 ? span * (0.4 + r() * 0.5) : 0;
-          v = spec.baseline + jitter + event;
-        } else if (spec.shape === "cyclic") {
-          // Smooth day/night oscillation around baseline
-          const wave = Math.sin(t * Math.PI * 30) * span * 0.5;
-          const drift = Math.sin(t * Math.PI * 2) * 1.2;
-          v = spec.baseline + wave + drift;
-        }
-        out.push({ t, v });
-      }
-      return out;
-    }
-
     function renderTimeseries(p) {
       clear(tsSvg);
       const W = 600, H = 260;
@@ -2006,7 +1985,7 @@
       const yS = (v) => PAD.t + (1 - (v - ts.yMin) / (ts.yMax - ts.yMin)) * ih;
       const xS = (t) => PAD.l + t * iw;
 
-      // Background bands (banded — lower good, mid warning, upper alert)
+      // Background bands
       ts.bands.forEach((band) => {
         const y0 = yS(band.to);
         const y1 = yS(band.from);
@@ -2016,13 +1995,12 @@
           fill: band.color, opacity: band.opacity,
         }));
       });
-      // Outer chart border on top of bands
       tsSvg.appendChild(E("rect", {
         x: PAD.l, y: PAD.t, width: iw, height: ih,
         fill: "none", stroke: "rgba(178,204,238,0.18)", "stroke-width": 0.6,
       }));
 
-      // Y-axis tick labels + faint gridlines
+      // Y-axis tick labels
       ts.axis.forEach((v) => {
         const y = yS(v);
         const t = E("text", {
@@ -2035,11 +2013,16 @@
         tsSvg.appendChild(t);
       });
 
-      // Plot line — white with subtle markers
-      const data = timeseriesData(ts);
-      const pathD = data.map((p, i) =>
-        (i ? "L" : "M") + xS(p.t).toFixed(1) + "," + yS(Math.max(ts.yMin, Math.min(ts.yMax, p.v))).toFixed(1)
-      ).join(" ");
+      // Plot line — uses pixel-traced point set from the source
+      // screenshot, mapped to the chart's data scale.
+      const data = ts.data; // array of y values, uniformly spaced
+      const N = data.length;
+      const clamp = (v) => Math.max(ts.yMin, Math.min(ts.yMax, v));
+      const pathD = data.map((v, i) => {
+        const x = xS(i / (N - 1));
+        const y = yS(clamp(v));
+        return (i ? "L" : "M") + x.toFixed(1) + "," + y.toFixed(1);
+      }).join(" ");
       tsSvg.appendChild(E("path", {
         d: pathD, fill: "none",
         stroke: "#f1f5fb", "stroke-width": 1.2,
@@ -2047,11 +2030,11 @@
         opacity: 0.95,
       }));
       // Markers every Nth point
-      data.forEach((p, i) => {
-        if (i % 8 !== 0) return;
+      data.forEach((v, i) => {
+        if (i % 6 !== 0) return;
         tsSvg.appendChild(E("circle", {
-          cx: xS(p.t).toFixed(1),
-          cy: yS(Math.max(ts.yMin, Math.min(ts.yMax, p.v))).toFixed(1),
+          cx: xS(i / (N - 1)).toFixed(1),
+          cy: yS(clamp(v)).toFixed(1),
           r: 1.4, fill: "#f1f5fb", opacity: 0.9,
         }));
       });
@@ -2084,7 +2067,7 @@
       pills.forEach((pill) => {
         const on = pill.dataset.hlxParam === key;
         pill.classList.toggle("is-active", on);
-        pill.setAttribute("aria-selected", on ? "true" : "false");
+        pill.setAttribute("aria-pressed", on ? "true" : "false");
       });
     }
 
