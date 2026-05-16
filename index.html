@@ -9,7 +9,13 @@
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" />
+  <!-- Typography: Jost as the open-source Avenir/Futura-family substitute
+       for 9F's brand-pair (Avenir display + Century Gothic body). Jost is
+       a geometric sans designed in the Futura/Avenir tradition and
+       readable across weights, so one family carries both registers at
+       different weights. JetBrains Mono retained for technical labels
+       (axis ticks, key/value pairs, eyebrows). -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jost:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -94,16 +100,16 @@
       </div>
       <ul class="hero__proof" role="list">
         <li>
-          <span class="proof__num" data-countup="10" data-suffix="%">0%</span>
-          <span class="proof__lbl">of US electricity projected for data centers by 2030</span>
+          <span class="proof__num">$<span data-countup="6.7">0</span><span class="u">T</span></span>
+          <span class="proof__lbl">global data center investment this decade</span>
         </li>
         <li>
-          <span class="proof__num">$<span data-countup="39.9">0</span><span class="u">M</span></span>
-          <span class="proof__lbl">modeled annual co-benefits across the Virginia portfolio</span>
+          <span class="proof__num"><span class="proof__prefix">Up to </span><span data-countup="50">0</span><span class="u">×</span></span>
+          <span class="proof__lbl">more energy intensive than typical commercial buildings</span>
         </li>
         <li>
-          <span class="proof__num" data-countup="412">0</span>
-          <span class="proof__lbl">data centers in 9F's proprietary Virginia inventory</span>
+          <span class="proof__num"><span data-countup="219">0</span><span class="u">GW</span></span>
+          <span class="proof__lbl">global data center power demand expected by 2030</span>
         </li>
       </ul>
     </div>
@@ -138,7 +144,7 @@
           <div class="intent" role="note" aria-live="off">
             <div class="intent__row">
               <span class="intent__k">Interaction</span>
-              <span class="intent__prompt">Select a Virginia site to render it as a building archetype below. Map, site detail, and archetype reconcile to the same record.</span>
+              <span class="intent__prompt">Hover any site to preview it in the side panel; click to commit. Status and system filters re-scope the map, the legend counts, and the distribution histograms together.</span>
             </div>
             <div class="intent__state">
               <span class="intent__state-k">Selected</span>
@@ -418,7 +424,7 @@
               <button class="chip is-active" data-hl-param="pm25" type="button" aria-pressed="true">PM<sub>2.5</sub></button>
               <button class="chip" data-hl-param="co2"  type="button" aria-pressed="false">CO<sub>2</sub></button>
               <button class="chip" data-hl-param="tvoc" type="button" aria-pressed="false">TVOC</button>
-              <button class="chip" data-hl-param="trh"  type="button" aria-pressed="false">T · RH</button>
+              <button class="chip" data-hl-param="trh"  type="button" aria-pressed="false">Temperature</button>
             </div>
           </div>
           <div class="hl2__score">

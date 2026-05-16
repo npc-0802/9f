@@ -58,13 +58,16 @@
   --grad-cyan:   linear-gradient(180deg, rgba(10,116,214,0.32), rgba(10,116,214,0));
 
   /* Typography
-     Avenir / Century Gothic per 9F brand. Web stack falls back through
-     system Avenir → Nunito Sans (free, similar metrics) → Inter, and
-     Century Gothic → CenturyGothic → URW Gothic → Inter, so the page
-     reads as 9F on machines with the brand fonts and stays legible
-     everywhere else. */
-  --font-sans:    "Century Gothic", CenturyGothic, "URW Gothic", "Apple Gothic", "Avenir Next", "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --font-display: "Avenir Next", "Avenir", "Nunito Sans", "Inter", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+     9F brand wants Avenir for display/UI and Century Gothic for body.
+     Both are proprietary, so the page ships Jost as the open-source
+     stand-in — geometric sans designed in the Futura/Avenir tradition,
+     loaded explicitly via Google Fonts in index.html (4 weights). When
+     a machine has system Avenir Next or Century Gothic installed, those
+     take precedence; otherwise Jost carries the look. Single family for
+     both display and sans keeps the type system coherent across weights;
+     differentiation comes from weight (700 display, 400/500 body). */
+  --font-display: "Avenir Next", "Avenir", "Jost", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-sans:    "Century Gothic", CenturyGothic, "Jost", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-mono:    "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 
   /* Radii — pulled down hard. Engineering / instrument register, not
@@ -527,6 +530,18 @@ sub, sup { font-size: 0.7em; }
 .hero__proof li { display: flex; flex-direction: column; gap: 6px; }
 /* .proof__num inherits the shared feature-numeric token (styles.css:94). */
 .proof__lbl { color: var(--ink-3); font-size: 0.92rem; max-width: 30ch; }
+/* "Up to" qualifier on the 50× proof point — small, low-weight, doesn't
+   compete with the numeric headline it precedes. */
+.proof__prefix {
+  font-family: var(--font-mono);
+  font-size: 0.5em;
+  font-weight: 500;
+  color: var(--ink-3);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-right: 4px;
+  vertical-align: 0.18em;
+}
 
 .hero__scroll {
   position: absolute; left: 50%; transform: translateX(-50%); bottom: 28px;

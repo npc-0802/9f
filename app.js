@@ -434,18 +434,17 @@
     let currentPanelSite = null;
 
     // Preview: light-touch hover state. Updates the inventory side panel
-    // and dot highlight only. The archetype below and the intent blocks
-    // stay bound to the last COMMITTED selection (or the default).
+    // and the dot highlight only. The intent block stays bound to the
+    // last COMMITTED selection (or the default flagship).
     function previewSite(d, node) {
       if (!pointSel) return;
       pointSel.classed("is-active", false);
       if (node) d3.select(node).classed("is-active", true);
       updatePanel(d, /* committed */ false);
     }
-    // Commit: user explicitly selected this site. Dispatches site:select
-    // so the archetype panel + SVG and both intent blocks rebind. Node
-    // is optional — if not supplied (e.g. the CTA was the commit path)
-    // we find the matching dot ourselves.
+    // Commit: user explicitly selected this site. Updates the side panel
+    // and the inventory intent block to reflect the chosen record. Node
+    // is optional — if not supplied we find the matching dot ourselves.
     function commitSite(d, node) {
       if (!pointSel) return;
       const target = node || pointSel.filter((p) => p.id === d.id).node();
@@ -455,7 +454,6 @@
         d3.select(target).classed("is-active", true).classed("is-committed", true);
       }
       updatePanel(d, /* committed */ true);
-      document.dispatchEvent(new CustomEvent("site:select", { detail: d }));
     }
     function deactivate() {
       // Clear hover highlight only — the committed dot keeps its
@@ -1554,12 +1552,18 @@
     buildGrid();
     applyScenario(0);
 
-    // 1500 ms cadence — slow enough for the user to read the figure
-    // caption and verify the matrix highlight in the same beat. The
-    // section is now explorable: scenario dots let the user pick any
-    // state; a pause toggle stops the auto-cycle; both surfaces
-    // continue to move in lockstep. Cycle only runs while the section
-    // is in view.
+    // CADENCE = 1500 ms — INTENTIONAL DEVIATION from the stakeholder's
+    // 500 ms ask in WEBSITE PAGE FEEDBACK.docx. At 500 ms with ~360 ms
+    // applyFigureScenario / applyGridScenario transitions, the user
+    // never gets a stable frame: scenario captions change faster than
+    // they can be read, and the figure-to-matrix coupling the brief
+    // wanted ("matrix highlight should change at the same pace") reads
+    // as decorative motion rather than an analytic surface. The
+    // synchronized figure-plus-matrix concept is preserved at the slower
+    // tick; user ownership of the demo is restored via scenario dots
+    // (click any to jump + pause) and the play/pause toggle below.
+    // If you revert to 500 ms, also remove those controls or the
+    // section reverts to "watch only" mode the UX review flagged.
     const CADENCE = 1500;
     let timer = 0;
     let inView = false;
@@ -1671,10 +1675,15 @@
         fmt: (v) => Math.round(v).toLocaleString(),
       },
       trh: {
-        label: "T · RH",
-        unit:  "°C / %",
+        // Internal key kept as `trh` so the floor baselines and reading
+        // generators don't shift; user-visible label is Temperature only.
+        // Relative humidity is not surfaced here — combining T and RH in
+        // one scalar trace was misleading. If RH ever needs surfacing,
+        // add it as its own parameter.
+        label: "Temperature",
+        unit:  "°C",
         accent: "#6BA6F1",
-        thresholds: [21, 22, 23, 24], // temperature setpoint band for display
+        thresholds: [21, 22, 23, 24], // ASHRAE-style setpoint band
         fmt: (v) => v.toFixed(1),
       },
     };
