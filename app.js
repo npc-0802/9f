@@ -1500,13 +1500,15 @@
     };
     let occupancySlice = "monday";
     let currentScenarioIdx = 0;
+    let currentReadoutR = 6;
+    let currentReadoutC = 0;
 
     function renderPpScenario(idx) {
       currentScenarioIdx = idx;
       const dataset = SCENARIO_SLICES[occupancySlice];
       if (!dataset) return; // safety: button should be disabled
       const s = dataset[idx] || dataset[0];
-      if (ppScenarioLbl) ppScenarioLbl.textContent = s.l;
+      if (ppScenarioLbl) ppScenarioLbl.textContent = formatScenarioLabel(s.l);
       drawPpTower(s.b);
       renderPpBins(s);
     }
@@ -1532,10 +1534,11 @@
     });
 
     const ROWS = 7, COLS = 7;
-    // Row labels (top → bottom): +7°F .. +2°F, then 0 (BASELINE row)
-    const ROW_LBLS = ["+7°F", "+6°F", "+5°F", "+4°F", "+3°F", "+2°F", "0"];
-    // Col labels (left → right): 0, −2°F .. −7°F
-    const COL_LBLS = ["0", "−2°F", "−3°F", "−4°F", "−5°F", "−6°F", "−7°F"];
+    // Row labels (top → bottom): +7°F .. +2°F, then 0 (BASELINE row).
+    // Stored in °F as the canonical source; converted at render time
+    // via formatOffset(unit). Same pattern for columns.
+    const ROW_LBLS_F = ["+7°F", "+6°F", "+5°F", "+4°F", "+3°F", "+2°F", "0"];
+    const COL_LBLS_F = ["0", "−2°F", "−3°F", "−4°F", "−5°F", "−6°F", "−7°F"];
     // Cell %-reduction values read directly off the platform screenshots.
     // Format: [low, high] per cell, row-major top-to-bottom. The BASELINE
     // cell (row 6, col 0) is rendered as a literal "BASELINE" label.
@@ -1588,7 +1591,7 @@
         // Row label cell
         const rlbl = document.createElement("div");
         rlbl.className = "mxp__row-lbl";
-        rlbl.textContent = ROW_LBLS[r];
+        rlbl.textContent = formatOffset(ROW_LBLS_F[r]);
         grid.appendChild(rlbl);
         // Seven data cells
         for (let c = 0; c < COLS; c++) {
@@ -1612,7 +1615,7 @@
             cell.textContent = `${mid.toFixed(1)}%`;
           }
           cell.setAttribute("aria-label",
-            `Summer setback ${ROW_LBLS[r]}, winter setback ${COL_LBLS[c]}`);
+            `Summer setback ${ROW_LBLS_F[r]}, winter setback ${COL_LBLS_F[c]}`);
           cell.addEventListener("mouseenter", () => activate(r, c, cell));
           cell.addEventListener("focus",      () => activate(r, c, cell));
           cell.addEventListener("click",      () => activate(r, c, cell, true));
@@ -1623,10 +1626,10 @@
       const corner = document.createElement("div");
       grid.appendChild(corner);
       // 7 column labels along the bottom
-      COL_LBLS.forEach((lbl) => {
+      COL_LBLS_F.forEach((lbl) => {
         const cl = document.createElement("div");
         cl.className = "mxp__col-lbl";
-        cl.textContent = lbl;
+        cl.textContent = formatOffset(lbl);
         grid.appendChild(cl);
       });
     }
@@ -1649,8 +1652,10 @@
 
       const vals = CELLS[r][c];
       const isBaseline = vals === null;
-      const wLbl = COL_LBLS[c];
-      const sLbl = ROW_LBLS[r];
+      const wLbl = formatOffset(COL_LBLS_F[c]);
+      const sLbl = formatOffset(ROW_LBLS_F[r]);
+      currentReadoutR = r;
+      currentReadoutC = c;
       const reductionLbl = isBaseline
         ? "no setback · baseline"
         : `${vals[0].toFixed(1)}% – ${vals[1].toFixed(1)}% energy reduction`;
@@ -1696,15 +1701,131 @@
         });
       });
     }
-    wireGroup(".mxp__tabs [data-mxp-tab]");
-    wireGroup("[data-mxp-start]");
-    wireGroup("[data-mxp-end]");
-    wireGroup("[data-mxp-clock]");
-    wireGroup("[data-mxp-unit]");
-    // NOTE: [data-mxp-occ] is deliberately NOT in wireGroup. The
-    // occupancy toggle is a real panel lens — it has its own state
-    // and a real render path (see occupancySlice / occupancyOptions
-    // / renderPpScenario), not visual-only chrome.
+    // Inert chrome (intervention tabs, setback start/end chips) is now
+    // rendered as <span> in the HTML — no click handlers needed. The
+    // truly interactive view-state controls (clock format + unit) get
+    // real handlers below that re-render every region that displays a
+    // time or temperature.
+    //
+    // [data-mxp-occ] is deliberately NOT in wireGroup either — that's
+    // the real panel-lens control (see setOccupancy / renderPpScenario).
+
+    // ---------- View state: clock format + unit ----------
+    let clockFormat = "24";  // "24" | "12"
+    let unit = "F";          // "F" | "C"
+
+    // Format an HH:MM string per active clock format.
+    //   formatTime("18:00") → "18:00" (24h) or "6:00 PM" (12h)
+    //   formatTime("06:00") → "06:00" (24h) or "6:00 AM" (12h)
+    function formatTime(t24) {
+      const [hStr, m] = t24.split(":");
+      const h = parseInt(hStr, 10);
+      if (clockFormat === "12") {
+        const period = h >= 12 ? "PM" : "AM";
+        const h12 = ((h + 11) % 12) + 1;
+        return `${h12}:${m} ${period}`;
+      }
+      return t24;
+    }
+    // Convert a Fahrenheit offset string ("+7°F", "−2°F", "0") to the
+    // active unit's display. Offsets are 5/9 ratio.
+    function formatOffset(fahrLbl) {
+      if (fahrLbl === "0") return "0";
+      const m = fahrLbl.match(/^([+−-])(\d+(?:\.\d+)?)°F$/);
+      if (!m) return fahrLbl;
+      const sign = m[1] === "+" ? 1 : -1;
+      const valF = sign * parseFloat(m[2]);
+      if (unit === "C") {
+        const valC = valF * 5 / 9;
+        const rounded = Math.abs(valC) < 0.05 ? "0" : valC.toFixed(1);
+        const s = valC > 0 ? "+" : (valC < 0 ? "−" : "");
+        return rounded === "0" ? "0" : `${s}${Math.abs(parseFloat(rounded)).toFixed(1)}°C`;
+      }
+      return fahrLbl;
+    }
+    // Convert a scenario label ("W −2°F / S +2°F", "Baseline") to the
+    // active unit. Preserves the "Baseline" sentinel literal.
+    function formatScenarioLabel(rawLabel) {
+      if (rawLabel === "Baseline") return "Baseline";
+      // Replace each °F offset segment
+      return rawLabel.replace(/(W|S)\s+([+−-]?\d+(?:\.\d+)?°F|0)/g, (_, axis, val) => {
+        return `${axis} ${formatOffset(val)}`;
+      });
+    }
+
+    // Re-render every region that displays a time or temperature based
+    // on the current clockFormat + unit. Called after either toggle.
+    function refreshViewLabels() {
+      // Chrome pill: "FRI HH:MM → MON HH:MM"
+      const pill = document.getElementById("mxp-chrome-pill");
+      if (pill) pill.textContent = `FRI ${formatTime("18:00")} → MON ${formatTime("06:00")}`;
+      // Foot labels
+      const footStart = document.getElementById("mxp-foot-start");
+      const footEnd = document.getElementById("mxp-foot-end");
+      if (footStart) footStart.textContent = `Friday ${formatTime("18:00")}`;
+      if (footEnd) footEnd.textContent = `Monday ${formatTime("06:00")}`;
+      // Setback chip labels (display only — chips are inert spans)
+      document.querySelectorAll("[data-mxp-time]").forEach((el) => {
+        el.textContent = formatTime(el.dataset.mxpTime);
+      });
+      // Axis labels (unit only)
+      const yLbl = document.getElementById("mxp-y-axis-lbl");
+      const xLbl = document.getElementById("mxp-x-axis-lbl");
+      if (yLbl) yLbl.textContent = `SUMMER WEEKEND TEMPERATURE OFFSET (°${unit})`;
+      if (xLbl) xLbl.textContent = `WINTER WEEKEND TEMPERATURE OFFSET (°${unit})`;
+      // Matrix row / col labels — re-render based on unit
+      document.querySelectorAll(".mxp__row-lbl").forEach((el, i) => {
+        el.textContent = formatOffset(ROW_LBLS_F[i]);
+      });
+      document.querySelectorAll(".mxp__col-lbl").forEach((el, i) => {
+        el.textContent = formatOffset(COL_LBLS_F[i]);
+      });
+      // Scenario label in Healthy People panel
+      if (ppScenarioLbl) {
+        const dataset = SCENARIO_SLICES[occupancySlice];
+        if (dataset) {
+          const s = dataset[currentScenarioIdx] || dataset[0];
+          ppScenarioLbl.textContent = formatScenarioLabel(s.l);
+        }
+      }
+      // Readout text
+      if (readout) {
+        const vals = CELLS[currentReadoutR][currentReadoutC];
+        const isBaseline = vals === null;
+        const wLbl = formatOffset(COL_LBLS_F[currentReadoutC]);
+        const sLbl = formatOffset(ROW_LBLS_F[currentReadoutR]);
+        const reductionLbl = isBaseline
+          ? "no setback · baseline"
+          : `${vals[0].toFixed(1)}% – ${vals[1].toFixed(1)}% energy reduction`;
+        readout.textContent = isBaseline
+          ? "Baseline · no setback · 0.00% offset across all bins"
+          : `Winter ${wLbl} · Summer ${sLbl} · ${reductionLbl}`;
+      }
+    }
+
+    // Wire clock + unit as real view-state controls
+    document.querySelectorAll("[data-mxp-clock]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        clockFormat = btn.dataset.mxpClock;
+        document.querySelectorAll("[data-mxp-clock]").forEach((b) => {
+          const on = b === btn;
+          b.classList.toggle("is-active", on);
+          b.setAttribute("aria-pressed", on ? "true" : "false");
+        });
+        refreshViewLabels();
+      });
+    });
+    document.querySelectorAll("[data-mxp-unit]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        unit = btn.dataset.mxpUnit;
+        document.querySelectorAll("[data-mxp-unit]").forEach((b) => {
+          const on = b === btn;
+          b.classList.toggle("is-active", on);
+          b.setAttribute("aria-pressed", on ? "true" : "false");
+        });
+        refreshViewLabels();
+      });
+    });
 
     build();
     // Initialize at BASELINE — activate() → renderPpScenario() now
