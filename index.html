@@ -485,8 +485,15 @@
             <header class="mxp__pp-head">
               <span class="mxp__pp-title">HEALTHY PEOPLE</span>
               <div class="mxp__pp-occ" role="group" aria-label="Occupancy window">
-                <button class="mxp__pp-occ-l" type="button" data-mxp-occ="all"    aria-pressed="false">All Occupied Hours</button>
-                <button class="mxp__pp-occ-r is-active" type="button" data-mxp-occ="monday" aria-pressed="true">Monday</button>
+                <button class="mxp__pp-occ-l" type="button"
+                        data-mxp-occ="all"
+                        aria-pressed="false"
+                        aria-disabled="true"
+                        disabled
+                        title="All-occupied-hours slice not captured in source data — only Monday-slice is available for these scenarios.">All Occupied Hours</button>
+                <button class="mxp__pp-occ-r is-active" type="button"
+                        data-mxp-occ="monday"
+                        aria-pressed="true">Monday</button>
               </div>
               <span class="mxp__pp-scenario" id="mxp-pp-scenario">Baseline</span>
             </header>

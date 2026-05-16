@@ -1481,12 +1481,55 @@
       ppBins.innerHTML = head + rows;
     }
 
+    // Occupancy slice state — a real panel lens, independent from the
+    // active scenario. The Healthy People panel render is now a pure
+    // function of (scenario, occupancySlice).
+    //
+    // Data inventory: all 49 source screenshots were captured with
+    // Monday selected, so the "monday" slice has real measured values
+    // for every scenario. No screenshots exist for "all" (All Occupied
+    // Hours), so that slice has no data. Per the brief's truthfulness
+    // rule we don't fabricate "all" values — instead the All Occupied
+    // Hours button is disabled in markup with an explanatory title.
+    // When real all-occupied data becomes available, drop it into
+    // SCENARIO_SLICES.all (same shape as .monday) and remove the
+    // disabled attribute. No render code changes needed.
+    const SCENARIO_SLICES = {
+      monday: SCENARIOS,
+      all: null, // not captured in source data
+    };
+    let occupancySlice = "monday";
+    let currentScenarioIdx = 0;
+
     function renderPpScenario(idx) {
-      const s = SCENARIOS[idx] || SCENARIOS[0];
+      currentScenarioIdx = idx;
+      const dataset = SCENARIO_SLICES[occupancySlice];
+      if (!dataset) return; // safety: button should be disabled
+      const s = dataset[idx] || dataset[0];
       if (ppScenarioLbl) ppScenarioLbl.textContent = s.l;
       drawPpTower(s.b);
       renderPpBins(s);
     }
+
+    // Real click handler for the occupancy controls (not in wireGroup —
+    // this drives real state + a re-render of the panel, scenario stays
+    // fixed). All Occupied Hours is disabled; clicking is a no-op via
+    // the disabled attribute. Monday is permanently selected but the
+    // click handler is wired so the interaction model is consistent
+    // and so future "all" slice activation needs no additional wiring.
+    function setOccupancy(slice) {
+      if (!SCENARIO_SLICES[slice]) return; // refuse to set a sliceless lens
+      occupancySlice = slice;
+      root.querySelectorAll('[data-mxp-occ]').forEach((btn) => {
+        const on = btn.dataset.mxpOcc === slice;
+        btn.classList.toggle("is-active", on);
+        btn.setAttribute("aria-pressed", on ? "true" : "false");
+      });
+      renderPpScenario(currentScenarioIdx);
+    }
+    root.querySelectorAll('[data-mxp-occ]').forEach((btn) => {
+      btn.addEventListener("click", () => setOccupancy(btn.dataset.mxpOcc));
+    });
 
     const ROWS = 7, COLS = 7;
     // Row labels (top → bottom): +7°F .. +2°F, then 0 (BASELINE row)
@@ -1658,7 +1701,10 @@
     wireGroup("[data-mxp-end]");
     wireGroup("[data-mxp-clock]");
     wireGroup("[data-mxp-unit]");
-    wireGroup("[data-mxp-occ]");
+    // NOTE: [data-mxp-occ] is deliberately NOT in wireGroup. The
+    // occupancy toggle is a real panel lens — it has its own state
+    // and a real render path (see occupancySlice / occupancyOptions
+    // / renderPpScenario), not visual-only chrome.
 
     build();
     // Initialize at BASELINE — activate() → renderPpScenario() now
