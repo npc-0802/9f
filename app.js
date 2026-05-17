@@ -793,10 +793,15 @@
       clear(svg);
       const rect = svg.getBoundingClientRect();
       const W = Math.max(360, Math.round(rect.width));
-      const H = 150;
+      // Energy chart needs extra room below the x-axis for three text
+      // rows (lane labels, "Filter A/B" group labels, "Filter" x-axis
+      // title). H bumped from 150 → 180; the bottom band uses an
+      // expanded PAD.b so the rows have non-overlapping baselines.
+      const H = 180;
       svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
       svg.setAttribute("preserveAspectRatio", "none");
-      const iw = W - PAD.l - PAD.r, ih = H - PAD.t - PAD.b;
+      const PAD_B_BOTTOM = 56; // local override; shared PAD.b=30 isn't enough here
+      const iw = W - PAD.l - PAD.r, ih = H - PAD.t - PAD_B_BOTTOM;
       const filters = activeFilters();
       const caseData = CASES[state.case];
 
@@ -808,7 +813,7 @@
       });
       const yMax = Math.max(...allVals) * 1.22;
       const yS = (v) => PAD.t + (1 - v / yMax) * ih;
-      const xAxisY = H - PAD.b;
+      const xAxisY = H - PAD_B_BOTTOM;
 
       // y gridlines + labels (5 ticks)
       const yTicks = 4;
@@ -882,9 +887,10 @@
           sub.textContent = lane.k;
           svg.appendChild(sub);
         });
-        // Group label = "Filter A" / "Filter B"
+        // Group label = "Filter A" / "Filter B" — pushed to xAxisY+30
+        // so it doesn't collide with the "Filter" axis title below.
         const gl = el("text", {
-          x: groupCx, y: xAxisY + 24,
+          x: groupCx, y: xAxisY + 30,
           "text-anchor": "middle",
           fill: fill,
           "font-size": 10,
@@ -895,8 +901,10 @@
         gl.textContent = f.name;
         svg.appendChild(gl);
       });
-      // x-axis title — "Filter"
-      const xLbl = el("text", { x: PAD.l + iw / 2, y: H - 1, "text-anchor": "middle", fill: "#95a3b8", "font-size": 9.5, "font-family": "JetBrains Mono", "letter-spacing": "0.06em" });
+      // x-axis title — "Filter" — sits below the group labels with a
+      // comfortable gap (xAxisY+30 group baseline → xAxisY+48 x-title
+      // baseline = ~18px separation, no overlap at 10pt / 9.5pt sizes).
+      const xLbl = el("text", { x: PAD.l + iw / 2, y: xAxisY + 48, "text-anchor": "middle", fill: "#95a3b8", "font-size": 9.5, "font-family": "JetBrains Mono", "letter-spacing": "0.06em" });
       xLbl.textContent = "Filter";
       svg.appendChild(xLbl);
     }

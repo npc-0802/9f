@@ -988,6 +988,10 @@ sub, sup { font-size: 0.7em; }
 .fs__readout-a, .fs__readout-a b { color: #4FA1FF; }
 .fs__readout-b, .fs__readout-b b { color: #9DD05A; }
 .fs__chart svg { width: 100%; height: 150px; display: block; }
+/* Energy chart needs extra vertical room below the x-axis for lane
+   labels + "Filter A / Filter B" group labels + "Filter" x-axis title
+   (Feedback 4 overlap fix). */
+.fs__chart--energy svg { height: 180px; }
 @media (max-width: 720px) {
   .fs__chart figcaption, .fs__chart .fs__chart-cap { flex-direction: column; align-items: stretch; }
   .fs__chart-rhs { align-self: flex-start; }
