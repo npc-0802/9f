@@ -1166,15 +1166,29 @@
     // ---------- Cost readout (top of section, replaces bottom TBO) ----------
     // Renders the case-study Total Co-Benefits of Ownership cost values
     // exactly per Feedback 3 §02.10. Filter A in blue, Filter B in green.
+    // Reacts to state.filter: in single-filter mode, the selected side
+    // is emphasized and the other dimmed; in compare mode both read equally.
     function renderCostReadout() {
       const c = CASES[state.case];
       const caseEl = document.getElementById("fs-cost-case");
       const aEl = document.getElementById("fs-cost-a");
       const bEl = document.getElementById("fs-cost-b");
+      const aSide = document.querySelector('[data-fs-cost-filter="A"]');
+      const bSide = document.querySelector('[data-fs-cost-filter="B"]');
       if (caseEl) caseEl.textContent = c.label;
       const fmt = (n) => "$" + n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
       if (aEl) aEl.textContent = fmt(c.filters.A.energyCost);
       if (bEl) bEl.textContent = fmt(c.filters.B.energyCost);
+      // Active/dim class system reflects the filter chip selection
+      const sel = state.filter; // "A" | "B" | "compare"
+      if (aSide) {
+        aSide.classList.toggle("is-active", sel === "A");
+        aSide.classList.toggle("is-dim", sel === "B");
+      }
+      if (bSide) {
+        bSide.classList.toggle("is-active", sel === "B");
+        bSide.classList.toggle("is-dim", sel === "A");
+      }
     }
 
     // ---------- Intent block + case header ----------
@@ -1332,6 +1346,7 @@
             ? CASES[state.case].filters[filters[0]].name.toUpperCase()
             : "FILTER";
         }
+        renderCostReadout();
         updateIntent();
         redraw();
       });
