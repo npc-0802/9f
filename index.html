@@ -260,7 +260,7 @@
             <div class="fs__chipset" role="group" aria-label="Filter">
               <button class="chip is-active" data-fs-filter="A" type="button" aria-pressed="true">Filter A</button>
               <button class="chip" data-fs-filter="B" type="button" aria-pressed="false">Filter B</button>
-              <button class="chip" data-fs-filter="compare" type="button" aria-pressed="false">Compare &middot; Total Co-Benefits</button>
+              <button class="chip" data-fs-filter="compare" type="button" aria-pressed="false">Compare A &amp; B on charts</button>
             </div>
           </div>
         </div>
@@ -406,10 +406,11 @@
         <div class="mxp__tabs" role="group" aria-label="Intervention type (captured: Weekend Setback)">
           <span class="mxp__tabs-k">INTERVENTION</span>
           <span class="mxp__tab is-active" aria-current="true">Weekend Setback</span>
-          <span class="mxp__tab" aria-disabled="true" title="No measured data for this intervention family in the captured dataset.">Evening Setback</span>
-          <span class="mxp__tab" aria-disabled="true" title="No measured data for this intervention family in the captured dataset.">Ventilation</span>
-          <span class="mxp__tab" aria-disabled="true" title="No measured data for this intervention family in the captured dataset.">All Combined</span>
+          <span class="mxp__tab" aria-disabled="true">Evening Setback</span>
+          <span class="mxp__tab" aria-disabled="true">Ventilation</span>
+          <span class="mxp__tab" aria-disabled="true">All Combined</span>
         </div>
+        <p class="mxp__caption">Captured intervention family: <em>Weekend Setback</em>. Other families are not represented in this reference dataset.</p>
 
         <div class="mxp__title-block">
           <h3 class="mxp__h3">Reduction in Annual Energy Consumption</h3>
@@ -450,6 +451,7 @@
             </div>
           </div>
         </div>
+        <p class="mxp__caption">Captured setback window: <em>Friday 18:00 → Monday 06:00</em>. Alternate start/end times are not represented in this reference dataset.</p>
 
         <div class="mxp__body">
           <div class="mxp__matrix">
@@ -462,11 +464,11 @@
                 <button class="mxp__unit-btn" type="button" data-mxp-unit="C" aria-pressed="false">°C</button>
               </div>
               <span class="mxp__matrix-title">HEALTHY ENERGY</span>
-              <span class="mxp__sim-badge">
+              <span class="mxp__sim-badge" title="49 setback combinations × 27 baseline-deadband variants = 1,323 modeled scenarios.">
                 <span class="mxp__sim-icn" aria-hidden="true"></span>
                 <span class="mxp__sim-stack">
                   <span class="mxp__sim-k">Matrix Simulations</span>
-                  <span class="mxp__sim-v">1,323 scenarios analyzed</span>
+                  <span class="mxp__sim-v">1,323 scenarios &middot; 49 setback combos &times; 27 deadband variants</span>
                 </span>
               </span>
             </div>
@@ -483,6 +485,7 @@
               <span class="mxp__legend-k">% REDUCTION</span>
               <span class="mxp__legend-bar"></span>
               <span class="mxp__legend-ticks"><span>0%</span><span>4.4%</span><span>8.8%</span></span>
+              <span class="mxp__legend-baseline" aria-label="Baseline cell"><span class="mxp__legend-baseline-swatch"></span>Baseline</span>
             </div>
           </div>
 
@@ -494,12 +497,12 @@
                         data-mxp-occ="all"
                         aria-pressed="false"
                         aria-disabled="true"
-                        disabled
-                        title="All-occupied-hours slice not captured in source data — only Monday-slice is available for these scenarios.">All Occupied Hours</button>
+                        disabled>All Occupied Hours</button>
                 <button class="mxp__pp-occ-r is-active" type="button"
                         data-mxp-occ="monday"
                         aria-pressed="true">Monday</button>
               </div>
+              <span class="mxp__pp-occ-note">Monday-slice data only</span>
               <span class="mxp__pp-scenario" id="mxp-pp-scenario">Baseline</span>
             </header>
             <div class="mxp__pp-body">
@@ -552,15 +555,15 @@
                     data-hlx-param="temp" aria-pressed="false">Temp</button>
           </div>
           <span class="hlx__divider" aria-hidden="true"></span>
-          <div class="hlx__pills hlx__pills--time" role="group" aria-label="Time window">
-            <button class="hlx__pill is-active" type="button"
-                    data-hlx-time="30" aria-pressed="true">30 Days</button>
-            <button class="hlx__pill" type="button"
-                    data-hlx-time="7"  aria-pressed="false">7 Days</button>
-          </div>
+          <!-- Time window: only a 30-day reference slice was captured.
+               Rendered as inert reference chrome rather than a working
+               toggle so the cue doesn't promise interactivity that the
+               data can't back. -->
+          <span class="hlx__ref-badge" aria-label="Captured time window">Last 30 days &middot; reference window</span>
           <span class="hlx__divider" aria-hidden="true"></span>
-          <button class="hlx__pill is-active" type="button"
-                  data-hlx-view="building" aria-pressed="true">Building</button>
+          <!-- Singleton view marker — no peer to toggle between, so
+               this is a label, not a control. -->
+          <span class="hlx__ref-badge" aria-label="View">Building view</span>
         </header>
 
         <div class="hlx__body">
@@ -581,13 +584,14 @@
           <div class="hlx__right">
             <div class="hlx__chart hlx__chart--st">
               <div class="hlx__chart-head">
-                <span class="hlx__chart-title" id="hlx-st-title">H.E.A.A.L. CO<sub>2</sub> SpaceTime Map</span>
+                <span class="hlx__chart-title" id="hlx-st-title">H.E.A.A.L. CO<sub>2</sub> &middot; Anomaly density</span>
                 <span class="hlx__chart-icons" aria-hidden="true">
                   <span class="hlx__chart-icn">⤢</span>
                   <span class="hlx__chart-icn">↓</span>
                 </span>
               </div>
-              <svg class="hlx__st" id="hlx-st" viewBox="0 0 600 280" preserveAspectRatio="none" aria-label="SpaceTime map"></svg>
+              <svg class="hlx__st" id="hlx-st" viewBox="0 0 600 280" preserveAspectRatio="none" aria-label="Anomaly density"></svg>
+              <p class="hlx__chart-foot">Illustrative density across sensors and time &middot; not measured event positions.</p>
             </div>
 
             <div class="hlx__chart hlx__chart--ts">

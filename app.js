@@ -420,7 +420,19 @@
           height: h.toFixed(1),
         }));
       });
-      // Tracker primitives — line + dot, appended once and reused on hover.
+      // Pinned-site primitives (persist between hovers, painted by
+      // commitSite). Drawn BEHIND the transient hover tracker so an
+      // active hover visually layers on top.
+      svgNode.appendChild(elN("line", {
+        class: "hist__pin-line",
+        x1: padL, x2: padL, y1: padT, y2: H - padB,
+      }));
+      svgNode.appendChild(elN("circle", {
+        class: "hist__pin-dot",
+        cx: padL, cy: H - padB, r: 4.2,
+      }));
+      // Transient hover tracker — line + dot, appended once and
+      // reused on hover. Cleared on mouseleave/deactivate.
       svgNode.appendChild(elN("line", {
         class: "hist__track-line",
         x1: padL, x2: padL, y1: padT, y2: H - padB,
@@ -542,11 +554,52 @@
       }
       committedSite = d;
       setTrackers(d);
+      setPinMarkers(d);
       const statusLabel = d.status === "existing" ? "Existing" : "Planned";
       // PEC_ID omitted per Feedback 4 §2.3 — county leads instead.
       const summary = `<b>${d.county} County</b> · ${statusLabel} · ${d.system} · ${fmt.flt(d.it_mw, 1)} MW`;
       const intentMap = document.getElementById("intent-map");
       if (intentMap) intentMap.innerHTML = summary;
+    }
+    // Pin markers persist across hovers so the committed site stays
+    // visible in every histogram while the user explores other dots.
+    // Same metric resolution as setTrackers — different DOM nodes.
+    function setPinMarkers(site) {
+      HIST_TRACKERS.forEach((cfg) => {
+        const svgNode = document.getElementById(cfg.id);
+        if (!svgNode) return;
+        const line = svgNode.querySelector(".hist__pin-line");
+        const dot  = svgNode.querySelector(".hist__pin-dot");
+        if (!site) {
+          if (line) line.classList.remove("is-on");
+          if (dot)  dot.classList.remove("is-on");
+          return;
+        }
+        const v = cfg.accessor(site);
+        if (!Number.isFinite(v)) return;
+        const [lo, hi] = histDomain(cfg.accessor);
+        let t;
+        if (cfg.isLog) {
+          const loL = Math.log(Math.max(0.001, lo));
+          const hiL = Math.log(Math.max(0.001, hi));
+          t = (Math.log(Math.max(0.001, v)) - loL) / (hiL - loL);
+        } else {
+          t = (v - lo) / (hi - lo);
+        }
+        t = Math.min(0.999, Math.max(0, t));
+        const { W, padL, padR, padT, H, padB } = HIST_GEOM;
+        const x = padL + t * (W - padL - padR);
+        if (line) {
+          line.setAttribute("x1", x.toFixed(1));
+          line.setAttribute("x2", x.toFixed(1));
+          line.classList.add("is-on");
+        }
+        if (dot) {
+          dot.setAttribute("cx", x.toFixed(1));
+          dot.setAttribute("cy", (padT + (H - padT - padB) * 0.45).toFixed(1));
+          dot.classList.add("is-on");
+        }
+      });
     }
     function deactivate() {
       // On hover-out, fall back to the committed site (if any). Tracker
@@ -1635,11 +1688,12 @@
             cell.textContent = "BASELINE";
             cell.style.background = "rgba(10,116,214,0.42)";
           } else {
-            // Single-value display per user direction — midpoint of the
-            // platform range, kept platform-faithful to one decimal.
+            // Compact range display: cells communicate a sensitivity
+            // band, not a point estimate. Color still keyed to midpoint
+            // for consistent gradient encoding.
             const mid = (vals[0] + vals[1]) / 2;
             cell.style.background = cellColor(mid);
-            cell.textContent = `${mid.toFixed(1)}%`;
+            cell.textContent = `${vals[0].toFixed(1)}–${vals[1].toFixed(1)}%`;
           }
           cell.setAttribute("aria-label",
             `Summer setback ${formatOffset(ROW_LBLS_F[r])}, winter setback ${formatOffset(COL_LBLS_F[c])}`);
@@ -2478,7 +2532,7 @@
       drawTower(p.bins);
       renderBins(p.bins);
       renderCards(p.card);
-      stTitle.innerHTML = `H.E.A.A.L. ${p.label} SpaceTime Map`;
+      stTitle.innerHTML = `H.E.A.A.L. ${p.label} &middot; Anomaly density`;
       tsTitle.innerHTML = `H.E.A.A.L. ${p.label} Timeseries Plot`;
       renderSpaceTime(p.st);
       renderTimeseries(p);
@@ -2493,28 +2547,9 @@
       pill.addEventListener("click", () => apply(pill.dataset.hlxParam));
     });
 
-    // Time + view pills: visual-state-only toggles (the panel has one
-    // captured time window and one view, so these don't drive data —
-    // but they should feel like real buttons, with aria-pressed flipping
-    // honestly. Mutually exclusive within each group.
-    const timePills = root.querySelectorAll('[data-hlx-time]');
-    timePills.forEach((p) => {
-      p.addEventListener("click", () => {
-        timePills.forEach((b) => {
-          const on = b === p;
-          b.classList.toggle("is-active", on);
-          b.setAttribute("aria-pressed", on ? "true" : "false");
-        });
-      });
-    });
-    const viewPills = root.querySelectorAll('[data-hlx-view]');
-    viewPills.forEach((p) => {
-      p.addEventListener("click", () => {
-        const on = p.getAttribute("aria-pressed") !== "true";
-        p.classList.toggle("is-active", on);
-        p.setAttribute("aria-pressed", on ? "true" : "false");
-      });
-    });
+    // Time window + view marker are now inert .hlx__ref-badge spans in
+    // the markup (captured 30-day reference, singleton Building view).
+    // No click handlers — they read as printed labels, not toggles.
 
     // Initial render — apply() draws everything including the tower
     apply("co2");
