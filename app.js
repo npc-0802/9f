@@ -496,7 +496,9 @@
       const activeLbl = document.getElementById("hist-active");
       if (activeLbl) {
         if (site) {
-          activeLbl.textContent = `${site.id} · ${site.county} · ${site.status === "existing" ? "Existing" : "Planned"}`;
+          // PEC_ID intentionally omitted per Feedback 4 §2.3 — internal
+          // site identifier, not user-meaningful on the map surface.
+          activeLbl.textContent = `${site.county} County · ${site.status === "existing" ? "Existing" : "Planned"}`;
         } else {
           activeLbl.textContent = "— · click any site to commit";
         }
@@ -541,7 +543,8 @@
       committedSite = d;
       setTrackers(d);
       const statusLabel = d.status === "existing" ? "Existing" : "Planned";
-      const summary = `<b>${d.id}</b> · ${d.county} · ${statusLabel} · ${d.system} · ${fmt.flt(d.it_mw, 1)} MW`;
+      // PEC_ID omitted per Feedback 4 §2.3 — county leads instead.
+      const summary = `<b>${d.county} County</b> · ${statusLabel} · ${d.system} · ${fmt.flt(d.it_mw, 1)} MW`;
       const intentMap = document.getElementById("intent-map");
       if (intentMap) intentMap.innerHTML = summary;
     }
@@ -607,7 +610,9 @@
         },
         filters: {
           "A": { name: "Filter A", pressureEnd: 217.83, pmMean: 0.17, pm10Mean: 0.08, energyRecirc:  977841, energyVent:  318411, energyKwh: 1296252, energyCost: 230785.95, dustHeld: 187.26 },
-          "B": { name: "Filter B", pressureEnd: 135.32, pmMean: 0.25, pm10Mean: 0.07, energyRecirc:  640345, energyVent:  204096, energyKwh:  844441, energyCost: 150310.68, dustHeld: 188.99 },
+          // PM2.5 0.12 µg/m³ for DC-A Filter B — Feedback 4 §3.6
+          // overrides the prior Feedback 3 §02.7 value of 0.25.
+          "B": { name: "Filter B", pressureEnd: 135.32, pmMean: 0.12, pm10Mean: 0.07, energyRecirc:  640345, energyVent:  204096, energyKwh:  844441, energyCost: 150310.68, dustHeld: 188.99 },
         },
       },
       B: {
@@ -695,7 +700,9 @@
     }
 
     // ---------- Chart drawing ----------
-    const PAD = { l: 42, r: 14, t: 14, b: 30 };
+    // PAD.l widened from 42 → 56 to make room for the vertical-left
+    // y-axis title (Feedback 4 §3.5).
+    const PAD = { l: 56, r: 14, t: 14, b: 30 };
     // Generalized x/y scales over real (xMin..xMax) × (yMin..yMax) domains.
     // The PM chart inverts data orientation per Feedback 3 §02.7:
     // x = PM2.5 level (μg/m³), y = Time (hrs). The series builder above
@@ -742,8 +749,18 @@
         svg.appendChild(t);
       }
       if (opts.yLabel) {
-        const yLblY = PAD.t - 3;
-        const t = el("text", { x: PAD.l, y: yLblY, "text-anchor": "start", fill: "#95a3b8", "font-size": 9.5, "font-family": "JetBrains Mono", "letter-spacing": "0.06em" });
+        // Feedback 4 §3.5: y-axis title to the LEFT of the y-axis,
+        // rotated vertically. Centered on the plot area's vertical
+        // midpoint, with text rotated -90° around that point.
+        const labelX = 12;
+        const labelY = PAD.t + ih / 2;
+        const t = el("text", {
+          x: labelX, y: labelY,
+          "text-anchor": "middle",
+          transform: `rotate(-90, ${labelX}, ${labelY})`,
+          fill: "#95a3b8", "font-size": 9.5, "font-family": "JetBrains Mono",
+          "letter-spacing": "0.06em",
+        });
         t.textContent = opts.yLabel;
         svg.appendChild(t);
       }
@@ -803,10 +820,20 @@
         tx.textContent = v >= 1e6 ? (v / 1e6).toFixed(1) + "M" : v >= 1e3 ? Math.round(v / 1e3) + "K" : Math.round(v).toString();
         svg.appendChild(tx);
       }
-      // y-axis label
-      const yLbl = el("text", { x: PAD.l, y: PAD.t - 3, "text-anchor": "start", fill: "#95a3b8", "font-size": 9.5, "font-family": "JetBrains Mono", "letter-spacing": "0.06em" });
-      yLbl.textContent = "Annual fan energy (kWh/y)";
-      svg.appendChild(yLbl);
+      // y-axis label — vertical-left per Feedback 4 §3.5
+      {
+        const labelX = 12;
+        const labelY = PAD.t + ih / 2;
+        const yLbl = el("text", {
+          x: labelX, y: labelY,
+          "text-anchor": "middle",
+          transform: `rotate(-90, ${labelX}, ${labelY})`,
+          fill: "#95a3b8", "font-size": 9.5, "font-family": "JetBrains Mono",
+          "letter-spacing": "0.06em",
+        });
+        yLbl.textContent = "Annual fan energy (kWh/y)";
+        svg.appendChild(yLbl);
+      }
 
       // Groups: one per active filter
       const groupW = iw / filters.length;
@@ -1118,7 +1145,6 @@
         <div class="fs__site-col">
           <div class="fs__site-row"><dt>System Type</dt><dd>${s.systemType}</dd></div>
           <div class="fs__site-row"><dt>Air Fraction</dt><dd>${s.airFraction}</dd></div>
-          <div class="fs__site-row"><dt>Total System Capacity</dt><dd>${s.systemCapacity}</dd></div>
           <div class="fs__site-row"><dt>Number of Filters</dt><dd>${s.filterCount}</dd></div>
         </div>
       `;
@@ -1130,7 +1156,9 @@
     // average"). Even in compare mode the phrase stays singular; the
     // two values fuse as "A=NN / B=MM" so the sentence still reads as
     // a single metric statement. Top-right boxed stats keep A blue /
-    // B green per §02.9.
+    // B green per §02.9. Per Feedback 4 §3.3 the chart subtitle leads
+    // ("N Pa at one year", "YY μg/m³ annual average", "N kWh/y total")
+    // were removed from the UI; only the top-right boxed stats remain.
     function updateReadouts() {
       const c = CASES[state.case];
       const FA = c.filters["A"], FB = c.filters["B"];
@@ -1140,13 +1168,6 @@
       const bSpan = (txt) => `<span class="fs__readout-b">${txt}</span>`;
 
       if (state.filter === "compare") {
-        // Compare leads — keep singular phrasing; values fuse as A=/B=
-        const pPair = `${aSpan("A=" + FA.pressureEnd.toFixed(0))} / ${bSpan("B=" + FB.pressureEnd.toFixed(0))}`;
-        const mPair = `${aSpan("A=" + FA.pmMean.toFixed(2))} / ${bSpan("B=" + FB.pmMean.toFixed(2))}`;
-        const ePair = `${aSpan("A=" + FA.energyKwh.toLocaleString())} / ${bSpan("B=" + FB.energyKwh.toLocaleString())}`;
-        setHTML("fs-pressure-lead", `${pPair} Pa at one year`);
-        setHTML("fs-pm-lead",       `${mPair} µg/m³ annual average`);
-        setHTML("fs-energy-lead",   `${ePair} kWh/y total`);
         setHTML("fs-pressure-readout", `<span class="fs__readout-row">${aSpan("A <b>" + FA.pressureEnd.toFixed(0) + "</b>")} · ${bSpan("B <b>" + FB.pressureEnd.toFixed(0) + "</b>")} Pa</span>`);
         setHTML("fs-pm-readout",       `<span class="fs__readout-row">${aSpan("A <b>" + FA.pmMean.toFixed(2) + "</b>")} · ${bSpan("B <b>" + FB.pmMean.toFixed(2) + "</b>")} µg/m³</span>`);
         setHTML("fs-energy-readout",   `<span class="fs__readout-row">${aSpan("A <b>" + (FA.energyKwh/1000).toFixed(0) + "</b>")} · ${bSpan("B <b>" + (FB.energyKwh/1000).toFixed(0) + "</b>")} MWh/y</span>`);
@@ -1154,9 +1175,6 @@
         const isA = state.filter === "A";
         const f  = isA ? FA : FB;
         const wrap = isA ? aSpan : bSpan;
-        setHTML("fs-pressure-lead", `${wrap(f.pressureEnd.toFixed(0))} Pa at one year`);
-        setHTML("fs-pm-lead",       `${wrap(f.pmMean.toFixed(2))} µg/m³ annual average`);
-        setHTML("fs-energy-lead",   `${wrap(f.energyKwh.toLocaleString())} kWh/y total`);
         setHTML("fs-pressure-readout", wrap(`<b>${f.pressureEnd.toFixed(0)}</b> Pa`));
         setHTML("fs-pm-readout",       wrap(`<b>${f.pmMean.toFixed(2)}</b> µg/m³`));
         setHTML("fs-energy-readout",   wrap(`<b>${f.energyKwh.toLocaleString()}</b> kWh/y`));
@@ -1176,7 +1194,8 @@
           pts,
           color: FILTER_COLORS[fKey],
           dot: { x: f.dustHeld, y: f.pressureEnd },
-          dotLabel: `(${f.dustHeld.toFixed(2)}, ${f.pressureEnd.toFixed(2)})`,
+          // Feedback 4 §3.4: complete label with units + closing parenthesis.
+          dotLabel: `(${f.dustHeld.toFixed(2)} g, ${f.pressureEnd.toFixed(2)} Pa)`,
         };
       });
       const allPa = pressureSets.flatMap((s) => s.pts.map((p) => p.y)).concat([0]);
