@@ -2547,7 +2547,7 @@
       drawTower(p.bins);
       renderBins(p.bins);
       renderCards(p.card);
-      stTitle.innerHTML = `H.E.A.A.L. ${p.label} &middot; Anomaly density`;
+      stTitle.innerHTML = `H.E.A.A.L. ${p.label} &middot; SpaceTime Map`;
       tsTitle.innerHTML = `H.E.A.A.L. ${p.label} Timeseries Plot`;
       renderSpaceTime(p.st);
       renderTimeseries(p);

@@ -843,6 +843,62 @@ sub, sup { font-size: 0.7em; }
 .product { background: var(--bg-0); }
 .product .section__head { max-width: 920px; }
 
+/* Product-mark composition — places the product logo adjacent to the
+   section title line so it reads as part of the product identity rather
+   than as a decorative badge. Eyebrow stays on top; the logo sits to
+   the left of the h2, vertically centered against the title. Square
+   icon marks rendered at 64px on desktop, 52px on narrow widths. */
+.section__head--product .section__title-row {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-top: 8px;
+}
+.section__head--product .section__title-row h2 {
+  margin: 0;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.product__mark {
+  flex: 0 0 auto;
+  width: 64px;
+  height: 64px;
+  display: block;
+  object-fit: contain;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+@media (max-width: 720px) {
+  .section__head--product .section__title-row { gap: 14px; }
+  .product__mark { width: 52px; height: 52px; }
+}
+
+/* Inline sub-section header used at the top of each FilterStudio box.
+   Reads as real hierarchy, not a faint label — full-width band with
+   accent rule beneath, mono caps register tied to the eyebrow family. */
+.subsection-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--ink-1);
+  padding-bottom: 12px;
+  margin-bottom: 18px;
+  border-bottom: 1px solid var(--line-1);
+}
+.subsection-header::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  background: var(--accent);
+  display: inline-block;
+  flex: 0 0 auto;
+}
+
 .fs__panel, .mx__panel, .hl__panel {
   background: var(--bg-2);
   border: 1px solid var(--line-1);
